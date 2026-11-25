@@ -1,5 +1,498 @@
-/* Scoped styles for Game 2: Spot the Difference (.game-spot) */
+/* ==========================================================================
+   Game 2: 틀린그림찾기 (Spot the Difference) — Scoped Styles (.game-spot)
+   ========================================================================== */
+
 .game-spot {
+  --sd-accent: var(--neon-magenta, #f43f8e);
+  --sd-cyan: var(--neon-cyan, #22d3ee);
+  --sd-emerald: var(--neon-emerald, #34d399);
+  --sd-gold: var(--neon-gold, #fbbf24);
+  --sd-crimson: var(--neon-crimson, #ef4444);
+
   width: 100%;
-  height: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 100%;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(8px, 1.5vw, 16px) clamp(10px, 2vw, 22px) clamp(14px, 2vw, 20px);
+  gap: clamp(8px, 1.2vw, 14px);
+  color: var(--text-primary);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* === Top Control & Progress Strip === */
+.game-spot .sd-toolbar {
+  width: 100%;
+  max-width: 1360px;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-deep);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+}
+
+.game-spot .sd-toolbar__left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.game-spot .sd-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  background: rgba(244, 63, 142, 0.16);
+  border: 1px solid rgba(244, 63, 142, 0.45);
+  color: #ffe4ef;
+  font-size: var(--text-caption);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.game-spot .sd-stage-badge__sub {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--sd-accent);
+  letter-spacing: 0.08em;
+}
+
+/* Difference Counter Pills */
+.game-spot .sd-counter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.game-spot .sd-counter__text {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.game-spot .sd-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.game-spot .sd-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  transition: transform 220ms var(--ease-pop), background-color 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.game-spot .sd-dot.is-found {
+  background: rgba(52, 211, 153, 0.24);
+  border-color: var(--sd-emerald);
+  color: #ecfdf5;
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.45);
+  animation: sd-dot-pop 340ms var(--ease-pop);
+}
+
+@keyframes sd-dot-pop {
+  0% { transform: scale(0.75); }
+  55% { transform: scale(1.24); }
+  100% { transform: scale(1); }
+}
+
+/* Action Controls */
+.game-spot .sd-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.game-spot .sd-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: transform var(--dur-fast) var(--ease-pop), background-color var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+
+.game-spot .sd-tool-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--border-specular);
+  transform: translateY(-1px);
+}
+
+.game-spot .sd-tool-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.game-spot .sd-tool-btn--hint {
+  border-color: rgba(251, 191, 36, 0.48);
+  background: rgba(251, 191, 36, 0.14);
+  color: #fef3c7;
+}
+
+.game-spot .sd-tool-btn--hint:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.24);
+  box-shadow: var(--glow-gold);
+}
+
+.game-spot .sd-tool-btn--loupe.is-active {
+  border-color: var(--sd-cyan);
+  background: rgba(34, 211, 238, 0.2);
+  color: #cffafe;
+  box-shadow: var(--glow-cyan);
+}
+
+/* Mobile View Switcher (visible < 900px) */
+.game-spot .sd-view-tabs {
+  display: none;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: rgba(7, 9, 20, 0.72);
+  border: 1px solid var(--border-subtle);
+  gap: 3px;
+}
+
+.game-spot .sd-view-tab {
+  min-height: 36px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: background-color var(--dur-fast), color var(--dur-fast);
+}
+
+.game-spot .sd-view-tab.is-active {
+  background: rgba(244, 63, 142, 0.22);
+  color: #ffe4ef;
+  box-shadow: inset 0 0 0 1px rgba(244, 63, 142, 0.5);
+}
+
+/* === Dual Canvas Arena === */
+.game-spot .sd-arena {
+  width: 100%;
+  max-width: 1360px;
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  align-content: center;
+  gap: clamp(10px, 1.5vw, 18px);
+}
+
+.game-spot .sd-board-card {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-deep);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.game-spot .sd-board-card--orig {
+  border-color: rgba(34, 211, 238, 0.28);
+}
+
+.game-spot .sd-board-card--mod {
+  border-color: rgba(244, 63, 142, 0.32);
+}
+
+.game-spot .sd-board-card.is-hit {
+  border-color: var(--sd-emerald);
+  box-shadow: 0 0 26px rgba(52, 211, 153, 0.36);
+}
+
+.game-spot .sd-board-card.is-shaking {
+  border-color: var(--sd-crimson);
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.45);
+  animation: sd-shake 360ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes sd-shake {
+  0%, 100% { transform: translateX(0); }
+  18% { transform: translateX(-7px); }
+  36% { transform: translateX(6px); }
+  54% { transform: translateX(-5px); }
+  72% { transform: translateX(4px); }
+  90% { transform: translateX(-2px); }
+}
+
+.game-spot .sd-board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 12px;
+  background: rgba(7, 9, 20, 0.78);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.game-spot .sd-board-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--text-caption);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.game-spot .sd-board-label__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.game-spot .sd-board-card--orig .sd-board-label__dot {
+  background: var(--sd-cyan);
+  box-shadow: 0 0 8px var(--sd-cyan);
+}
+
+.game-spot .sd-board-card--mod .sd-board-label__dot {
+  background: var(--sd-accent);
+  box-shadow: 0 0 8px var(--sd-accent);
+}
+
+.game-spot .sd-board-sub {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--text-muted);
+  letter-spacing: 0.09em;
+}
+
+.game-spot .sd-canvas-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1200 / 896;
+  max-height: calc(100dvh - var(--hud-height) - 168px);
+  background: #080b18;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.game-spot .sd-canvas {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+.game-spot.is-loupe-on .sd-canvas {
+  touch-action: none;
+}
+
+/* Loading Overlay inside canvas wrap */
+.game-spot .sd-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(7, 9, 20, 0.88);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+  z-index: 4;
+}
+
+/* Floating 2.0x Magnifier Loupe */
+.game-spot .sd-loupe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 146px;
+  height: 146px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 5;
+  border: 2.5px solid var(--sd-cyan);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.72), 0 0 20px rgba(34, 211, 238, 0.45);
+  background: #070914;
+  transform: translate3d(-9999px, -9999px, 0);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.game-spot .sd-loupe.is-visible {
+  opacity: 1;
+}
+
+/* === Bottom Discovery Feed / Helper Bar === */
+.game-spot .sd-footer {
+  width: 100%;
+  max-width: 1360px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(7, 9, 20, 0.68);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.84rem;
+}
+
+.game-spot .sd-callout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.game-spot .sd-callout[data-tone='success'] {
+  color: var(--sd-emerald);
+}
+
+.game-spot .sd-callout[data-tone='error'] {
+  color: #fca5a5;
+}
+
+.game-spot .sd-callout[data-tone='hint'] {
+  color: var(--sd-gold);
+}
+
+.game-spot .sd-shortcuts {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* === Responsive (< 900px Stacked & Mobile Tabs) === */
+@media (max-width: 899px) {
+  .game-spot .sd-view-tabs {
+    display: inline-flex;
+    max-width: 100%;
+  }
+
+  .game-spot .sd-toolbar__actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  .game-spot .sd-arena {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 10px;
+  }
+
+  .game-spot .sd-canvas-wrap {
+    max-height: none;
+  }
+
+  .game-spot .sd-arena[data-mobile-view='orig'] .sd-board-card--mod {
+    display: none;
+  }
+
+  .game-spot .sd-arena[data-mobile-view='mod'] .sd-board-card--orig {
+    display: none;
+  }
+
+  .game-spot .sd-shortcuts {
+    display: none;
+  }
+}
+
+@media (max-width: 639px), (pointer: coarse) {
+  .game-spot {
+    max-width: 100vw;
+    padding: 8px 10px 14px;
+  }
+
+  .game-spot .sd-toolbar {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .game-spot .sd-toolbar__actions {
+    gap: 6px;
+    justify-content: flex-start;
+  }
+
+  .game-spot .sd-tool-btn,
+  .game-spot .sd-view-tab {
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+  }
+
+  .game-spot .sd-dot {
+    width: 20px;
+    height: 20px;
+    font-size: 0.65rem;
+  }
+
+  .game-spot .sd-loupe {
+    width: 132px;
+    height: 132px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-spot .sd-dot,
+  .game-spot .sd-board-card,
+  .game-spot .sd-tool-btn {
+    animation: none !important;
+    transition: none !important;
+  }
 }
