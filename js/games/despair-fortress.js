@@ -8,12 +8,10 @@ const ALPHABET = 'ABCDEFGHIJ'.split('');
 const MAX_SHIELDS = 3;
 const FIRST_LOCK_ON_DURATION = 1.8;
 const LOCK_ON_DURATION = 0.8;
-const BLACKOUT_DURATION = 0.35;
 const DECODE_LIMIT = 15.0;
 const WRONG_COOLDOWN_MS = 450;
 const SECTOR_CLEAR_PAUSE = 1.05;
-const NFLASH_INTERVAL = 4.6;
-const NFLASH_DURATION = 0.68;
+const REVEAL_FADE_SEC = 0.16;
 const FAIL_OVERLAY_PAUSE = 0.75;
 
 const STANDARD_SECTORS = [
@@ -29,6 +27,8 @@ const STANDARD_SECTORS = [
     speedMax: 0,
     basePts: 400,
     decoy: false,
+    revealWindow: 1.45,
+    revealStagger: 0.62,
   },
   {
     sector: 2,
@@ -42,6 +42,8 @@ const STANDARD_SECTORS = [
     speedMax: 76,
     basePts: 550,
     decoy: false,
+    revealWindow: 1.25,
+    revealStagger: 0.52,
   },
   {
     sector: 3,
@@ -55,6 +57,8 @@ const STANDARD_SECTORS = [
     speedMax: 116,
     basePts: 700,
     decoy: true,
+    revealWindow: 1.05,
+    revealStagger: 0.42,
   },
 ];
 
@@ -292,7 +296,6 @@ export function mount(container, ctx) {
       </div>
 
       <canvas class="df-canvas" data-df-canvas></canvas>
-      <div class="df-emp-flash" data-df-emp aria-hidden="true"></div>
 
       <div class="df-sector-overlay" data-df-overlay hidden>
         <div class="df-sector-card" data-df-overlay-card>
@@ -328,7 +331,6 @@ export function mount(container, ctx) {
   const arenaHudEl = root.querySelector('[data-df-arena-hud]');
   const canvas = root.querySelector('[data-df-canvas]');
   const bannerEl = root.querySelector('[data-df-banner]');
-  const empFlashEl = root.querySelector('[data-df-emp]');
   const overlayEl = root.querySelector('[data-df-overlay]');
   const overlayCardEl = root.querySelector('[data-df-overlay-card]');
   const overlaySubEl = root.querySelector('[data-df-overlay-sub]');
@@ -356,7 +358,7 @@ export function mount(container, ctx) {
 
   // Runtime state
   let sectorIdx = 0;
-  let phase = 'lockon'; // 'lockon' | 'memorize' | 'blackout' | 'decode' | 'sector_clear' | 'ended'
+  let phase = 'lockon'; // 'lockon' | 'memorize' | 'decode' | 'sector_clear' | 'ended'
   let phaseElapsed = 0;
   let decodeElapsed = 0;
   let activeTimeMs = 0;
@@ -381,8 +383,7 @@ export function mount(container, ctx) {
   let decoyPulseTimer = 0;
   let decoyWindowTriggered = false;
   let nextDecodeDecoyAt = 2.4;
-  let numberFlashTimer = 0;
-  let nextNumberFlashAt = 3.0;
+  let revealClock = 0;
 
   // Arena canvas dimensions (CSS px)
   let arenaW = 640;
@@ -669,11 +670,10 @@ export function mount(container, ctx) {
       decoyPulseTimer = 0;
       decoyWindowTriggered = false;
       nextDecodeDecoyAt = 2.2;
-      numberFlashTimer = 0;
-      nextNumberFlashAt = 3.0;
+      revealClock = 0;
       lastWrongAt = -Infinity;
       sectorMistakes = 0;
-      arenaEl.classList.remove('is-glitch', 'is-refresh');
+      arenaEl.classList.remove('is-glitch');
       initSectorVelocities(sec);
 
       sectorCodeEl.textContent = `${sec.code}/${String(totalSectors).padStart(2, '0')}`;
@@ -697,44 +697,25 @@ export function mount(container, ctx) {
       skipBtn.hidden = false;
       phasePillEl.dataset.phase = 'memorize';
       phasePillEl.textContent = `암기 ${sec.memorizeSec.toFixed(1)}s`;
-      keypadHintEl.textContent = '숫자와 알파벳 짝을 기억하세요! (Space로 스킵 가능)';
-      showBanner('숫자 출현! 알파벳과 번호를 암기하세요!', 'warn');
+      keypadHintEl.textContent = '숫자가 하나씩 나타납니다! 알파벳과 짝을 외우세요 (Space 스킵)';
+      showBanner('숫자가 순서대로 나타납니다 — 놓치지 마세요!', 'warn');
       timerFillEl.dataset.mode = 'memorize';
       renderSlots();
       syncKeypad();
-    } else if (nextPhase === 'blackout') {
-      skipBtn.hidden = true;
-      phasePillEl.dataset.phase = 'blackout';
-      phasePillEl.textContent = 'BLACKOUT';
-      keypadHintEl.textContent = '숫자 소멸! 타겟 코드 수신 중...';
-      showBanner('숫자 소멸! 알파벳 위치만 남습니다!', 'danger');
-      numberFlashTimer = 0;
-      arenaEl.classList.remove('is-refresh');
-      ctx.audio.playAlarm();
-      if (empFlashEl) {
-        empFlashEl.classList.remove('is-active');
-        void empFlashEl.offsetWidth;
-        empFlashEl.classList.add('is-active');
-      }
-      for (const n of sec.nodes) {
-        spawnBurst(n.x, n.y, '#ef4444', 8);
-      }
-      renderSlots();
-      syncKeypad();
     } else if (nextPhase === 'decode') {
+      skipBtn.hidden = true;
       decodeElapsed = 0;
       phasePillEl.dataset.phase = 'decode';
       phasePillEl.textContent = '해독 중';
       timerFillEl.dataset.mode = 'normal';
       const targetNum = sec.targets[activeSlotIdx]?.number || '--';
-      keypadHintEl.textContent = `타겟 [${targetNum}] 에 해당하는 알파벳을 선택하세요!`;
-      showBanner('', 'info');
+      keypadHintEl.textContent = `타겟 [${targetNum}] — 숫자가 다시 나타날 때 알파벳을 확인하세요!`;
+      showBanner('숫자가 계속 순환합니다 — 타겟 코드의 알파벳을 찾으세요!', 'info');
       renderSlots();
       syncKeypad();
     } else if (nextPhase === 'sector_clear') {
       skipBtn.hidden = true;
-      numberFlashTimer = 0;
-      arenaEl.classList.remove('is-glitch', 'is-refresh');
+      arenaEl.classList.remove('is-glitch');
       phasePillEl.dataset.phase = 'decode';
       phasePillEl.textContent = 'BREACHED';
       syncKeypad();
@@ -964,7 +945,7 @@ export function mount(container, ctx) {
     if (phase === 'memorize' && (e.code === 'Space' || e.key === ' ')) {
       e.preventDefault();
       ctx.audio.playClick();
-      enterPhase('blackout');
+      enterPhase('decode');
       return;
     }
 
@@ -979,7 +960,7 @@ export function mount(container, ctx) {
   function handleSkipClick() {
     if (finished || isPaused || phase !== 'memorize') return;
     ctx.audio.playClick();
-    enterPhase('blackout');
+    enterPhase('decode');
   }
 
   function handlePauseChange(e) {
@@ -1114,7 +1095,8 @@ export function mount(container, ctx) {
 
     const sec = currentSector();
     const r = getNodeRadiusPx();
-    const showNumbers = phase === 'memorize' || (phase === 'decode' && numberFlashTimer > 0);
+    const revealActive = phase === 'memorize' || phase === 'decode';
+    const cycleSec = Math.max(0.4, sec.nodeCount * sec.revealStagger);
     const isLockOn = phase === 'lockon';
     const isDecoyFlashing = decoyPulseTimer > 0;
     const targetLetterSet = sec.__targetLetterSet || (sec.__targetLetterSet = new Set(sec.targets.map((t) => t.letter)));
@@ -1140,7 +1122,8 @@ export function mount(container, ctx) {
     gCtx.restore();
 
     // Draw nodes
-    for (const node of sec.nodes) {
+    for (let nodeIdx = 0; nodeIdx < sec.nodes.length; nodeIdx += 1) {
+      const node = sec.nodes[nodeIdx];
       const cx = node.x * arenaW;
       const cy = node.y * arenaH;
       const flash = nodeFlash.get(node.letter);
@@ -1151,11 +1134,17 @@ export function mount(container, ctx) {
         !targetLetterSet.has(node.letter) &&
         !node.solved;
 
-      // Decode pulses fade their last 180ms so the numbers never pop out abruptly
-      let numberAlpha = 1;
-      if (phase === 'decode') {
-        numberAlpha = Math.min(1, numberFlashTimer / 0.18);
+      // Rolling reveal: each node owns a short window inside the sector cycle, so
+      // only a few numbers are on screen at once and they appear in sequence.
+      let numberAlpha = 0;
+      if (revealActive && !node.solved) {
+        const offset = nodeIdx * sec.revealStagger;
+        const t = ((revealClock - offset) % cycleSec + cycleSec) % cycleSec;
+        if (t < sec.revealWindow) {
+          numberAlpha = Math.min(1, Math.min(t, sec.revealWindow - t) / REVEAL_FADE_SEC);
+        }
       }
+      const showNumbers = numberAlpha > 0.01;
 
       gCtx.save();
 
@@ -1275,6 +1264,9 @@ export function mount(container, ctx) {
     if (!isPaused && !finished) {
       activeTimeMs += rawDt * 1000;
       phaseElapsed += rawDt;
+      if (phase === 'memorize' || phase === 'decode') {
+        revealClock += rawDt;
+      }
       if (decoyPulseTimer > 0) {
         decoyPulseTimer = Math.max(0, decoyPulseTimer - rawDt);
         if (decoyPulseTimer === 0) {
@@ -1308,7 +1300,7 @@ export function mount(container, ctx) {
             ctx.audio.playTick();
           }
           if (!sec.decoy || decoyPulseTimer === 0) {
-            showBanner('숫자 소멸 임박! 눈을 떼지 마세요!', 'danger');
+            showBanner('곧 해독 시작! 마지막 숫자까지 확인하세요!', 'warn');
           }
         }
 
@@ -1321,11 +1313,6 @@ export function mount(container, ctx) {
         }
 
         if (phaseElapsed >= sec.memorizeSec) {
-          enterPhase('blackout');
-        }
-      } else if (phase === 'blackout') {
-        timerFillEl.style.setProperty('--df-bar', '0');
-        if (phaseElapsed >= BLACKOUT_DURATION) {
           enterPhase('decode');
         }
       } else if (phase === 'decode') {
@@ -1346,31 +1333,9 @@ export function mount(container, ctx) {
           }
         }
 
-        // SIGNAL LEAK: every few seconds the hidden numbers briefly come back,
-        // so beginners can re-check a pairing instead of getting stuck.
-        if (numberFlashTimer > 0) {
-          numberFlashTimer = Math.max(0, numberFlashTimer - rawDt);
-          if (numberFlashTimer === 0) {
-            arenaEl.classList.remove('is-refresh');
-            if (phase === 'decode') {
-              showBanner('', 'info');
-              const nextTargetNum = sec.targets[activeSlotIdx]?.number;
-              keypadHintEl.textContent = nextTargetNum
-                ? `타겟 [${nextTargetNum}] 에 해당하는 알파벳을 선택하세요!`
-                : '남은 타겟 코드를 해독하세요!';
-            }
-          }
-        }
-
-        if (decodeElapsed >= nextNumberFlashAt) {
-          nextNumberFlashAt += NFLASH_INTERVAL;
-          numberFlashTimer = NFLASH_DURATION;
-          arenaEl.classList.add('is-refresh');
-          showBanner('신호 누출! 숫자가 잠깐 되살아납니다', 'warn');
-          keypadHintEl.textContent = '신호 복구 중! 숫자를 재확인하세요!';
-          ctx.audio.playHint();
-        }
-
+        // Numbers keep cycling through the nodes during decode: only a few are
+        // visible at any moment, one after another, so a careful player can catch
+        // a pairing again without ever seeing the whole board at once.
         // Sector 3 decode decoy: warning ring on wrong nodes + fake code in the banner
         if (sec.decoy && decodeElapsed >= nextDecodeDecoyAt) {
           nextDecodeDecoyAt += 4.2;
@@ -1379,12 +1344,7 @@ export function mount(container, ctx) {
           const decoyBannerText = `교란 신호 — FAKE ${sec.decoyFakeCode}`;
           showBanner(decoyBannerText, 'danger');
           safeTimeout(() => {
-            if (
-              phase === 'decode' &&
-              numberFlashTimer <= 0 &&
-              bannerEl &&
-              bannerEl.textContent === decoyBannerText
-            ) {
+            if (phase === 'decode' && bannerEl && bannerEl.textContent === decoyBannerText) {
               showBanner('', 'info');
             }
           }, 1200);

@@ -357,11 +357,6 @@
   box-shadow: inset 0 0 44px rgba(239, 68, 68, 0.16), 0 0 14px rgba(239, 68, 68, 0.16);
 }
 
-.game-fortress .df-arena.is-refresh {
-  border-color: rgba(34, 211, 238, 0.5);
-  box-shadow: inset 0 0 40px rgba(34, 211, 238, 0.1), 0 0 12px rgba(34, 211, 238, 0.12);
-}
-
 .game-fortress .df-arena__bg {
   position: absolute;
   inset: 0;
@@ -455,20 +450,6 @@
   background: rgba(6, 78, 59, 0.88);
   color: #d1fae5;
   box-shadow: var(--glow-emerald);
-}
-
-/* Blackout EMP flash overlay */
-.game-fortress .df-emp-flash {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  pointer-events: none;
-  opacity: 0;
-  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.85), rgba(239, 68, 68, 0.45) 55%, rgba(7, 9, 20, 0.95));
-}
-
-.game-fortress .df-emp-flash.is-active {
-  animation: df-emp 360ms ease-out forwards;
 }
 
 /* Sector Clear Center Overlay */
@@ -633,12 +614,6 @@
   72% { transform: translateX(4px); }
 }
 
-@keyframes df-emp {
-  0% { opacity: 0.95; }
-  45% { opacity: 0.55; }
-  100% { opacity: 0; }
-}
-
 @keyframes df-pop {
   0% { opacity: 0; transform: scale(0.86); }
   100% { opacity: 1; transform: scale(1); }
@@ -785,8 +760,7 @@
 @media (prefers-reduced-motion: reduce) {
   .game-fortress .df-terminal.is-shake,
   .game-fortress .df-arena.is-shake,
-  .game-fortress .df-sector-dot,
-  .game-fortress .df-emp-flash.is-active {
+  .game-fortress .df-sector-dot {
     animation: none !important;
   }
 }

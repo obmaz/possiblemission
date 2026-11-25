@@ -730,17 +730,20 @@ export function mount(container, ctx) {
   | `1` | 제1구역: 외곽 격납고 | `6` | `A`–`F` | `4.0s` | Static + gentle hover (`±4px`, zero overlap) | `15.0s` | `400` |
   | `2` | 제2구역: 중앙 제어실 | `8` | `A`–`H` | `4.0s` | Smooth drift (`55–75 px/s`) + safe-area bounce + pairwise repulsion | `15.0s` | `550` |
   | `3` | 제3구역: 절대 영점 금고 | `10` | `A`–`J` | `4.5s` | Fast drift (`85–115 px/s`) + repulsion + **Decoy Blink** | `15.0s` | `700` |
-- **4-Phase Micro-Loop per Sector**:
+- **3-Phase Micro-Loop per Sector**:
   1. `LOCK-ON` (`1.8s` for Sector 1, `0.8s` afterwards): Spawn nodes inside safe play area with pairwise repulsion ensuring zero overlap. Assign unique 2-digit numbers (`03`–`98`, zero-padded) with **no mirror-pair collisions** (e.g., if `17` is chosen, `71` is forbidden in that sector).
-  2. `MEMORIZE`: Show both large letter (`A..J`) and 2-digit number (`03..98`). `audio.playTick()` pulses during final `1.5s`.
-  3. `BLACKOUT` (`0.35s`): `audio.playAlarm()` / EMP flash; numbers vanish (`opacity: 0`), leaving ONLY letter badges.
-  4. `TERMINAL DECODE` (`15.0s`): Terminal header displays 3 distinct target numbers in order: e.g. `CODE: [17] - [04] - [82]` (active slot highlighted cyan).
+  2. `MEMORIZE`: The arena runs the **rolling reveal** (see below); `audio.playTick()` pulses during final `1.5s`.
+  3. `TERMINAL DECODE` (`15.0s`): Terminal header displays 3 distinct target numbers in order: e.g. `CODE: [17] - [04] - [82]` (active slot highlighted cyan). The rolling reveal keeps running, so the player can re-check a pairing while decoding but never sees every number at once.
      - **Dual Input**: Direct tap/click on floating node (`r = 0.048`, `+0.012` touch slop) **OR** keyboard `A–J` **OR** tactile `A–J` keypad buttons (prevents mobile frustration on fast Sector 3 nodes).
-     - **SIGNAL LEAK (beginner mercy pulse)**: every `4.6s` of decode time, all still-unsolved numbers reappear for `0.68s` (cyan arena glow + `신호 누출!` banner + hint chime, fading out over the last `180ms`). First pulse fires at `3.0s`. This keeps the game a memory test while never leaving a player completely stuck; it never reveals solved slots or decoy data.
+- **ROLLING REVEAL (core identity — not a full blackout)**:
+  - Numbers are **never hidden all at once and never shown all at once**. Each node owns a short window inside a sector cycle, so at any moment only ~2–3 numbers are visible and they appear **in sequence**.
+  - Window/stagger per sector: `1.45s / 0.62s` (S1), `1.25s / 0.52s` (S2), `1.05s / 0.42s` (S3); cycle = `nodeCount × stagger` (≈ `3.7–4.2s`), so every node is revealed at least once per memorize phase.
+  - Numbers fade in/out over `0.16s` (soft edges), solved nodes never show their number again, and the reveal clock stops while paused/ended.
+  - Design intent: a *glimpse-and-remember* game. The target numbers create the goal; the rolling scan provides both the memorization window and the mid-decode mercy the old "SIGNAL LEAK" tried to give, without revealing the whole board.
 - **Fairness Rule for Sector 3 `Decoy Blink`**:
   - NEVER swap a node's true letter-number pairing.
   - During memorize (`1.2s..3.2s` window only): flash red border on 2 random nodes for `180ms` with `"교란 신호 감지! GLITCH"` banner.
-  - During decode: flash brief red warning rings on 2 wrong nodes and fake HUD text (`FAKE: 66`) in side telemetry only.
+  - During decode: flash brief red warning rings on 2 wrong nodes and a `교란 신호 — FAKE NN` banner line (no fake numbers are ever drawn on nodes).
 - **Shields & End Conditions**:
   - **Hit**: Lock slot `[17 ✓]`, `audio.playMatch(++streak)`, disable already-solved node for remainder of sector.
   - **Miss**: `-1 ♥` shield, `audio.playError()`, red `"ACCESS DENIED — 재시도!"` + `350ms` screen shake, reset `streak = 0` (active slot stays open).
