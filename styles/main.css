@@ -3,37 +3,37 @@
    ========================================================================== */
 
 :root {
-  /* === Canvas & Surface Hierarchy (Midnight Obsidian) === */
-  --bg-obsidian: #070914;
-  --bg-obsidian-elevated: #0b0f22;
-  --bg-surface-deep: rgba(16, 22, 48, 0.72);
-  --bg-surface-hover: rgba(22, 31, 66, 0.84);
-  --bg-hud: rgba(7, 9, 20, 0.82);
-  --bg-modal: rgba(12, 17, 38, 0.92);
-  --bg-pill: rgba(255, 255, 255, 0.06);
+  /* === Canvas & Surface Hierarchy (Calm Graphite) === */
+  --bg-obsidian: #0c1018;
+  --bg-obsidian-elevated: #131a26;
+  --bg-surface-deep: rgba(24, 31, 45, 0.78);
+  --bg-surface-hover: rgba(32, 41, 58, 0.86);
+  --bg-hud: rgba(12, 17, 26, 0.9);
+  --bg-modal: rgba(20, 27, 40, 0.96);
+  --bg-pill: rgba(255, 255, 255, 0.05);
 
   /* === Glassmorphism & Borders === */
-  --glass-blur: blur(16px);
-  --hud-blur: blur(18px);
-  --border-subtle: rgba(148, 163, 184, 0.16);
-  --border-specular: rgba(255, 255, 255, 0.22);
-  --border-strong: rgba(255, 255, 255, 0.34);
+  --glass-blur: blur(14px);
+  --hud-blur: blur(16px);
+  --border-subtle: rgba(148, 163, 184, 0.14);
+  --border-specular: rgba(255, 255, 255, 0.16);
+  --border-strong: rgba(255, 255, 255, 0.26);
 
-  /* === Neon Party Accents === */
-  --neon-cyan: #22d3ee;       /* Primary / Hidden Object / Focus */
-  --neon-magenta: #f43f8e;    /* Party Accent / Spot the Diff / Combo */
-  --neon-gold: #fbbf24;       /* Rank S / Seed / Best Score / Bonus */
-  --neon-emerald: #34d399;    /* Ready / Success / Connected */
-  --neon-crimson: #ef4444;    /* Despair Fortress / Danger / Wrong Tap */
-  --neon-violet: #a855f7;     /* Memory Match / Aurora / MC Accent */
+  /* === Accents (soft, one per game) === */
+  --neon-cyan: #38bdf8;       /* Primary / Hidden Object / Focus */
+  --neon-magenta: #ec6aa0;    /* Party Accent / Spot the Diff / Combo */
+  --neon-gold: #eeb44a;       /* Rank S / Seed / Best Score / Bonus */
+  --neon-emerald: #3fbf92;    /* Ready / Success / Connected */
+  --neon-crimson: #e06767;    /* Despair Fortress / Danger / Wrong Tap */
+  --neon-violet: #a189e8;     /* Memory Match / Aurora / MC Accent */
 
-  /* === Semantic Glows === */
-  --glow-cyan: 0 0 24px rgba(34, 211, 238, 0.35), 0 0 6px rgba(34, 211, 238, 0.55);
-  --glow-magenta: 0 0 24px rgba(244, 63, 142, 0.35), 0 0 6px rgba(244, 63, 142, 0.55);
-  --glow-gold: 0 0 28px rgba(251, 191, 36, 0.40), 0 0 8px rgba(251, 191, 36, 0.60);
-  --glow-emerald: 0 0 20px rgba(52, 211, 153, 0.35);
-  --glow-crimson: 0 0 26px rgba(239, 68, 68, 0.45), 0 0 8px rgba(239, 68, 68, 0.65);
-  --glow-violet: 0 0 24px rgba(168, 85, 247, 0.38), 0 0 6px rgba(168, 85, 247, 0.55);
+  /* === Semantic Glows (subtle by default) === */
+  --glow-cyan: 0 6px 18px rgba(56, 189, 248, 0.16);
+  --glow-magenta: 0 6px 18px rgba(236, 106, 160, 0.16);
+  --glow-gold: 0 6px 18px rgba(238, 180, 74, 0.18);
+  --glow-emerald: 0 6px 18px rgba(63, 191, 146, 0.16);
+  --glow-crimson: 0 6px 18px rgba(224, 103, 103, 0.18);
+  --glow-violet: 0 6px 18px rgba(161, 137, 232, 0.16);
 
   /* === Typography === */
   --font-display: 'Outfit', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
@@ -49,16 +49,16 @@
   --text-micro: 0.6875rem;
 
   /* === Text Colors === */
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
+  --text-primary: #eef2f8;
+  --text-secondary: #c2ccda;
+  --text-muted: #94a1b3;
+  --text-dim: #6b7789;
 
   /* === Radii & Layout === */
-  --radius-sm: 8px;
+  --radius-sm: 10px;
   --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 26px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
   --radius-pill: 9999px;
 
   --container-max: 1320px;
@@ -66,8 +66,8 @@
   --hud-height: 60px;
 
   /* === Shadows & Motion === */
-  --shadow-card: 0 18px 42px -12px rgba(2, 6, 23, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  --shadow-floating: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-card: 0 12px 28px -14px rgba(2, 6, 23, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-floating: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.07);
   --ease-arcade: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
   --dur-fast: 150ms;
@@ -152,19 +152,13 @@ textarea:focus-visible {
   pointer-events: none;
   overflow: hidden;
   background:
-    radial-gradient(circle at 18% 12%, rgba(34, 211, 238, 0.12), transparent 45%),
-    radial-gradient(circle at 82% 88%, rgba(244, 63, 142, 0.12), transparent 48%),
-    linear-gradient(180deg, #070914 0%, #090d1f 55%, #060812 100%);
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgba(56, 189, 248, 0.08), transparent 70%),
+    linear-gradient(180deg, #0c1018 0%, #0e1420 55%, #0a0e16 100%);
 }
 
+/* Retired: grid lines made the lobby feel noisy. Kept as a no-op element. */
 .arcade-backdrop__grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(ellipse 85% 75% at 50% 35%, #000 35%, transparent 100%);
+  display: none;
 }
 
 .arcade-backdrop__aurora {
@@ -174,8 +168,8 @@ textarea:focus-visible {
   max-width: 720px;
   max-height: 720px;
   border-radius: 50%;
-  filter: blur(95px);
-  opacity: 0.24;
+  filter: blur(110px);
+  opacity: 0.10;
   animation: aurora-drift 18s ease-in-out infinite alternate;
 }
 
@@ -219,14 +213,15 @@ textarea:focus-visible {
 }
 
 .btn-neon-primary {
-  background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 52%, #a855f7 100%);
-  color: #04101f;
-  box-shadow: 0 8px 24px rgba(34, 211, 238, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  background: var(--neon-cyan);
+  color: #08131f;
+  box-shadow: 0 6px 16px rgba(56, 189, 248, 0.22);
 }
 
 .btn-neon-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(34, 211, 238, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transform: translateY(-1px);
+  background: #52c7fa;
+  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.3);
 }
 
 .btn-neon-primary:active {
@@ -234,16 +229,16 @@ textarea:focus-visible {
 }
 
 .btn-neon-secondary {
-  background: rgba(244, 63, 142, 0.16);
-  color: #ffe4ef;
-  border: 1px solid rgba(244, 63, 142, 0.5);
-  box-shadow: 0 6px 20px rgba(244, 63, 142, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  border: 1px solid var(--border-specular);
+  box-shadow: none;
 }
 
 .btn-neon-secondary:hover {
-  transform: translateY(-2px);
-  background: rgba(244, 63, 142, 0.26);
-  box-shadow: var(--glow-magenta);
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
 }
 
 .btn-neon-ghost {
@@ -280,7 +275,7 @@ textarea:focus-visible {
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-specular);
   box-shadow: var(--shadow-card);
-  min-height: clamp(240px, 32vw, 350px);
+  min-height: clamp(210px, 26vw, 300px);
   display: flex;
   align-items: flex-end;
   background-color: var(--bg-obsidian-elevated);
@@ -293,8 +288,8 @@ textarea:focus-visible {
   height: 100%;
   object-fit: cover;
   object-position: center 42%;
-  transform: scale(1.03);
-  filter: saturate(1.15) contrast(1.05);
+  transform: scale(1.01);
+  filter: saturate(1.02) contrast(1);
 }
 
 .hero-banner__scrim {
@@ -901,10 +896,41 @@ textarea:focus-visible {
   min-height: 2.95em;
 }
 
-.game-card__modes {
+.game-card__mode-select {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+}
+
+.game-card__mode-label {
+  font-size: var(--text-caption);
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.game-card__mode-select select {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-card__mode-select select option {
+  background: #131a26;
+  color: #eef2f8;
 }
 
 .mode-pill {
@@ -1308,6 +1334,46 @@ textarea:focus-visible {
   font-size: 0.95rem;
   color: var(--neon-cyan);
   white-space: nowrap;
+}
+
+.hud-more {
+  position: relative;
+}
+
+.hud-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: calc(var(--z-hud) + 1);
+  min-width: 168px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: var(--radius-md);
+  background: var(--bg-modal);
+  border: 1px solid var(--border-specular);
+  box-shadow: var(--shadow-floating);
+}
+
+.hud-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hud-menu__item:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .game-hud__progress {

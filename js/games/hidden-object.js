@@ -435,21 +435,22 @@ export function mount(container, ctx) {
       <div class="ho-stage-info">
         <span class="ho-stage-badge">🔍 ${stage.title}</span>
         <span class="ho-stage-sub">${stage.subEn} · ${diffLabel} (${targetCount}개)</span>
+        <span class="ho-shortcuts">H 힌트 · M 돋보기 · Z 확대</span>
         <span class="ho-streak-pill" data-ho-streak>🔥 x0 COMBO</span>
       </div>
       <div class="ho-controls">
-        <button type="button" class="ho-tool-btn ho-tool-btn--hint" data-ho-hint>
+        <button type="button" class="ho-tool-btn" data-ho-hint>
           <span>💡 힌트</span>
           <span class="ho-hint-count" data-ho-hint-left>${MAX_HINTS}/${MAX_HINTS} 무료</span>
           <span class="ho-key-cap">H</span>
         </button>
-        <button type="button" class="ho-tool-btn" data-ho-zoom aria-pressed="false">
-          <span>🔎 1.6x 줌</span>
-          <span class="ho-key-cap">Z</span>
-        </button>
         <button type="button" class="ho-tool-btn ${loupeEnabled ? 'is-active' : ''}" data-ho-loupe aria-pressed="${loupeEnabled}">
-          <span>🎯 루페</span>
+          <span>🔍 돋보기</span>
           <span class="ho-key-cap">M</span>
+        </button>
+        <button type="button" class="ho-tool-btn ho-tool-btn--zoom" data-ho-zoom aria-pressed="false" aria-label="1.6x 확대">
+          <span aria-hidden="true">🔎</span>
+          <span>확대</span>
         </button>
       </div>
     </div>
@@ -464,7 +465,7 @@ export function mount(container, ctx) {
           <div class="ho-fx-layer" data-ho-fx></div>
         </div>
 
-        <div class="ho-zoom-pill" data-ho-zoom-pill hidden>1.6x ZOOM · 드래그로 이동</div>
+        <div class="ho-zoom-pill" data-ho-zoom-pill hidden>1.6x 확대 · 드래그로 이동</div>
 
         <div class="ho-loupe" data-ho-loupe-lens hidden aria-hidden="true">
           <div class="ho-loupe__world" data-ho-loupe-world>
@@ -480,8 +481,11 @@ export function mount(container, ctx) {
     </div>
 
     <div class="ho-dock" aria-label="찾아야 할 아이템 목록">
+      <div class="ho-dock__progress" role="progressbar" aria-label="발견 진행도" aria-valuemin="0" aria-valuemax="${targetCount}" aria-valuenow="0" data-ho-dock-progress>
+        <span class="ho-dock__progress-fill" data-ho-dock-progress-fill></span>
+      </div>
       <div class="ho-dock__header">
-        <span class="ho-dock__title">TARGET MANIFEST // ${targetCount} OBJECTS</span>
+        <span class="ho-dock__title" data-ho-dock-title>찾을 물건 ${targetCount}개 · 0/${targetCount} 발견</span>
         <span class="ho-dock__tip">모바일: 꾹 누르면 2.0x 루페 · 오답 시 +3초 페널티!</span>
       </div>
       <div class="ho-dock__list" data-ho-dock data-count="${targetCount}">
@@ -517,6 +521,18 @@ export function mount(container, ctx) {
   const hintLeftEl = root.querySelector('[data-ho-hint-left]');
   const zoomBtn = root.querySelector('[data-ho-zoom]');
   const loupeBtn = root.querySelector('[data-ho-loupe]');
+  const dockTitleEl = root.querySelector('[data-ho-dock-title]');
+  const dockProgressEl = root.querySelector('[data-ho-dock-progress]');
+  const dockProgressFillEl = root.querySelector('[data-ho-dock-progress-fill]');
+
+  // Dock found/total summary + progress bar
+  const syncDockState = () => {
+    if (dockTitleEl) {
+      dockTitleEl.textContent = `찾을 물건 ${targetCount}개 · ${foundCount}/${targetCount} 발견`;
+    }
+    if (dockProgressEl) dockProgressEl.setAttribute('aria-valuenow', String(foundCount));
+    if (dockProgressFillEl) dockProgressFillEl.style.width = `${(foundCount / targetCount) * 100}%`;
+  };
 
   // Sync HUD helper
   const syncHud = () => {
@@ -807,8 +823,12 @@ export function mount(container, ctx) {
       if (loupeNode) loupeNode.style.display = 'none';
 
       const dockCard = root.querySelector(`[data-dock-id="${matchedItem.id}"]`);
-      dockCard?.classList.add('is-found');
-      dockCard?.classList.remove('is-hinted');
+      if (dockCard) {
+        dockCard.classList.add('is-found', 'is-just-found');
+        dockCard.classList.remove('is-hinted');
+        registerTimeout(() => dockCard.classList.remove('is-just-found'), 420);
+      }
+      syncDockState();
 
       // Remove hint beacon if this item was hinted
       const hintedBeacon = fxEl?.querySelector(`[data-hint-id="${matchedItem.id}"]`);
@@ -1100,6 +1120,7 @@ export function mount(container, ctx) {
   // Initial sizing & HUD sync
   updateFrameGeometry();
   syncHud();
+  syncDockState();
 
   // Main countdown & play-time RAF loop
   const tick = (now) => {

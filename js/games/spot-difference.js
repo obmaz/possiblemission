@@ -14,6 +14,7 @@ export const BASE_H = 896;
 const PENALTY_SEC = 3.0;
 const COOLDOWN_MS = 450;
 const HINT_DURATION_MS = 3500;
+const FOUND_ANIM_MS = 1200;
 const MAX_HINTS = 2;
 const TOUCH_HIT_SLOP = 0.012;
 const MIN_HIT_RADIUS = 0.052;
@@ -827,8 +828,10 @@ function drawFoundMarker(ctx2d, spot, nowMs, orderNum) {
   const x = spot.x * BASE_W;
   const y = spot.y * BASE_H;
   const rPx = Math.max(spot.r, MIN_HIT_RADIUS) * BASE_W * 0.92;
-  const pulse = 1 + Math.sin(nowMs * 0.006 + spot.index) * 0.055;
   const age = Math.max(0, nowMs - spot.foundAtMs);
+  // Pulse only during the discovery window so the board settles into a static frame.
+  const settle = 1 - Math.min(1, age / FOUND_ANIM_MS);
+  const pulse = 1 + Math.sin(nowMs * 0.006 + spot.index) * 0.055 * settle;
   const popScale = age < 260 ? 0.65 + (age / 260) * 0.42 : 1;
 
   ctx2d.save();
@@ -841,8 +844,8 @@ function drawFoundMarker(ctx2d, spot, nowMs, orderNum) {
   ctx2d.fill();
   ctx2d.lineWidth = 4;
   ctx2d.strokeStyle = '#34d399';
-  ctx2d.shadowColor = 'rgba(52, 211, 153, 0.85)';
-  ctx2d.shadowBlur = 14;
+  ctx2d.shadowColor = 'rgba(52, 211, 153, 0.55)';
+  ctx2d.shadowBlur = 8;
   ctx2d.stroke();
 
   // Inner gold dashed accent ring
@@ -989,6 +992,11 @@ export function mount(container, ctx) {
   let finishTimerId = 0;
   let shakeTimerId = 0;
   let hitFlashTimerId = 0;
+  let needsRender = true;
+
+  function markDirty() {
+    needsRender = true;
+  }
 
   // Render Scoped DOM
   const root = document.createElement('div');
@@ -998,7 +1006,7 @@ export function mount(container, ctx) {
       <div class="sd-toolbar__left">
         <span class="sd-stage-badge">
           <span>${stage.titleKo}</span>
-          <span class="sd-stage-badge__sub">${targetCount} GLITCHES</span>
+          <span class="sd-stage-badge__sub">${targetCount}곳</span>
         </span>
         <div class="sd-counter" aria-label="발견한 차이점 개수">
           <span class="sd-counter__text" data-sd-count>0 / ${targetCount}</span>
@@ -1033,12 +1041,11 @@ export function mount(container, ctx) {
         <header class="sd-board-header">
           <span class="sd-board-label">
             <span class="sd-board-label__dot" aria-hidden="true"></span>
-            <span>원본 (Original)</span>
+            <span>원본 그림</span>
           </span>
-          <span class="sd-board-sub">ORIGINAL // A</span>
         </header>
         <div class="sd-canvas-wrap" data-sd-wrap="orig">
-          <canvas class="sd-canvas" data-sd-canvas="orig" width="${BASE_W}" height="${BASE_H}"></canvas>
+          <canvas class="sd-canvas" data-sd-canvas="orig" width="${BASE_W}" height="${BASE_H}" tabindex="0" role="img" aria-label="원본 그림. 차이점을 클릭해 찾고, Enter 또는 Space로 힌트를 사용할 수 있습니다."></canvas>
           <canvas class="sd-loupe" data-sd-loupe-canvas="orig" width="146" height="146" aria-hidden="true"></canvas>
           <div class="sd-loading" data-sd-loading>스테이지 이미지 로딩 중...</div>
         </div>
@@ -1048,12 +1055,11 @@ export function mount(container, ctx) {
         <header class="sd-board-header">
           <span class="sd-board-label">
             <span class="sd-board-label__dot" aria-hidden="true"></span>
-            <span>다른 곳 찾기 (Modified)</span>
+            <span>변형 그림</span>
           </span>
-          <span class="sd-board-sub">MODIFIED // B</span>
         </header>
         <div class="sd-canvas-wrap" data-sd-wrap="mod">
-          <canvas class="sd-canvas" data-sd-canvas="mod" width="${BASE_W}" height="${BASE_H}"></canvas>
+          <canvas class="sd-canvas" data-sd-canvas="mod" width="${BASE_W}" height="${BASE_H}" tabindex="0" role="img" aria-label="변형 그림. 원본과 다른 부분을 클릭해 찾으세요."></canvas>
           <canvas class="sd-loupe" data-sd-loupe-canvas="mod" width="146" height="146" aria-hidden="true"></canvas>
           <div class="sd-loading" data-sd-loading>변형 레이어 생성 중...</div>
         </div>
@@ -1064,7 +1070,7 @@ export function mount(container, ctx) {
       <div class="sd-callout" data-sd-callout data-tone="info">
         <span>👀 좌우 그림에서 다른 부분 ${targetCount}곳을 터치하세요! (어느 쪽을 눌러도 인정)</span>
       </div>
-      <span class="sd-shortcuts">단축키: [H] 힌트 · [M] 2.0x 돋보기</span>
+      <span class="sd-shortcuts">단축키: [H] 힌트 · [M] 돋보기 · 캔버스에서 [Enter] 힌트</span>
     </div>
   `;
   container.appendChild(root);
@@ -1132,12 +1138,12 @@ export function mount(container, ctx) {
     }
     const dotEls = dotsWrap?.querySelectorAll('.sd-dot');
     if (dotEls) {
-      let marked = 0;
-      dotEls.forEach((dot) => {
-        if (marked < foundCount) {
+      // Dots are identity slots: dot N lights up for the Nth seeded anomaly,
+      // so the hint pulse and the found check live on the same slot.
+      dotEls.forEach((dot, idx) => {
+        if (anomalies[idx]?.found) {
           dot.classList.add('is-found');
           dot.textContent = '✓';
-          marked += 1;
         }
       });
     }
@@ -1148,6 +1154,20 @@ export function mount(container, ctx) {
     const rem = Math.max(0, MAX_HINTS - hintsUsed);
     hintBtn.textContent = `💡 힌트 (${rem})`;
     hintBtn.disabled = rem === 0 || finished;
+  }
+
+  function clearHintedDots() {
+    dotsWrap?.querySelectorAll('.sd-dot.is-hinted').forEach((dot) => {
+      dot.classList.remove('is-hinted');
+    });
+  }
+
+  function markHintedDot() {
+    clearHintedDots();
+    if (!activeHint) return;
+    dotsWrap
+      ?.querySelector(`[data-sd-dot="${activeHint.spot.index}"]`)
+      ?.classList.add('is-hinted');
   }
 
   function hideLoupes() {
@@ -1221,7 +1241,7 @@ export function mount(container, ctx) {
     lCtx.restore();
   }
 
-  function spawnFeedback(nx, ny, type, labelText) {
+  function spawnFeedback(nx, ny, type, labelText, ringRPx = 0) {
     const now = performance.now();
     if (type === 'hit') {
       const colors = ['#34d399', '#fbbf24', '#22d3ee', '#ffffff'];
@@ -1241,11 +1261,11 @@ export function mount(container, ctx) {
       }
       popups.push({
         x: nx * BASE_W,
-        y: ny * BASE_H - 28,
+        y: ny * BASE_H - Math.max(ringRPx, 48) - 12,
         text: labelText,
         color: '#34d399',
         bornAt: now,
-        life: 950,
+        life: 1250,
         type: 'hit',
       });
     } else {
@@ -1288,6 +1308,10 @@ export function mount(container, ctx) {
     if (finished || isUnmounted) return;
     finished = true;
     hideLoupes();
+    activeHint = null;
+    clearHintedDots();
+    hintBtn?.classList.remove('is-active');
+    markDirty();
     updateHintBtn();
 
     const totalInputs = foundCount + wrongTaps;
@@ -1354,13 +1378,17 @@ export function mount(container, ctx) {
       updateCounterUi();
       syncHud();
 
-      const bonusTag = streak >= 2 ? ` (${streak}연속!)` : '';
-      spawnFeedback(matchedSpot.x, matchedSpot.y, 'hit', `+600${bonusTag}`);
+      const bonusTag = streak >= 2 ? ` · ${streak}연속!` : '';
+      const ringRPx = Math.max(matchedSpot.r, MIN_HIT_RADIUS) * BASE_W * 0.92;
+      spawnFeedback(matchedSpot.x, matchedSpot.y, 'hit', `${matchedSpot.label} +600${bonusTag}`, ringRPx);
       setCallout(`✨ 「${matchedSpot.label}」 발견! (${foundCount}/${targetCount})`, 'success');
 
       if (activeHint && activeHint.spot.id === matchedSpot.id) {
         activeHint = null;
+        clearHintedDots();
+        hintBtn?.classList.remove('is-active');
       }
+      markDirty();
 
       if (foundCount >= targetCount) {
         updateHintBtn();
@@ -1412,6 +1440,7 @@ export function mount(container, ctx) {
     spawnFeedback(nx, ny, 'miss', '+3초 페널티!');
     setCallout(`❌ 다른 곳이 아니에요! (-${PENALTY_SEC.toFixed(0)}초 페널티)`, 'error');
     syncHud();
+    markDirty();
 
     if (remainingSec <= 0) {
       finishGame(false);
@@ -1440,6 +1469,10 @@ export function mount(container, ctx) {
 
     hintsUsed += 1;
     activeHint = { spot: target, untilMs: performance.now() + HINT_DURATION_MS };
+    // Expose the hinted slot in the counter so the dot matches the radar zone.
+    markHintedDot();
+    hintBtn?.classList.add('is-active');
+    markDirty();
     ctx.audio.playHint();
     updateHintBtn();
     syncHud();
@@ -1467,11 +1500,10 @@ export function mount(container, ctx) {
 
     const drawOverlay = (targetCtx, side) => {
       // Found markers (synchronized on both canvases)
-      let order = 0;
       for (const spot of anomalies) {
         if (spot.found) {
-          order += 1;
-          drawFoundMarker(targetCtx, spot, nowMs, order);
+          // Badge matches the counter dot label for the same anomaly slot.
+          drawFoundMarker(targetCtx, spot, nowMs, spot.index + 1);
         }
       }
 
@@ -1518,6 +1550,32 @@ export function mount(container, ctx) {
           targetCtx.stroke();
         }
 
+        if (pop.type === 'hit') {
+          // Korean anomaly name chip so players learn what they spotted.
+          targetCtx.font = '800 21px "Pretendard Variable", "Outfit", sans-serif';
+          const chipH = 34;
+          const chipW = targetCtx.measureText(pop.text).width + 26;
+          const chipX = Math.max(8, Math.min(BASE_W - chipW - 8, pop.x - chipW / 2));
+          const chipY = Math.max(6, py - 14 - chipH + 7);
+          targetCtx.beginPath();
+          if (typeof targetCtx.roundRect === 'function') {
+            targetCtx.roundRect(chipX, chipY, chipW, chipH, 10);
+          } else {
+            targetCtx.rect(chipX, chipY, chipW, chipH);
+          }
+          targetCtx.fillStyle = 'rgba(9, 15, 22, 0.9)';
+          targetCtx.fill();
+          targetCtx.lineWidth = 1.5;
+          targetCtx.strokeStyle = 'rgba(52, 211, 153, 0.75)';
+          targetCtx.stroke();
+          targetCtx.textAlign = 'center';
+          targetCtx.textBaseline = 'middle';
+          targetCtx.fillStyle = '#ecfdf5';
+          targetCtx.fillText(pop.text, pop.x, chipY + chipH / 2);
+          targetCtx.restore();
+          continue;
+        }
+
         targetCtx.font = '900 22px "Outfit", "Pretendard Variable", sans-serif';
         targetCtx.textAlign = 'center';
         targetCtx.textBaseline = 'bottom';
@@ -1537,6 +1595,27 @@ export function mount(container, ctx) {
     modCtx.clearRect(0, 0, BASE_W, BASE_H);
     modCtx.drawImage(modBase, 0, 0);
     drawOverlay(modCtx, 'mod');
+
+    needsRender = false;
+  }
+
+  /** True while any canvas overlay is still animating and must be repainted. */
+  function hasActiveAnimation(nowMs) {
+    if (isPaused) return false;
+    if (particles.length > 0 || popups.length > 0) return true;
+    if (activeHint && nowMs < activeHint.untilMs) return true;
+    for (const spot of anomalies) {
+      if (spot.found && nowMs - spot.foundAtMs < FOUND_ANIM_MS) return true;
+    }
+    return false;
+  }
+
+  function expireHintIfNeeded(nowMs) {
+    if (!activeHint || nowMs < activeHint.untilMs) return;
+    activeHint = null;
+    clearHintedDots();
+    hintBtn?.classList.remove('is-active');
+    markDirty();
   }
 
   function frame(nowMs) {
@@ -1560,19 +1639,32 @@ export function mount(container, ctx) {
 
       if (remainingSec <= 0) {
         finishGame(false);
-        return;
+        if (isUnmounted) return;
       }
     }
 
-    // Prune expired particles & popups
+    expireHintIfNeeded(nowMs);
+
+    // Prune expired particles & popups (and repaint once to erase the last frame of them)
+    let prunedAny = false;
     for (let i = particles.length - 1; i >= 0; i -= 1) {
-      if (nowMs - particles[i].bornAt >= particles[i].life) particles.splice(i, 1);
+      if (nowMs - particles[i].bornAt >= particles[i].life) {
+        particles.splice(i, 1);
+        prunedAny = true;
+      }
     }
     for (let i = popups.length - 1; i >= 0; i -= 1) {
-      if (nowMs - popups[i].bornAt >= popups[i].life) popups.splice(i, 1);
+      if (nowMs - popups[i].bornAt >= popups[i].life) {
+        popups.splice(i, 1);
+        prunedAny = true;
+      }
     }
+    if (prunedAny) markDirty();
 
-    renderBoards(nowMs);
+    // Dirty-flag loop: repaint only on state changes or while overlays animate.
+    if (needsRender || hasActiveAnimation(nowMs)) {
+      renderBoards(nowMs);
+    }
     rafId = requestAnimationFrame(frame);
   }
 
@@ -1585,6 +1677,7 @@ export function mount(container, ctx) {
     pointerMirror.side = side;
     pointerMirror.nx = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     pointerMirror.ny = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    markDirty();
   }
 
   function attachCanvasEvents(canvas, side) {
@@ -1652,6 +1745,7 @@ export function mount(container, ctx) {
       if (e.pointerType !== 'touch') {
         if (pointerMirror.side === side) pointerMirror.active = false;
         hideLoupes();
+        markDirty(); // erase the mirror crosshair
       }
     };
 
@@ -1660,11 +1754,19 @@ export function mount(container, ctx) {
       hideLoupes();
     };
 
+    const onCanvasKeyDown = (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      if (isPaused || finished) return;
+      e.preventDefault();
+      triggerHint();
+    };
+
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', onPointerMove);
     canvas.addEventListener('pointerup', onPointerUp);
     canvas.addEventListener('pointerleave', onPointerLeave);
     canvas.addEventListener('pointercancel', onPointerCancel);
+    canvas.addEventListener('keydown', onCanvasKeyDown);
 
     return () => {
       canvas.removeEventListener('pointerdown', onPointerDown);
@@ -1672,6 +1774,7 @@ export function mount(container, ctx) {
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointerleave', onPointerLeave);
       canvas.removeEventListener('pointercancel', onPointerCancel);
+      canvas.removeEventListener('keydown', onCanvasKeyDown);
     };
   }
 
@@ -1704,9 +1807,19 @@ export function mount(container, ctx) {
     return () => btn.removeEventListener('click', handler);
   });
 
+  function isTypingTarget(target) {
+    if (!(target instanceof Element)) return false;
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return true;
+    if (target instanceof HTMLSelectElement) return true;
+    return Boolean(
+      target.closest('[contenteditable=""], [contenteditable="true"], [role="textbox"]')
+    );
+  }
+
   const onKeyDown = (e) => {
     if (isPaused || finished) return;
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (isTypingTarget(e.target)) return;
     const key = e.key.toLowerCase();
     if (key === 'h') {
       e.preventDefault();
@@ -1718,6 +1831,9 @@ export function mount(container, ctx) {
   };
   window.addEventListener('keydown', onKeyDown);
 
+  const onResize = () => markDirty();
+  window.addEventListener('resize', onResize, { passive: true });
+
   const onPauseChange = (e) => {
     isPaused = Boolean(e.detail?.paused);
     if (isPaused) {
@@ -1726,6 +1842,7 @@ export function mount(container, ctx) {
     } else {
       lastFrameMs = performance.now();
     }
+    markDirty();
   };
   window.addEventListener('pm:pausechange', onPauseChange);
 
@@ -1752,6 +1869,7 @@ export function mount(container, ctx) {
     imageReady = true;
     lastFrameMs = performance.now();
     loadingEls.forEach((el) => el.remove());
+    needsRender = true;
     renderBoards(lastFrameMs);
     rafId = requestAnimationFrame(frame);
   };
@@ -1780,6 +1898,7 @@ export function mount(container, ctx) {
       loupeBtn?.removeEventListener('click', onLoupeClick);
       viewTabCleanups.forEach((fn) => fn());
       window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('resize', onResize);
       window.removeEventListener('pm:pausechange', onPauseChange);
 
       img.onload = null;

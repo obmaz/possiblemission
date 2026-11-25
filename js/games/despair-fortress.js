@@ -100,7 +100,7 @@ function pickUniqueSectorNumbers(rng, count) {
 
 /**
  * Generates collision-free normalized coordinates inside [0.09..0.91] x [0.26..0.88],
- * reserving a safe top header band for telemetry/banners and ensuring vertical pixel spacing >= 2*r.
+ * reserving a safe top band for the arena banner and ensuring vertical pixel spacing >= 2*r.
  */
 function generateNonOverlappingCoords(rng, count) {
   const padX = 0.09;
@@ -204,7 +204,7 @@ export function generateFortressRun(rng, mode = 'standard') {
       .map((n) => n.letter);
     const decoyLetters = shuffleWithRng(rng, nonTargetLetters).slice(0, 2);
 
-    // Fake telemetry number guaranteed not to collide with any real node number in this sector
+    // Fake decoy code (shown in the banner) guaranteed not to collide with any real node number
     const existingNumbers = new Set(nodes.map((n) => n.number));
     const fakePool = [];
     for (let n = 10; n <= 98; n += 1) {
@@ -267,7 +267,7 @@ export function mount(container, ctx) {
         <div class="df-phase-controls">
           <span class="df-phase-pill" data-df-phase data-phase="lockon">LOCK-ON</span>
           <button type="button" class="df-skip-btn" data-df-skip hidden>
-            ⚡ 암기 완료 (스킵)
+            암기 완료 · 스킵
           </button>
         </div>
       </div>
@@ -288,10 +288,6 @@ export function mount(container, ctx) {
       <div class="df-arena__scanlines" aria-hidden="true"></div>
 
       <div class="df-arena-hud" data-df-arena-hud>
-        <div class="df-telemetry" aria-hidden="true">
-          <span class="df-telemetry__tag" data-df-telemetry-left>VAULT LOCKDOWN // LIVE</span>
-          <span class="df-telemetry__tag df-telemetry__tag--decoy" data-df-decoy-hud hidden>FAKE: --</span>
-        </div>
         <div class="df-banner" data-df-banner hidden></div>
       </div>
 
@@ -314,15 +310,6 @@ export function mount(container, ctx) {
       </div>
       <div class="df-keypad" data-df-keypad></div>
     </section>
-
-    <aside class="df-tips" aria-label="플레이 방법">
-      <p class="df-tips__title">HOW TO PLAY</p>
-      <ol class="df-tips__list">
-        <li>터미널의 타겟 숫자 3개를 확인</li>
-        <li>숫자에 맞는 알파벳 노드를 클릭</li>
-        <li>틀리면 쉴드 −1 · 3개 소진 시 종료</li>
-      </ol>
-    </aside>
   `;
 
   container.appendChild(root);
@@ -340,8 +327,6 @@ export function mount(container, ctx) {
   const arenaEl = root.querySelector('[data-df-arena]');
   const arenaHudEl = root.querySelector('[data-df-arena-hud]');
   const canvas = root.querySelector('[data-df-canvas]');
-  const telemetryLeftEl = root.querySelector('[data-df-telemetry-left]');
-  const decoyHudEl = root.querySelector('[data-df-decoy-hud]');
   const bannerEl = root.querySelector('[data-df-banner]');
   const empFlashEl = root.querySelector('[data-df-emp]');
   const overlayEl = root.querySelector('[data-df-overlay]');
@@ -387,6 +372,7 @@ export function mount(container, ctx) {
   let maxStreak = 0;
   let solvedSlots = 0;
   let sectorsCleared = 0;
+  let sectorMistakes = 0;
   let totalInputs = 0;
   let correctInputs = 0;
   let activeSlotIdx = 0;
@@ -662,15 +648,13 @@ export function mount(container, ctx) {
   }
 
   function syncSharedHud(timerValue, progressRatio) {
-    const heartsStr = `${'♥'.repeat(shields)}${'♡'.repeat(MAX_SHIELDS - shields)}`;
-    const extraLabel = streak >= 2 ? `${heartsStr} · x${streak}` : `쉴드 ${heartsStr}`;
-
+    // Shields and combo live only in the terminal now; keep the shared HUD calm.
     ctx.updateHud({
       timer: timerValue,
       score,
       progress: `SECTOR ${sectorIdx + 1}/${totalSectors}`,
       progressRatio,
-      extra: extraLabel,
+      extra: '',
     });
   }
 
@@ -688,24 +672,23 @@ export function mount(container, ctx) {
       numberFlashTimer = 0;
       nextNumberFlashAt = 3.0;
       lastWrongAt = -Infinity;
+      sectorMistakes = 0;
       arenaEl.classList.remove('is-glitch', 'is-refresh');
       initSectorVelocities(sec);
 
       sectorCodeEl.textContent = `${sec.code}/${String(totalSectors).padStart(2, '0')}`;
       sectorLabelEl.textContent = sec.label;
-      telemetryLeftEl.textContent = `${sec.code} // NODES: ${sec.nodeCount}`;
-      decoyHudEl.hidden = true;
       overlayEl.hidden = true;
       skipBtn.hidden = true;
       phasePillEl.dataset.phase = 'lockon';
       phasePillEl.textContent = 'LOCK-ON';
-      if (sec.sector === 1) {
-        keypadHintEl.textContent = '곧 보안 코드가 나타납니다! 각 노드의 [알파벳 + 숫자]를 외우세요';
-        showBanner('숫자-알파벳을 외운 뒤, 타겟 숫자 3개의 알파벳을 순서대로 입력!', 'info');
-      } else {
-        keypadHintEl.textContent = '보안 노드 위치 스캔 중...';
-        showBanner(`${sec.label} — 보안 코드 출현 준비!`, 'info');
-      }
+      const codeCount = sec.targets.length;
+      const introText = `제${sec.sector}구역 · 코드 ${codeCount}개 · 노드 ${sec.nodeCount}개 — 숫자를 외우세요`;
+      keypadHintEl.textContent =
+        sec.sector === 1
+          ? '곧 보안 코드가 나타납니다! 각 노드의 [알파벳 + 숫자]를 외우세요'
+          : `제${sec.sector}구역 노드 ${sec.nodeCount}개 스캔 중...`;
+      showBanner(introText, 'info');
       renderSlots();
       syncKeypad();
       resolveNodeOverlapPx(sec);
@@ -750,7 +733,6 @@ export function mount(container, ctx) {
       syncKeypad();
     } else if (nextPhase === 'sector_clear') {
       skipBtn.hidden = true;
-      decoyHudEl.hidden = true;
       numberFlashTimer = 0;
       arenaEl.classList.remove('is-glitch', 'is-refresh');
       phasePillEl.dataset.phase = 'decode';
@@ -783,7 +765,6 @@ export function mount(container, ctx) {
     skipBtn.hidden = true;
     decoyPulseTimer = 0;
     arenaEl.classList.remove('is-glitch');
-    decoyHudEl.hidden = true;
     showBanner('', 'info');
     syncKeypad();
 
@@ -817,7 +798,6 @@ export function mount(container, ctx) {
     decoyWindowTriggered = true;
     arenaEl.classList.remove('is-glitch');
     showBanner('', 'info');
-    decoyHudEl.hidden = true;
     ctx.audio.playAlarm();
     overlayCardEl.classList.add('is-fail');
     overlaySubEl.textContent = reasonSub;
@@ -834,20 +814,23 @@ export function mount(container, ctx) {
     sectorsCleared += 1;
     const remainingSec = Math.max(0, sec.decodeSec - decodeElapsed);
     const fastBonus = Math.round(remainingSec * 80);
-    score += fastBonus;
+    const isPerfect = sectorMistakes === 0;
+    const perfectBonus = isPerfect ? 500 : 0;
+    score += fastBonus + perfectBonus;
 
     enterPhase('sector_clear');
     ctx.audio.playMatch(6);
 
     const isFinal = sectorIdx >= totalSectors - 1;
     const survivalBonus = isFinal ? shields * 400 : 0;
+    const bonusText = `스피드 +${fastBonus}${isPerfect ? ' · PERFECT +500' : ''}`;
 
     overlayCardEl.classList.remove('is-fail');
     overlaySubEl.textContent = `${sec.code} BREACHED!`;
     overlayTitleEl.textContent = isFinal ? '절망요새 완전 탈출!' : `${sec.label} 돌파!`;
     overlayBonusEl.textContent = isFinal
-      ? `스피드 +${fastBonus} · 생존 +${survivalBonus} PTS`
-      : `스피드 보너스 +${fastBonus} PTS`;
+      ? `${bonusText} · 생존 +${survivalBonus} PTS`
+      : `${bonusText} PTS`;
     overlayEl.hidden = false;
 
     syncSharedHud(remainingSec, 1);
@@ -913,6 +896,7 @@ export function mount(container, ctx) {
       // Wrong!
       lastWrongAt = now;
       shields = Math.max(0, shields - 1);
+      sectorMistakes += 1;
       streak = 0;
 
       ctx.audio.playError();
@@ -1188,7 +1172,7 @@ export function mount(container, ctx) {
         gCtx.setLineDash([]);
       }
 
-      // Outer glow halo
+      // Outer ring / border colours
       let borderColor = '#22d3ee';
       let fillTop = 'rgba(15, 23, 46, 0.92)';
       let fillBottom = 'rgba(9, 13, 30, 0.96)';
@@ -1207,9 +1191,9 @@ export function mount(container, ctx) {
 
       if (isDecoyNode) {
         gCtx.beginPath();
-        gCtx.arc(cx, cy, r + 6, 0, Math.PI * 2);
-        gCtx.strokeStyle = 'rgba(239, 68, 68, 0.85)';
-        gCtx.lineWidth = 2.5;
+        gCtx.arc(cx, cy, r + 5, 0, Math.PI * 2);
+        gCtx.strokeStyle = 'rgba(239, 68, 68, 0.7)';
+        gCtx.lineWidth = 1.5;
         gCtx.stroke();
       }
 
@@ -1217,14 +1201,13 @@ export function mount(container, ctx) {
       grad.addColorStop(0, fillTop);
       grad.addColorStop(1, fillBottom);
 
-      gCtx.shadowColor = borderColor;
-      gCtx.shadowBlur = node.solved ? 12 : 18;
+      // Flat fill: no glow, so the arena reads as a clean dark panel
+      gCtx.shadowBlur = 0;
       gCtx.fillStyle = grad;
       gCtx.beginPath();
       gCtx.arc(cx, cy, r, 0, Math.PI * 2);
       gCtx.fill();
 
-      gCtx.shadowBlur = 0;
       gCtx.lineWidth = node.solved ? 2.5 : 2.2;
       gCtx.strokeStyle = borderColor;
       gCtx.stroke();
@@ -1388,16 +1371,23 @@ export function mount(container, ctx) {
           ctx.audio.playHint();
         }
 
-        // Sector 3 decode decoy telemetry & warning ring (only wrong nodes + side telemetry)
+        // Sector 3 decode decoy: warning ring on wrong nodes + fake code in the banner
         if (sec.decoy && decodeElapsed >= nextDecodeDecoyAt) {
           nextDecodeDecoyAt += 4.2;
           decoyPulseTimer = 0.35;
           arenaEl.classList.add('is-glitch');
-          decoyHudEl.textContent = `FAKE: ${sec.decoyFakeCode}`;
-          decoyHudEl.hidden = false;
+          const decoyBannerText = `교란 신호 — FAKE ${sec.decoyFakeCode}`;
+          showBanner(decoyBannerText, 'danger');
           safeTimeout(() => {
-            if (decoyHudEl) decoyHudEl.hidden = true;
-          }, 950);
+            if (
+              phase === 'decode' &&
+              numberFlashTimer <= 0 &&
+              bannerEl &&
+              bannerEl.textContent === decoyBannerText
+            ) {
+              showBanner('', 'info');
+            }
+          }, 1200);
         }
 
         if (rem <= 0) {

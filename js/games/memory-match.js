@@ -409,8 +409,8 @@ function renderCardBackHtml() {
   return `
     <div class="mm-back-emblem">
       <svg class="mm-back-sigil" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-        <polygon points="20,3 35,11.5 35,28.5 20,37 5,28.5 5,11.5" fill="rgba(168,85,247,0.18)" stroke="#a855f7" stroke-width="2"/>
-        <polygon points="20,8 30,14 30,26 20,32 10,26 10,14" stroke="#22d3ee" stroke-width="1.4" stroke-dasharray="3 2"/>
+        <polygon points="20,3 35,11.5 35,28.5 20,37 5,28.5 5,11.5" fill="rgba(161,137,232,0.12)" stroke="#a189e8" stroke-width="1.6"/>
+        <polygon points="20,8 30,14 30,26 20,32 10,26 10,14" stroke="rgba(148,163,184,0.55)" stroke-width="1.2" stroke-dasharray="3 2"/>
         <path d="M16.8 15.5C16.8 13.8 18.2 12.6 20.1 12.6C22.1 12.6 23.4 13.8 23.4 15.4C23.4 16.9 22.3 17.7 21.1 18.4C20.2 19 19.9 19.6 19.9 20.7V21.5" stroke="#f8fafc" stroke-width="2.2" stroke-linecap="round"/>
         <circle cx="20" cy="25.5" r="1.5" fill="#fbbf24"/>
       </svg>
@@ -460,13 +460,12 @@ export function mount(container, ctx) {
 
   let lastPreviewTickSec = -1;
   let lastPlayTickSec = -1;
-  let lastTopbarMoves = -1;
-  let lastTopbarAcc = -1;
-  let lastTopbarPillKey = '';
-  let lastTopbarTextKey = '';
+  let lastTopbarCueKey = '';
+  let lastTopbarHintKey = '';
+  let lastTopbarComboKey = '';
   let lastTopbarMeterHidden = null;
   let lastTopbarMeterRatio = '';
-  let lastTopbarBtnHidden = null;
+  let lastTopbarSkipHidden = null;
   let lastHudTimerKey = '';
   let lastHudScore = -1;
   let lastHudProgressKey = '';
@@ -485,18 +484,18 @@ export function mount(container, ctx) {
   const root = document.createElement('div');
   root.className = 'game-root game-memory';
   root.innerHTML = `
-    <div class="mm-topbar">
-      <div class="mm-phase-banner">
-        <span class="mm-phase-pill" data-phase="preview">PREVIEW</span>
-        <span class="mm-phase-text">기억하세요! <strong>2.0s</strong></span>
+    <div class="mm-head">
+      <div class="mm-head__text">
+        <p class="mm-cue" data-mm-cue>
+          <span class="mm-cue__title">2초 안에 카드를 외우세요</span>
+          <span class="mm-cue__count" data-mm-count data-active="2" aria-hidden="true"><b data-step="2">2</b><span class="mm-cue__arrow">→</span><b data-step="1">1</b></span>
+        </p>
+        <p class="mm-hint" data-mm-hint hidden>카드를 뒤집어 같은 그림 짝을 찾으세요</p>
       </div>
-      <div class="mm-metrics">
-        <span class="mm-stat-chip">시도 <span class="mm-stat-chip__val" data-mm-moves>0</span></span>
-        <span class="mm-stat-chip mm-stat-chip--acc">정확도 <span class="mm-stat-chip__val" data-mm-acc>100%</span></span>
-        <button type="button" class="mm-preview-btn" data-mm-preview-skip title="프리뷰 즉시 건너뛰기">
-          ⚡ 2s 프리뷰 스킵
-        </button>
-      </div>
+      <span class="mm-combo" data-mm-combo hidden></span>
+      <button type="button" class="mm-skip" data-mm-preview-skip title="프리뷰 즉시 건너뛰기 (Space)">
+        프리뷰 건너뛰기 <span class="mm-skip__key">Space</span>
+      </button>
     </div>
     <div class="mm-preview-meter" aria-hidden="true">
       <div class="mm-preview-meter__fill"></div>
@@ -508,11 +507,11 @@ export function mount(container, ctx) {
   `;
   container.appendChild(root);
 
-  const phasePillEl = root.querySelector('.mm-phase-pill');
-  const phaseTextEl = root.querySelector('.mm-phase-text');
-  const movesValEl = root.querySelector('[data-mm-moves]');
-  const accValEl = root.querySelector('[data-mm-acc]');
-  const previewBtnEl = root.querySelector('[data-mm-preview-skip]');
+  const cueEl = root.querySelector('[data-mm-cue]');
+  const cueCountEl = root.querySelector('[data-mm-count]');
+  const hintEl = root.querySelector('[data-mm-hint]');
+  const comboEl = root.querySelector('[data-mm-combo]');
+  const skipLinkEl = root.querySelector('[data-mm-preview-skip]');
   const previewMeterEl = root.querySelector('.mm-preview-meter');
   const boardWrapEl = root.querySelector('.mm-board-wrap');
   const gridEl = root.querySelector('.mm-grid');
@@ -560,7 +559,7 @@ export function mount(container, ctx) {
     activeCols = isPortrait ? cfg.portraitCols : cfg.landscapeCols;
     activeRows = isPortrait ? cfg.portraitRows : cfg.landscapeRows;
 
-    const gap = Math.max(6, Math.min(12, Math.round(Math.min(wrapW, wrapH) * 0.018)));
+    const gap = Math.max(8, Math.min(16, Math.round(Math.min(wrapW, wrapH) * 0.022)));
     const maxCellW = (wrapW - gap * (activeCols - 1)) / activeCols;
     const maxCellH = (wrapH - gap * (activeRows - 1)) / activeRows;
 
@@ -593,15 +592,6 @@ export function mount(container, ctx) {
   }
 
   function buildHudExtra() {
-    if (combo >= 2) {
-      const pill = document.createElement('span');
-      pill.className = 'hud-pill';
-      pill.style.borderColor = 'rgba(244, 63, 142, 0.65)';
-      pill.style.background = 'rgba(244, 63, 142, 0.2)';
-      pill.style.color = '#fbcfe8';
-      pill.textContent = `🔥 ×${combo} COMBO`;
-      return pill;
-    }
     const pill = document.createElement('span');
     pill.className = 'hud-pill';
     pill.textContent = `시도 ${moves}회`;
@@ -619,7 +609,7 @@ export function mount(container, ctx) {
           : `${Math.ceil(remSec)}:${remSec <= 15 ? 'warn' : 'norm'}`;
     const progressKey = `${matchedPairs}/${totalPairs}`;
     const ratioKey = ratio.toFixed(4);
-    const extraKey = combo >= 2 ? `combo:${combo}` : `moves:${moves}`;
+    const extraKey = `moves:${moves}`;
 
     const hudPatch = {};
     if (timerKey !== lastHudTimerKey) {
@@ -651,86 +641,74 @@ export function mount(container, ctx) {
     }
   }
 
-  function syncTopbar() {
-    if (moves !== lastTopbarMoves && movesValEl) {
-      lastTopbarMoves = moves;
-      movesValEl.textContent = String(moves);
+  function syncHint() {
+    const remainingPairs = Math.max(0, totalPairs - matchedPairs);
+    const hintKey = `${matchedPairs}:${remainingPairs}:${phase}`;
+    if (hintKey === lastTopbarHintKey) return;
+    lastTopbarHintKey = hintKey;
+    if (remainingPairs === 0) {
+      hintEl.textContent = '모든 쌍을 찾았습니다!';
+    } else if (remainingPairs <= 3) {
+      hintEl.innerHTML = `<span class="mm-hint__accent">마지막 ${remainingPairs}쌍!</span> 콤보를 이어가세요!`;
+    } else if (matchedPairs === 0) {
+      hintEl.textContent = '카드를 뒤집어 같은 그림 짝을 찾으세요';
+    } else {
+      hintEl.textContent = `남은 쌍 ${remainingPairs} · 콤보를 이어가세요!`;
     }
-    const acc = moves > 0 ? Math.round((matchedPairs / moves) * 100) : 100;
-    if (acc !== lastTopbarAcc && accValEl) {
-      lastTopbarAcc = acc;
-      accValEl.textContent = `${acc}%`;
-    }
+  }
 
+  function syncCombo() {
+    const showCombo = combo >= 2 && phase === 'playing';
+    const comboKey = showCombo ? `combo:${combo}` : 'off';
+    if (comboKey === lastTopbarComboKey) return;
+    lastTopbarComboKey = comboKey;
+    comboEl.hidden = !showCombo;
+    if (showCombo) comboEl.textContent = `×${combo} COMBO`;
+  }
+
+  function syncTopbar() {
     if (phase === 'preview') {
-      const secText = (Math.max(0, previewRemainingMs) / 1000).toFixed(1);
       const countDigit = Math.max(1, Math.ceil(previewRemainingMs / 1000));
-      const pillKey = `preview:${countDigit}`;
-      if (pillKey !== lastTopbarPillKey && phasePillEl) {
-        lastTopbarPillKey = pillKey;
-        phasePillEl.dataset.phase = 'preview';
-        phasePillEl.textContent = `PREVIEW ${countDigit}`;
+      const cueKey = `preview:${countDigit}`;
+      if (cueKey !== lastTopbarCueKey) {
+        lastTopbarCueKey = cueKey;
+        cueEl.hidden = false;
+        hintEl.hidden = true;
+        cueCountEl.dataset.active = String(countDigit);
       }
-      const textKey = `preview:${countDigit}:${secText}`;
-      if (textKey !== lastTopbarTextKey && phaseTextEl) {
-        lastTopbarTextKey = textKey;
-        phaseTextEl.innerHTML = `기억하세요! <strong>${countDigit}..</strong> (${secText}s)`;
-      }
-      if (lastTopbarMeterHidden !== false && previewMeterEl) {
+      if (lastTopbarMeterHidden !== false) {
         lastTopbarMeterHidden = false;
         previewMeterEl.classList.remove('is-hidden');
       }
       const ratioStr = (previewRemainingMs / PREVIEW_DURATION_MS).toFixed(4);
-      if (ratioStr !== lastTopbarMeterRatio && previewMeterEl) {
+      if (ratioStr !== lastTopbarMeterRatio) {
         lastTopbarMeterRatio = ratioStr;
         previewMeterEl.style.setProperty('--mm-preview-ratio', ratioStr);
       }
-      if (lastTopbarBtnHidden !== false && previewBtnEl) {
-        lastTopbarBtnHidden = false;
-        previewBtnEl.hidden = false;
+      if (lastTopbarSkipHidden !== false) {
+        lastTopbarSkipHidden = false;
+        skipLinkEl.hidden = false;
       }
+      syncCombo();
       return;
     }
 
-    if (lastTopbarMeterHidden !== true && previewMeterEl) {
+    if (lastTopbarCueKey !== 'play') {
+      lastTopbarCueKey = 'play';
+      cueEl.hidden = true;
+      hintEl.hidden = false;
+    }
+    if (lastTopbarMeterHidden !== true) {
       lastTopbarMeterHidden = true;
       previewMeterEl.classList.add('is-hidden');
     }
-    if (lastTopbarBtnHidden !== true && previewBtnEl) {
-      lastTopbarBtnHidden = true;
-      previewBtnEl.hidden = true;
+    if (lastTopbarSkipHidden !== true) {
+      lastTopbarSkipHidden = true;
+      skipLinkEl.hidden = true;
     }
 
-    if (combo >= 2) {
-      const pillKey = `combo:${combo}`;
-      if (pillKey !== lastTopbarPillKey && phasePillEl) {
-        lastTopbarPillKey = pillKey;
-        phasePillEl.dataset.phase = 'combo';
-        phasePillEl.textContent = `×${combo} COMBO`;
-      }
-      const nextPts = 300 + Math.min(combo, 5) * 120;
-      const textKey = `combo:${nextPts}`;
-      if (textKey !== lastTopbarTextKey && phaseTextEl) {
-        lastTopbarTextKey = textKey;
-        phaseTextEl.innerHTML = `연속 매치 중! 다음 매치 <strong>+${nextPts} PTS</strong>`;
-      }
-    } else {
-      const pillKey = 'play';
-      if (pillKey !== lastTopbarPillKey && phasePillEl) {
-        lastTopbarPillKey = pillKey;
-        phasePillEl.dataset.phase = 'play';
-        phasePillEl.textContent = 'LIVE MATCH';
-      }
-      const remainingPairs = totalPairs - matchedPairs;
-      const textKey = matchedPairs === 0 ? 'play:start' : `play:${remainingPairs}`;
-      if (textKey !== lastTopbarTextKey && phaseTextEl) {
-        lastTopbarTextKey = textKey;
-        phaseTextEl.textContent =
-          matchedPairs === 0
-            ? '방금 본 위치의 카드 짝을 연속으로 찾아보세요!'
-            : `남은 페어 ${remainingPairs}쌍 — 콤보를 이어가세요!`;
-      }
-    }
+    syncHint();
+    syncCombo();
   }
 
   function spawnFloatBadge(targetCardEl, text, isCombo) {
@@ -788,6 +766,7 @@ export function mount(container, ctx) {
     finished = true;
     phase = 'ended';
     mismatchLock = false;
+    syncTopbar();
 
     const remainingSec = cleared ? Math.max(0, remainingMs / 1000) : 0;
     const timeBonus = cleared ? Math.round(remainingSec * 55) : 0;
@@ -802,7 +781,7 @@ export function mount(container, ctx) {
       score: totalScore,
       progress: `${matchedPairs} / ${totalPairs}쌍`,
       progressRatio: cleared ? remainingSec / cfg.timeLimitSec : 0,
-      extra: maxCombo >= 2 ? `🔥 MAX ×${maxCombo}` : null,
+      extra: maxCombo >= 2 ? `MAX ×${maxCombo}` : null,
     });
 
     const deliverResult = () => {
@@ -885,7 +864,7 @@ export function mount(container, ctx) {
       matchScore += pts;
 
       ctx.audio.playMatch(combo);
-      const badgeLabel = combo >= 2 ? `+${pts} ×${combo} COMBO!` : `+${pts}`;
+      const badgeLabel = combo >= 2 ? `+${pts} ×${combo}` : `+${pts}`;
       spawnFloatBadge(cardButtons[secondIdx], badgeLabel, combo >= 2);
 
       syncTopbar();
@@ -955,6 +934,13 @@ export function mount(container, ctx) {
     beginPlayPhase({ playFlipSfx: true });
   };
 
+  const onPreviewSkipKeyDown = (e) => {
+    if (finished || isPaused || phase !== 'preview') return;
+    if (e.code !== 'Space' && e.key !== ' ') return;
+    e.preventDefault();
+    onPreviewSkipClick();
+  };
+
   const onPauseChange = (e) => {
     isPaused = Boolean(e?.detail?.paused);
     if (!isPaused) {
@@ -968,7 +954,8 @@ export function mount(container, ctx) {
 
   gridEl.addEventListener('click', onGridClick);
   gridEl.addEventListener('keydown', onGridKeyDown);
-  previewBtnEl?.addEventListener('click', onPreviewSkipClick);
+  skipLinkEl.addEventListener('click', onPreviewSkipClick);
+  window.addEventListener('keydown', onPreviewSkipKeyDown);
   window.addEventListener('pm:pausechange', onPauseChange);
   window.addEventListener('resize', onWindowResize);
 
@@ -1062,7 +1049,8 @@ export function mount(container, ctx) {
 
       gridEl.removeEventListener('click', onGridClick);
       gridEl.removeEventListener('keydown', onGridKeyDown);
-      previewBtnEl?.removeEventListener('click', onPreviewSkipClick);
+      skipLinkEl.removeEventListener('click', onPreviewSkipClick);
+      window.removeEventListener('keydown', onPreviewSkipKeyDown);
       window.removeEventListener('pm:pausechange', onPauseChange);
       window.removeEventListener('resize', onWindowResize);
       if (resizeObserver) {

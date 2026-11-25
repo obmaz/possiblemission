@@ -65,9 +65,14 @@
           <div id="hud-score" class="hud-score">0 PTS</div>
         </div>
         <div class="game-hud__actions">
-          <button id="hud-restart-btn" class="hud-btn hud-btn--icon" type="button" aria-label="다시 시작" title="같은 시드로 다시 시작">↻</button>
           <button id="hud-pause-btn" class="hud-btn hud-btn--icon" type="button" aria-label="일시정지" title="일시정지">⏸</button>
-          <button id="hud-mute-btn" class="hud-btn hud-btn--icon" type="button" aria-label="사운드 토글" title="사운드 켜기/끄기">🔊</button>
+          <div class="hud-more">
+            <button id="hud-more-btn" class="hud-btn hud-btn--icon" type="button" aria-label="더 보기" title="더 보기" aria-expanded="false">⋯</button>
+            <div id="hud-menu" class="hud-menu" hidden>
+              <button id="hud-restart-btn" class="hud-menu__item" type="button">↻ 다시 시작</button>
+              <button id="hud-mute-btn" class="hud-menu__item" type="button" aria-pressed="false">🔊 사운드 켜짐</button>
+            </div>
+          </div>
         </div>
       </div>
 

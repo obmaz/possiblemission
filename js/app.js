@@ -207,12 +207,12 @@ function syncMuteButtons() {
   const muted = audio.isMuted();
   const icon = muted ? '🔇' : '🔊';
   if (dom.hudMuteBtn) {
-    dom.hudMuteBtn.textContent = icon;
+    dom.hudMuteBtn.textContent = `${icon} 사운드 ${muted ? '꺼짐' : '켜짐'}`;
     dom.hudMuteBtn.setAttribute('aria-pressed', String(muted));
   }
   const lobbyMuteBtn = document.getElementById('lobby-mute-btn');
   if (lobbyMuteBtn) {
-    lobbyMuteBtn.textContent = muted ? '🔇 음소거' : '🔊 SFX ON';
+    lobbyMuteBtn.textContent = muted ? '🔇 소리 꺼짐' : '🔊 소리 켜짐';
     lobbyMuteBtn.setAttribute('aria-pressed', String(muted));
   }
 }
@@ -239,9 +239,8 @@ function renderHeroBanner() {
       <div class="hero-banner__topline">
         <span class="hero-live-pill">
           <span class="hero-live-pill__dot" aria-hidden="true"></span>
-          WORKSHOP LIVE • 5–100인 동시 미션
+          5–100명 동시 플레이 · 로그인 없음
         </span>
-        <span class="hero-brand-tag">POSSIBLE MISSION // ARCADE</span>
       </div>
       <h1 class="hero-banner__title">
         오늘 워크샵, <span class="hero-banner__title-accent">텐션 한계 돌파!</span>
@@ -253,9 +252,6 @@ function renderHeroBanner() {
       <div class="hero-banner__actions">
         <button id="hero-random-play-btn" class="btn-neon-primary" type="button">
           ⚡ 랜덤 미션 바로 시작
-        </button>
-        <button id="hero-sync-seed-btn" class="btn-neon-secondary" type="button">
-          🎯 오늘의 시드 맞추기
         </button>
       </div>
     </div>
@@ -289,7 +285,7 @@ function renderWorkshopBar() {
     <ol class="quick-start" aria-label="시작 방법">
       <li class="quick-start__step"><b>1</b> 이름 입력 <span>(선택)</span></li>
       <li class="quick-start__step"><b>2</b> 룸 시드 확인</li>
-      <li class="quick-start__step"><b>3</b> 게임 카드에서 <b>출격</b></li>
+      <li class="quick-start__step"><b>3</b> 게임 카드에서 <b>시작하기</b></li>
     </ol>
 
     <div class="workshop-bar__row">
@@ -454,11 +450,6 @@ function renderSeedChips() {
   const history = storage.getSeedHistory().filter((s) => !PRESET_SEEDS.includes(s)).slice(0, 3);
   container.innerHTML = '';
 
-  const label = document.createElement('span');
-  label.className = 'seed-chips__label';
-  label.textContent = '빠른 시드:';
-  container.appendChild(label);
-
   PRESET_SEEDS.forEach((seedVal) => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -499,9 +490,6 @@ function renderGameGrid() {
   if (!dom.gameGrid) return;
   dom.gameGrid.innerHTML = '';
 
-  const supportsHover = window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
-  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
   GAME_CATALOG.forEach((game) => {
     const selectedModeId = state.selectedModes[game.id] || game.defaultMode;
     const modeObj = game.modes.find((m) => m.id === selectedModeId) || game.modes[0];
@@ -541,31 +529,37 @@ function renderGameGrid() {
         <h2 class="game-card__title">${game.title}</h2>
         <p class="game-card__hook">${game.hook}</p>
 
-        <div class="game-card__modes" role="group" aria-label="${escapeAttr(game.title)} 모드 선택">
-          ${game.modes
-            .map(
-              (m) => `
-              <button
-                type="button"
-                class="mode-pill ${m.id === modeObj.id ? 'is-selected' : ''}"
-                data-mode-id="${m.id}"
-              >${m.label}</button>`
-            )
-            .join('')}
-        </div>
+        ${
+          game.modes.length > 1
+            ? `<label class="game-card__mode-select">
+                 <span class="game-card__mode-label">난이도</span>
+                 <select data-mode-select aria-label="${escapeAttr(game.title)} 난이도 선택">
+                   ${game.modes
+                     .map(
+                       (m) =>
+                         `<option value="${escapeAttr(m.id)}" ${
+                           m.id === modeObj.id ? 'selected' : ''
+                         }>${escapeHtml(m.label)}</option>`
+                     )
+                     .join('')}
+                 </select>
+               </label>`
+            : ''
+        }
 
         <button type="button" class="game-card__play" data-launch-game>
-          <span>출격 (PLAY →)</span>
+          <span>시작하기</span>
+          <span aria-hidden="true">→</span>
         </button>
       </div>
     `;
 
-    card.querySelectorAll('[data-mode-id]').forEach((pill) => {
-      pill.addEventListener('click', () => {
-        audio.playClick();
-        state.selectedModes[game.id] = pill.dataset.modeId;
-        renderGameGrid();
-      });
+    card.querySelector('[data-mode-select]')?.addEventListener('change', (e) => {
+      const nextId = e.target.value;
+      if (!game.modes.some((m) => m.id === nextId)) return;
+      audio.playClick();
+      state.selectedModes[game.id] = nextId;
+      renderGameGrid();
     });
 
     card.querySelector('[data-launch-game]')?.addEventListener('click', () => {
@@ -573,24 +567,6 @@ function renderGameGrid() {
       syncSeedFromInput({ rerender: false });
       launchGame(game.id, state.selectedModes[game.id] || game.defaultMode);
     });
-
-    if (supportsHover && !reducedMotion) {
-      card.addEventListener('pointermove', (e) => {
-        const rect = card.getBoundingClientRect();
-        const px = (e.clientX - rect.left) / rect.width;
-        const py = (e.clientY - rect.top) / rect.height;
-        const rx = (0.5 - py) * 10; // ±5deg
-        const ry = (px - 0.5) * 10;
-        card.style.setProperty('--rx', `${rx.toFixed(2)}deg`);
-        card.style.setProperty('--ry', `${ry.toFixed(2)}deg`);
-        card.style.setProperty('--mx', `${(px * 100).toFixed(1)}%`);
-        card.style.setProperty('--my', `${(py * 100).toFixed(1)}%`);
-      });
-      card.addEventListener('pointerleave', () => {
-        card.style.setProperty('--rx', '0deg');
-        card.style.setProperty('--ry', '0deg');
-      });
-    }
 
     dom.gameGrid.appendChild(card);
   });
@@ -654,8 +630,8 @@ function renderHallOfFame() {
   dom.hallOfFame.innerHTML = `
     <div class="hof-header">
       <div class="hof-header__title-group">
-        <span class="hof-header__eyebrow">LOCAL HALL OF FAME // WORKSHOP RECORDS</span>
-        <h2 class="hof-header__title">명예의 전당 & 최근 기록</h2>
+        <span class="hof-header__eyebrow">이 기기에 저장된 기록</span>
+        <h2 class="hof-header__title">명예의 전당</h2>
       </div>
       <div class="hof-controls">
         <div class="hof-tabs" role="tablist">
@@ -672,9 +648,6 @@ function renderHallOfFame() {
             )
             .join('')}
         </div>
-        <button id="hof-open-aggregator" class="workshop-tool-btn workshop-tool-btn--accent" type="button">
-          📋 결과 취합기 (MC용)
-        </button>
       </div>
     </div>
     <div class="hof-list">${rowsHtml}</div>
@@ -885,7 +858,15 @@ function openAggregatorModal() {
 }
 
 /* === Active Game HUD & Lifecycle === */
+function closeHudMenu() {
+  const hudMenu = document.getElementById('hud-menu');
+  const hudMoreBtn = document.getElementById('hud-more-btn');
+  if (hudMenu) hudMenu.hidden = true;
+  if (hudMoreBtn) hudMoreBtn.setAttribute('aria-expanded', 'false');
+}
+
 function resetHud() {
+  closeHudMenu();
   if (dom.hudTimer) {
     dom.hudTimer.textContent = '00:00';
     dom.hudTimer.dataset.state = 'normal';
@@ -1411,7 +1392,31 @@ function init() {
     setPaused(false);
   });
 
-  dom.hudMuteBtn?.addEventListener('click', toggleMute);
+  dom.hudMuteBtn?.addEventListener('click', () => {
+    toggleMute();
+    closeHudMenu();
+  });
+
+  const hudMoreBtn = document.getElementById('hud-more-btn');
+  const hudMenu = document.getElementById('hud-menu');
+  const toggleHudMenu = () => {
+    if (!hudMenu || !hudMoreBtn) return;
+    const open = hudMenu.hidden;
+    hudMenu.hidden = !open;
+    hudMoreBtn.setAttribute('aria-expanded', String(open));
+  };
+  hudMoreBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleHudMenu();
+  });
+  document.addEventListener('click', (e) => {
+    if (!hudMenu || hudMenu.hidden) return;
+    if (hudMenu.contains(e.target) || e.target === hudMoreBtn) return;
+    closeHudMenu();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeHudMenu();
+  });
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && state.activeGame && !state.activeGame.finished && !state.activeGame.isStub) {

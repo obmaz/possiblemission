@@ -3,7 +3,7 @@
 - **Document Role**: Single Source of Truth for parallel implementation by Core Systems + 4 independent mini-game programmers.
 - **Target Deployment**: Pure static site hosted on GitHub Pages (`main` branch, root `/`). Zero build step, zero bundler, zero backend, zero external JS CDN dependencies.
 - **Module & Path Standard**: Native ES Modules (`<script type="module" src="./js/app.js">`). All asset, stylesheet, and module references MUST use strictly relative paths (`./assets/...`, `./styles/...`, `./js/...`) — never root-leading `/` paths — so the app runs identically at `https://<user>.github.io/<repo>/` and `http://localhost`.
-- **Language & Theme**: High-contrast **Midnight Neon Arcade** (`#070914` base, cyan/magenta/gold/emerald/crimson accents) with crisp, witty Korean primary UI + uppercase English arcade sub-labels (`Outfit`, `Space Grotesk`, `Pretendard Variable`, `Noto Sans KR`).
+- **Language & Theme**: **Calm Graphite Arcade** — a softer successor to the launch "Midnight Neon" look (`#0c1018` base, muted accent set `#38bdf8` / `#ec6aa0` / `#eeb44a` / `#3fbf92` / `#e06767` / `#a189e8`, subtle 6px/18px shadows instead of neon glows). Korean is the primary UI language; English micro-labels are decorative only and must never be required to understand a screen. Design rule: **one clear action per surface** — avoid stacked pill clusters, 3D tilt, grid backgrounds and glow-heavy borders.
 - **Concurrency & Scale**: Engineered for **5–100 simultaneous workshop participants** on mobile (`360px+` portrait/landscape) and desktop/projector (`1440px+`), using deterministic seeded PRNG for zero-backend puzzle synchronization.
 
 ---
