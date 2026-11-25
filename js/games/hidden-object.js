@@ -753,7 +753,7 @@ export function mount(container, ctx) {
       modeLabel,
       details: [
         { label: '발견 오브젝트', value: `${foundCount} / ${targetCount}개` },
-        { label: '클리어 타임', value: `${(activeElapsedMs / 1000).toFixed(1)}초` },
+        { label: '플레이 시간', value: `${(activeElapsedMs / 1000).toFixed(1)}초` },
         { label: '정확도 (오답)', value: `${accuracy}% (${wrongTaps}회)` },
         { label: '최대 콤보 / 힌트', value: `x${maxStreak} · ${hintsUsed}/${MAX_HINTS}회` },
       ],
