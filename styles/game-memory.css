@@ -1,5 +1,591 @@
-/* Scoped styles for Game 3: Neon Memory Match (.game-memory) */
+/* ==========================================================================
+   Game 3: Neon Memory Match (.game-memory)
+   Strictly scoped under .game-memory; keyframes prefixed mm-
+   ========================================================================== */
+
 .game-memory {
+  position: relative;
   width: 100%;
   height: 100%;
+  min-height: 0;
+  padding: clamp(8px, 1.5vh, 16px) clamp(10px, 2.2vw, 24px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(8px, 1.3vh, 14px);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* === Top Status & Telemetry Strip === */
+.game-memory .mm-topbar {
+  width: 100%;
+  max-width: 980px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 8px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-deep);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  flex-shrink: 0;
+}
+
+.game-memory .mm-phase-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.game-memory .mm-phase-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid rgba(168, 85, 247, 0.55);
+  color: #e9d5ff;
+}
+
+.game-memory .mm-phase-pill[data-phase='preview'] {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: rgba(251, 191, 36, 0.65);
+  color: var(--neon-gold);
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.24);
+  animation: mm-pulse-soft 0.6s ease-in-out infinite alternate;
+}
+
+.game-memory .mm-phase-pill[data-phase='combo'] {
+  background: rgba(244, 63, 142, 0.22);
+  border-color: rgba(244, 63, 142, 0.65);
+  color: #fbcfe8;
+  box-shadow: var(--glow-magenta);
+}
+
+.game-memory .mm-phase-text {
+  font-size: clamp(0.8rem, 0.35vw + 0.72rem, 0.94rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-memory .mm-phase-text strong {
+  color: var(--neon-gold);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-memory .mm-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+.game-memory .mm-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(7, 9, 20, 0.66);
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.game-memory .mm-stat-chip__val {
+  color: var(--text-primary);
+}
+
+.game-memory .mm-stat-chip--combo {
+  border-color: rgba(34, 211, 238, 0.42);
+  color: #cffafe;
+}
+
+.game-memory .mm-preview-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  background: rgba(168, 85, 247, 0.16);
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  color: #f3e8ff;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 700;
+  white-space: nowrap;
+  transition: transform var(--dur-fast) var(--ease-pop), background-color var(--dur-fast), border-color var(--dur-fast);
+}
+
+.game-memory .mm-preview-btn:hover {
+  background: rgba(168, 85, 247, 0.28);
+  border-color: var(--neon-violet);
+  transform: translateY(-1px);
+}
+
+.game-memory .mm-preview-btn[hidden] {
+  display: none;
+}
+
+/* === Preview Progress Bar === */
+.game-memory .mm-preview-meter {
+  width: 100%;
+  max-width: 980px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  flex-shrink: 0;
+  opacity: 1;
+  transition: opacity 200ms ease;
+}
+
+.game-memory .mm-preview-meter.is-hidden {
+  opacity: 0;
+}
+
+.game-memory .mm-preview-meter__fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--neon-gold), var(--neon-magenta), var(--neon-cyan));
+  transform-origin: left center;
+  transform: scaleX(var(--mm-preview-ratio, 1));
+}
+
+/* === Board Container (Fits 100dvh cleanly) === */
+.game-memory .mm-board-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: 1020px;
+  display: grid;
+  place-items: center;
+}
+
+.game-memory .mm-grid {
+  --mm-cols: 4;
+  --mm-rows: 4;
+  --mm-gap: clamp(6px, 1.2vmin, 12px);
+  display: grid;
+  grid-template-columns: repeat(var(--mm-cols), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--mm-rows), minmax(0, 1fr));
+  gap: var(--mm-gap);
+  width: var(--mm-grid-w, min(100%, 620px));
+  height: var(--mm-grid-h, 100%);
+  max-width: 100%;
+  max-height: 100%;
+  margin: auto;
+}
+
+/* === 3D Flip Card === */
+.game-memory .mm-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border-radius: clamp(10px, 1.5vmin, 18px);
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.game-memory .mm-card:focus-visible .mm-card__face {
+  box-shadow: 0 0 0 2.5px var(--neon-cyan), var(--glow-cyan);
+}
+
+.game-memory .mm-card__motion {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  perspective: 960px;
+}
+
+.game-memory .mm-card__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  transform-style: preserve-3d;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--mm-stagger, 0ms);
+  will-change: transform;
+}
+
+.game-memory .mm-card.is-flipped .mm-card__inner,
+.game-memory .mm-card.is-matched .mm-card__inner,
+.game-memory .mm-card.is-preview .mm-card__inner {
+  transform: rotateY(180deg);
+}
+
+.game-memory .mm-card__face {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Card Back (POSSIBLE MISSION emblem) --- */
+.game-memory .mm-card__back {
+  background:
+    radial-gradient(circle at 50% 35%, rgba(168, 85, 247, 0.22), transparent 65%),
+    linear-gradient(150deg, #101736 0%, #090d20 55%, #161032 100%);
+  border: 1.5px solid rgba(168, 85, 247, 0.42);
+  box-shadow:
+    0 10px 24px -8px rgba(2, 6, 23, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 0 18px rgba(168, 85, 247, 0.12);
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast);
+}
+
+.game-memory .mm-card__back::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.32;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(168, 85, 247, 0.14) 0px,
+      rgba(168, 85, 247, 0.14) 1px,
+      transparent 1px,
+      transparent 10px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(34, 211, 238, 0.1) 0px,
+      rgba(34, 211, 238, 0.1) 1px,
+      transparent 1px,
+      transparent 10px
+    );
+  pointer-events: none;
+}
+
+.game-memory .mm-card__back::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: calc(clamp(10px, 1.5vmin, 18px) - 4px);
+  border: 1px dashed rgba(34, 211, 238, 0.24);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .game-memory .mm-card:not(.is-flipped):not(.is-matched):not(.is-preview):hover .mm-card__back {
+    border-color: var(--neon-cyan);
+    box-shadow:
+      0 12px 26px -6px rgba(2, 6, 23, 0.85),
+      0 0 18px rgba(34, 211, 238, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  }
+}
+
+.game-memory .mm-back-emblem {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px;
+  text-align: center;
+}
+
+.game-memory .mm-back-sigil {
+  width: clamp(22px, 4.2vmin, 38px);
+  height: clamp(22px, 4.2vmin, 38px);
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.55));
+}
+
+.game-memory .mm-back-brand {
+  font-family: var(--font-display);
+  font-size: clamp(0.46rem, 1.05vmin, 0.68rem);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  line-height: 1.08;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, #e9d5ff 0%, #22d3ee 50%, #f472b6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* --- Card Front (Unique Gradient + SVG + Korean Label) --- */
+.game-memory .mm-card__front {
+  transform: rotateY(180deg);
+  padding: clamp(4px, 0.9vmin, 10px);
+  gap: clamp(2px, 0.5vmin, 6px);
+  background:
+    radial-gradient(circle at 50% 28%, var(--mm-bg-a, rgba(34, 211, 238, 0.32)), transparent 68%),
+    linear-gradient(155deg, var(--mm-bg-b, #151c3f) 0%, #090d22 100%);
+  border: 1.5px solid var(--mm-accent, var(--neon-cyan));
+  box-shadow:
+    0 10px 24px -8px rgba(2, 6, 23, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    0 0 16px -4px var(--mm-accent, var(--neon-cyan));
+}
+
+.game-memory .mm-card__front::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, transparent 42%);
+  pointer-events: none;
+}
+
+.game-memory .mm-card__icon-wrap {
+  position: relative;
+  z-index: 1;
+  width: 64%;
+  max-width: 78px;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+.game-memory .mm-card__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
+}
+
+.game-memory .mm-card__label {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-sans);
+  font-size: clamp(0.62rem, 1.35vmin, 0.84rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* === Matched & Mismatch States === */
+.game-memory .mm-card.is-matched {
+  cursor: default;
+}
+
+.game-memory .mm-card.is-matched .mm-card__front {
+  border-color: var(--neon-emerald);
+  box-shadow:
+    0 0 22px rgba(52, 211, 153, 0.42),
+    inset 0 0 16px rgba(52, 211, 153, 0.18);
+}
+
+.game-memory .mm-card.is-just-matched .mm-card__motion {
+  animation: mm-match-pulse 460ms var(--ease-pop) 220ms;
+}
+
+.game-memory .mm-card.is-matched .mm-card__front::after {
+  content: '✓';
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  width: clamp(15px, 2.2vmin, 20px);
+  height: clamp(15px, 2.2vmin, 20px);
+  border-radius: 50%;
+  background: var(--neon-emerald);
+  color: #031d12;
+  font-family: var(--font-mono);
+  font-size: clamp(0.55rem, 1.1vmin, 0.72rem);
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.75);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.game-memory .mm-card.is-mismatch .mm-card__motion {
+  animation: mm-shake 380ms ease-in-out 240ms;
+}
+
+.game-memory .mm-card.is-mismatch .mm-card__front {
+  border-color: var(--neon-crimson);
+  box-shadow:
+    0 0 22px rgba(239, 68, 68, 0.55),
+    inset 0 0 14px rgba(239, 68, 68, 0.24);
+}
+
+/* === Floating Score / Combo Popups === */
+.game-memory .mm-fx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+  overflow: visible;
+}
+
+.game-memory .mm-float-badge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: clamp(0.78rem, 1.5vw, 0.98rem);
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  background: rgba(7, 9, 20, 0.9);
+  border: 1.5px solid var(--neon-cyan);
+  color: #cffafe;
+  box-shadow: var(--glow-cyan);
+  animation: mm-float-up 920ms var(--ease-arcade) forwards;
+}
+
+.game-memory .mm-float-badge--combo {
+  border-color: var(--neon-gold);
+  color: var(--neon-gold);
+  background: linear-gradient(135deg, rgba(244, 63, 142, 0.92), rgba(168, 85, 247, 0.92));
+  box-shadow: var(--glow-gold);
+  font-size: clamp(0.86rem, 1.7vw, 1.12rem);
+}
+
+/* === Keyframes (mm- prefixed) === */
+@keyframes mm-pulse-soft {
+  from { transform: scale(1); }
+  to { transform: scale(1.04); }
+}
+
+@keyframes mm-match-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.09); }
+  100% { transform: scale(1); }
+}
+
+@keyframes mm-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  45% { transform: translateX(7px); }
+  70% { transform: translateX(-5px); }
+  88% { transform: translateX(4px); }
+}
+
+@keyframes mm-float-up {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -15%) scale(0.7);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -65%) scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -165%) scale(0.95);
+  }
+}
+
+/* === Mobile Adjustments === */
+@media (max-width: 639px) {
+  .game-memory {
+    padding: 6px 8px 10px;
+    gap: 6px;
+  }
+
+  .game-memory .mm-topbar {
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    gap: 6px 8px;
+    border-radius: var(--radius-md);
+  }
+
+  .game-memory .mm-phase-banner {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .game-memory .mm-metrics {
+    flex: 1 1 100%;
+    flex-shrink: 1;
+    min-width: 0;
+    gap: 6px;
+  }
+
+  .game-memory .mm-preview-btn {
+    margin-left: auto;
+    min-height: 44px;
+    padding: 6px 14px;
+  }
+
+  .game-memory .mm-back-brand {
+    letter-spacing: 0.08em;
+  }
+}
+
+@media (pointer: coarse) {
+  .game-memory .mm-preview-btn {
+    min-height: 44px;
+    padding: 6px 14px;
+  }
+}
+
+@media (max-width: 479px) {
+  .game-memory .mm-phase-pill {
+    padding: 3px 8px;
+  }
+  .game-memory .mm-stat-chip {
+    padding: 4px 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-memory .mm-card__inner {
+    transition-duration: 80ms;
+    transition-delay: 0ms !important;
+  }
+  .game-memory .mm-phase-pill[data-phase='preview'],
+  .game-memory .mm-card.is-just-matched .mm-card__motion,
+  .game-memory .mm-card.is-mismatch .mm-card__motion,
+  .game-memory .mm-float-badge {
+    animation: none !important;
+  }
 }
