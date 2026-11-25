@@ -158,10 +158,14 @@ export function recordRun(runEntry) {
     allPb[entry.gameId] = {};
   }
   const prev = allPb[entry.gameId][entry.mode] || null;
+  // Only cleared runs can own a personal best, so a failed attempt never shows up
+  // as "BEST 0 (C)" in the lobby or as a misleading NEW RECORD! banner.
   const isNewRecord =
-    !prev ||
-    entry.score > prev.score ||
-    (entry.score === prev.score && entry.timeMs < prev.timeMs);
+    entry.cleared &&
+    (!prev ||
+      prev.cleared === false ||
+      entry.score > prev.score ||
+      (entry.score === prev.score && entry.timeMs < prev.timeMs));
 
   let personalBest = prev;
   if (isNewRecord) {
@@ -171,6 +175,7 @@ export function recordRun(runEntry) {
       accuracy: entry.accuracy,
       grade: entry.grade,
       seed: entry.seed,
+      cleared: true,
       updatedAt: timestamp,
     };
     allPb[entry.gameId][entry.mode] = personalBest;

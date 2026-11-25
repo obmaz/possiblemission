@@ -144,19 +144,23 @@ export const STAGES = {
         y: 0.848,
         r: 0.05,
         kind: 'patch-remove',
-        rx: 0.02,
-        ry: 0.042,
-        srcDx: -0.025,
-        srcDy: 0.032,
+        rx: 0.022,
+        ry: 0.044,
+        srcDx: 0.062,
+        srcDy: 0.006,
       },
       {
         id: 'cafe-card-suit',
-        label: '앞 테이블 카드 문양',
-        x: 0.735,
-        y: 0.854,
-        r: 0.052,
-        kind: 'cel-prop',
-        propType: 'card-spade',
+        label: '앞 테이블 카드 하트 색',
+        x: 0.7275,
+        y: 0.888,
+        r: 0.05,
+        kind: 'color-swap',
+        rx: 0.031,
+        ry: 0.027,
+        filterFn: (h, s, l) => (h >= 340 || h <= 16) && s >= 0.4 && l >= 0.3 && l <= 0.82,
+        targetHue: 212,
+        satScale: 1.25,
       },
       {
         id: 'cafe-window-bird',
@@ -185,10 +189,10 @@ export const STAGES = {
         kind: 'color-swap',
         rx: 0.045,
         ry: 0.038,
-        hueMin: 15,
-        hueMax: 60,
-        minSat: 0.3,
-        minLight: 0.22,
+        hueMin: 36,
+        hueMax: 70,
+        minSat: 0.38,
+        minLight: 0.34,
         targetHue: 326,
         satScale: 1.15,
       },
@@ -271,9 +275,9 @@ export const STAGES = {
         r: 0.048,
         kind: 'color-swap',
         rx: 0.024,
-        ry: 0.034,
+        ry: 0.032,
         filterFn: (h, s, l) =>
-          (h <= 16 || h >= 340) && s >= 0.52 && l >= 0.22 && l <= 0.64,
+          (h <= 14 || h >= 342) && s >= 0.62 && l >= 0.24 && l <= 0.6,
         targetHue: 102,
         satScale: 1.05,
       },
@@ -572,37 +576,6 @@ function drawClockHandsProp(ctx2d, spot) {
   ctx2d.restore();
 }
 
-function drawCardSpadeProp(ctx2d, spot) {
-  const cx = spot.x * BASE_W;
-  const cy = spot.y * BASE_H;
-
-  ctx2d.save();
-  ctx2d.translate(cx, cy);
-  // Card perspective tilt matches the foreground heart card
-  ctx2d.rotate(-0.42);
-
-  // Patch center red heart with clean off-white card surface
-  ctx2d.fillStyle = '#f8f4eb';
-  ctx2d.beginPath();
-  ctx2d.ellipse(0, -1, 21, 19, 0, 0, Math.PI * 2);
-  ctx2d.fill();
-
-  // Draw crisp black spade (♠)
-  ctx2d.fillStyle = OUTLINE_COLOR;
-  ctx2d.beginPath();
-  ctx2d.moveTo(0, -11);
-  ctx2d.bezierCurveTo(10, -3, 13, 3, 7, 7.5);
-  ctx2d.bezierCurveTo(4, 9.5, 1.5, 7, 1, 5);
-  ctx2d.lineTo(4, 11.5);
-  ctx2d.lineTo(-4, 11.5);
-  ctx2d.lineTo(-1, 5);
-  ctx2d.bezierCurveTo(-1.5, 7, -4, 9.5, -7, 7.5);
-  ctx2d.bezierCurveTo(-13, 3, -10, -3, 0, -11);
-  ctx2d.closePath();
-  ctx2d.fill();
-  ctx2d.restore();
-}
-
 function drawCafeBirdProp(ctx2d, spot) {
   const cx = spot.x * BASE_W;
   const cy = spot.y * BASE_H;
@@ -824,9 +797,6 @@ function applyCelProp(ctx2d, spot) {
   switch (spot.propType) {
     case 'clock-hands':
       drawClockHandsProp(ctx2d, spot);
-      break;
-    case 'card-spade':
-      drawCardSpadeProp(ctx2d, spot);
       break;
     case 'cafe-bird':
       drawCafeBirdProp(ctx2d, spot);
