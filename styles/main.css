@@ -1219,7 +1219,23 @@ textarea:focus-visible {
   position: relative;
   width: 100%;
   height: calc(100dvh - var(--hud-height));
+  padding: clamp(8px, 1.6vh, 20px);
+  display: grid;
+  place-items: center;
   overflow: auto;
+}
+
+/*
+ * Arcade cabinet frame: every mini-game plays inside a fixed 16:9 stage on
+ * desktop/monitor viewports so puzzle layouts are identical for all players.
+ */
+@media (min-width: 900px) {
+  .game-stage > .game-root {
+    width: min(100%, calc((100dvh - var(--hud-height) - 2 * clamp(8px, 1.6vh, 20px)) * 16 / 9));
+    height: auto;
+    aspect-ratio: 16 / 9;
+    margin-inline: auto;
+  }
 }
 
 /* === Stub Fallback Card === */

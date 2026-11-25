@@ -110,7 +110,16 @@ function cacheDom() {
 }
 
 /* === URL & Seed Helpers === */
-function syncUrlState({ seed, game, mode } = {}) {
+const HISTORY_KIND_GAME = 'game';
+const HISTORY_KIND_HUB = 'hub';
+let ignoreNextPopState = false;
+
+/**
+ * Mirrors the current view into the address bar.
+ * `push` adds a history entry (lobby -> game) so the browser Back button returns to
+ * the lobby instead of leaving the arcade site.
+ */
+function syncUrlState({ seed, game, mode, historyMode = 'replace' } = {}) {
   try {
     const url = new URL(window.location.href);
     url.searchParams.set('seed', seed || state.seed);
@@ -121,7 +130,19 @@ function syncUrlState({ seed, game, mode } = {}) {
       url.searchParams.delete('game');
       url.searchParams.delete('mode');
     }
-    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+    const payload = {
+      pm: game ? HISTORY_KIND_GAME : HISTORY_KIND_HUB,
+      pushedByApp: historyMode === 'push',
+      seed: seed || state.seed,
+      game: game || null,
+      mode: game ? mode || state.selectedModes[game] || '' : null,
+    };
+    if (historyMode === 'push') {
+      window.history.pushState(payload, '', nextUrl);
+    } else {
+      window.history.replaceState(payload, '', nextUrl);
+    }
   } catch {
     // Ignore restricted history APIs
   }
@@ -932,7 +953,7 @@ function unmountActiveGame() {
   if (dom.pauseCurtain) dom.pauseCurtain.hidden = true;
 }
 
-function exitToHub({ force = false } = {}) {
+function exitToHub({ force = false, fromHistory = false } = {}) {
   const active = state.activeGame;
   if (!force && active && !active.finished && !active.isStub) {
     const confirmBody = document.createElement('div');
@@ -984,9 +1005,43 @@ function exitToHub({ force = false } = {}) {
     dom.lobbyView.dataset.active = 'true';
   }
 
-  syncUrlState({ seed: state.seed });
+  // If the current entry was pushed when the game started, walk back so the Back button
+  // never skips over the lobby and leaves the site.
+  if (!fromHistory && window.history.state?.pushedByApp) {
+    ignoreNextPopState = true;
+    window.history.back();
+  } else {
+    syncUrlState({ seed: state.seed, historyMode: 'replace' });
+  }
+
   renderGameGrid();
   renderHallOfFame();
+}
+
+function handlePopState() {
+  if (ignoreNextPopState) {
+    ignoreNextPopState = false;
+    syncUrlState({ seed: state.seed, historyMode: 'replace' });
+    return;
+  }
+
+  // Browser-initiated Back/Forward: treat leaving a game exactly like the "로비로" button
+  if (state.activeGame) {
+    exitToHub({ force: true, fromHistory: true });
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const nextSeed = storage.normalizeSeed(params.get('seed') || state.seed);
+  if (nextSeed !== state.seed) {
+    state.seed = nextSeed;
+    storage.addSeedHistory(nextSeed);
+    const seedInput = document.getElementById('seed-input');
+    if (seedInput) seedInput.value = nextSeed;
+    renderSeedChips();
+    renderGameGrid();
+    renderHallOfFame();
+  }
 }
 
 async function launchGame(gameId, requestedMode) {
@@ -1000,6 +1055,8 @@ async function launchGame(gameId, requestedMode) {
   const mode = validMode.id;
   state.selectedModes[gameId] = mode;
 
+  // Restarting/retrying reuses the current history entry; entering from the lobby pushes one
+  const wasGameActive = Boolean(state.activeGame);
   unmountActiveGame();
   ui.closeModal(true);
 
@@ -1008,7 +1065,12 @@ async function launchGame(gameId, requestedMode) {
   }
   state.seed = storage.normalizeSeed(state.seed);
   storage.addSeedHistory(state.seed);
-  syncUrlState({ seed: state.seed, game: gameId, mode });
+  syncUrlState({
+    seed: state.seed,
+    game: gameId,
+    mode,
+    historyMode: wasGameActive ? 'replace' : 'push',
+  });
 
   if (dom.lobbyView) {
     dom.lobbyView.hidden = true;
@@ -1347,12 +1409,16 @@ function init() {
 
   syncMuteButtons();
 
+  window.addEventListener('popstate', handlePopState);
+
   // Direct deep-link launch (?seed=TEST&game=memory-match&mode=4x4)
   if (urlGame && GAME_MAP.has(urlGame)) {
+    // Replace the landing entry with the lobby, then push the game on top of it
+    syncUrlState({ seed: state.seed, historyMode: 'replace' });
     const modeToStart = state.selectedModes[urlGame] || GAME_MAP.get(urlGame).defaultMode;
     launchGame(urlGame, modeToStart);
   } else {
-    syncUrlState({ seed: state.seed });
+    syncUrlState({ seed: state.seed, historyMode: 'replace' });
   }
 }
 

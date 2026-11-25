@@ -21,13 +21,22 @@ export function calculateGrade(score, opts = {}) {
   const cleared = opts.cleared !== false;
   const pts = Math.max(0, Number(score) || 0);
 
-  if (!cleared || pts < 3000) {
+  if (!cleared) {
     return {
       grade: 'C',
-      titleKo: '생존 완료',
-      badgeEn: 'SURVIVOR',
+      titleKo: '미션 실패',
+      badgeEn: 'MISSION FAILED',
+      colorVar: '--neon-crimson',
+      copy: '아쉬운 실패! 패턴은 파악됐으니 재도전 각!',
+    };
+  }
+  if (pts < 3000) {
+    return {
+      grade: 'C',
+      titleKo: '완주 성공',
+      badgeEn: 'FINISHER',
       colorVar: '--neon-magenta',
-      copy: cleared ? '끝까지 완주 성공! 한 판 더 도전해볼까요?' : '아쉬운 실패! 패턴은 파악됐으니 재도전 각!',
+      copy: '끝까지 완주 성공! 한 판 더 도전해볼까요?',
     };
   }
   if (pts >= 6800) {

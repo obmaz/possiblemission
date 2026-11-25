@@ -12,6 +12,8 @@ const BLACKOUT_DURATION = 0.35;
 const DECODE_LIMIT = 15.0;
 const WRONG_COOLDOWN_MS = 450;
 const SECTOR_CLEAR_PAUSE = 1.05;
+const NFLASH_INTERVAL = 4.6;
+const NFLASH_DURATION = 0.68;
 const FAIL_OVERLAY_PAUSE = 0.75;
 
 const STANDARD_SECTORS = [
@@ -312,6 +314,15 @@ export function mount(container, ctx) {
       </div>
       <div class="df-keypad" data-df-keypad></div>
     </section>
+
+    <aside class="df-tips" aria-label="플레이 방법">
+      <p class="df-tips__title">HOW TO PLAY</p>
+      <ol class="df-tips__list">
+        <li>터미널의 타겟 숫자 3개를 확인</li>
+        <li>숫자에 맞는 알파벳 노드를 클릭</li>
+        <li>틀리면 쉴드 −1 · 3개 소진 시 종료</li>
+      </ol>
+    </aside>
   `;
 
   container.appendChild(root);
@@ -382,11 +393,10 @@ export function mount(container, ctx) {
   let lastWrongAt = -Infinity;
   let lastTickStep = -1;
   let decoyPulseTimer = 0;
-  let decoyHudTimer = 0;
   let decoyWindowTriggered = false;
   let nextDecodeDecoyAt = 2.4;
-  let overlayDelayTimer = 0;
-  let pendingOverlayAction = null; // null | 'next_sector' | 'win' | 'fail'
+  let numberFlashTimer = 0;
+  let nextNumberFlashAt = 3.0;
 
   // Arena canvas dimensions (CSS px)
   let arenaW = 640;
@@ -423,8 +433,8 @@ export function mount(container, ctx) {
     const hudBottom = arenaHudEl
       ? arenaHudEl.offsetTop + arenaHudEl.offsetHeight
       : 58;
-    const minReserve = Math.min(Math.round(arenaH * 0.24), arenaW <= 480 ? 58 : 66);
-    const maxAllowed = Math.max(28, Math.round(arenaH * 0.30));
+    const minReserve = arenaW <= 480 ? 52 : 62;
+    const maxAllowed = Math.max(28, Math.round(arenaH * 0.32));
     return Math.min(maxAllowed, Math.max(minReserve, hudBottom + 8));
   }
 
@@ -481,11 +491,32 @@ export function mount(container, ctx) {
     }
   }
 
+  // Keeps every node inside the live safe area after the arena box changes size
+  function clampNodesToArena(sec) {
+    if (!sec || !arenaW || !arenaH) return;
+    const r = getNodeRadiusPx();
+    const { minX, maxX, minY, maxY } = getArenaBounds(r);
+
+    for (const node of sec.nodes) {
+      node.x = Math.max(minX, Math.min(maxX, node.x * arenaW)) / arenaW;
+      node.y = Math.max(minY, Math.min(maxY, node.y * arenaH)) / arenaH;
+      if (sec.movement === 'hover') {
+        node.anchorX = Math.max(minX, Math.min(maxX, node.anchorX * arenaW)) / arenaW;
+        node.anchorY = Math.max(minY, Math.min(maxY, node.anchorY * arenaH)) / arenaH;
+      }
+    }
+  }
+
   function resizeCanvas() {
     if (!arenaEl || !canvas) return;
-    const rect = arenaEl.getBoundingClientRect();
-    const nextW = rect.width > 0 ? Math.max(1, Math.round(rect.width)) : arenaW;
-    const nextH = rect.height > 0 ? Math.max(1, Math.round(rect.height)) : arenaH;
+    // Measure the canvas itself so the backing store always matches the painted box,
+    // even when the keypad toggle or mobile viewport changes the arena's flex height.
+    const canvasRect = canvas.getBoundingClientRect();
+    const arenaRect = arenaEl.getBoundingClientRect();
+    const srcW = canvasRect.width > 0 ? canvasRect.width : arenaRect.width;
+    const srcH = canvasRect.height > 0 ? canvasRect.height : arenaRect.height;
+    const nextW = srcW > 0 ? Math.max(1, Math.round(srcW)) : arenaW;
+    const nextH = srcH > 0 ? Math.max(1, Math.round(srcH)) : arenaH;
     const nextDpr = Math.min(window.devicePixelRatio || 1, 2);
     const nextCw = Math.floor(nextW * nextDpr);
     const nextCh = Math.floor(nextH * nextDpr);
@@ -504,8 +535,11 @@ export function mount(container, ctx) {
     if (changed) {
       canvas.width = nextCw;
       canvas.height = nextCh;
+      const sec = currentSector();
       if (phase === 'lockon') {
-        resolveNodeOverlapPx(currentSector());
+        resolveNodeOverlapPx(sec);
+      } else {
+        clampNodesToArena(sec);
       }
     }
   }
@@ -649,9 +683,12 @@ export function mount(container, ctx) {
       activeSlotIdx = 0;
       lastTickStep = -1;
       decoyPulseTimer = 0;
-      decoyHudTimer = 0;
       decoyWindowTriggered = false;
       nextDecodeDecoyAt = 2.2;
+      numberFlashTimer = 0;
+      nextNumberFlashAt = 3.0;
+      lastWrongAt = -Infinity;
+      arenaEl.classList.remove('is-glitch', 'is-refresh');
       initSectorVelocities(sec);
 
       sectorCodeEl.textContent = `${sec.code}/${String(totalSectors).padStart(2, '0')}`;
@@ -688,7 +725,9 @@ export function mount(container, ctx) {
       phasePillEl.textContent = 'BLACKOUT';
       keypadHintEl.textContent = '숫자 소멸! 타겟 코드 수신 중...';
       showBanner('숫자 소멸! 알파벳 위치만 남습니다!', 'danger');
-      ctx.audio.playTick();
+      numberFlashTimer = 0;
+      arenaEl.classList.remove('is-refresh');
+      ctx.audio.playAlarm();
       if (empFlashEl) {
         empFlashEl.classList.remove('is-active');
         void empFlashEl.offsetWidth;
@@ -712,8 +751,8 @@ export function mount(container, ctx) {
     } else if (nextPhase === 'sector_clear') {
       skipBtn.hidden = true;
       decoyHudEl.hidden = true;
-      decoyHudTimer = 0;
-      arenaEl.classList.remove('is-glitch');
+      numberFlashTimer = 0;
+      arenaEl.classList.remove('is-glitch', 'is-refresh');
       phasePillEl.dataset.phase = 'decode';
       phasePillEl.textContent = 'BREACHED';
       syncKeypad();
@@ -742,6 +781,10 @@ export function mount(container, ctx) {
     finished = true;
     phase = 'ended';
     skipBtn.hidden = true;
+    decoyPulseTimer = 0;
+    arenaEl.classList.remove('is-glitch');
+    decoyHudEl.hidden = true;
+    showBanner('', 'info');
     syncKeypad();
 
     if (cleared) {
@@ -768,21 +811,22 @@ export function mount(container, ctx) {
   }
 
   function handleDecodeFail(reasonTitle, reasonSub) {
-    if (finished) return;
+    if (finished || phase === 'ended' || phase === 'sector_clear') return;
     phase = 'ended';
-    ctx.audio.playAlarm();
+    decoyPulseTimer = 0;
+    decoyWindowTriggered = true;
+    arenaEl.classList.remove('is-glitch');
+    showBanner('', 'info');
     decoyHudEl.hidden = true;
+    ctx.audio.playAlarm();
     overlayCardEl.classList.add('is-fail');
     overlaySubEl.textContent = reasonSub;
     overlayTitleEl.textContent = reasonTitle;
     overlayBonusEl.textContent = `최종 점수 ${score.toLocaleString('en-US')} PTS`;
     overlayEl.hidden = false;
 
-    const id = window.setTimeout(() => {
-      activeTimers.delete(id);
-      if (!unmounted) completeRun(false);
-    }, 750);
-    activeTimers.add(id);
+    // safeTimeout already drops the callback after unmount, and completeRun() is idempotent
+    safeTimeout(() => completeRun(false), FAIL_OVERLAY_PAUSE * 1000);
   }
 
   function handleSectorCleared() {
@@ -884,7 +928,9 @@ export function mount(container, ctx) {
       } else {
         showBanner(`ACCESS DENIED — 재시도! (${source === 'keyboard' ? letter : '오답'})`, 'danger');
         safeTimeout(() => {
-          if (phase === 'decode') showBanner('', 'info');
+          if (phase !== 'decode') return;
+          showBanner('', 'info');
+          renderSlots();
         }, 850);
       }
     }
@@ -1046,8 +1092,14 @@ export function mount(container, ctx) {
       item.node.x = item.px / arenaW;
       item.node.y = item.py / arenaH;
 
-      // Clamp speed within sector bounds
-      const mag = Math.hypot(item.node.vx, item.node.vy) || 1;
+      // Clamp speed within sector bounds; revive any node whose momentum collapsed to 0
+      let mag = Math.hypot(item.node.vx, item.node.vy);
+      if (!Number.isFinite(mag) || mag < 1e-4) {
+        const dir = item.node.phase + activeTimeMs * 0.0013;
+        mag = Math.max(sec.speedMin, (sec.speedMin + sec.speedMax) * 0.5);
+        item.node.vx = Math.cos(dir) * mag;
+        item.node.vy = Math.sin(dir) * mag;
+      }
       if (mag < sec.speedMin || mag > sec.speedMax) {
         const clamped = Math.max(sec.speedMin, Math.min(sec.speedMax, mag));
         item.node.vx = (item.node.vx / mag) * clamped;
@@ -1078,9 +1130,11 @@ export function mount(container, ctx) {
 
     const sec = currentSector();
     const r = getNodeRadiusPx();
-    const showNumbers = phase === 'memorize';
+    const showNumbers = phase === 'memorize' || (phase === 'decode' && numberFlashTimer > 0);
     const isLockOn = phase === 'lockon';
     const isDecoyFlashing = decoyPulseTimer > 0;
+    const targetLetterSet = sec.__targetLetterSet || (sec.__targetLetterSet = new Set(sec.targets.map((t) => t.letter)));
+    const decoyLetterSet = sec.__decoyLetterSet || (sec.__decoyLetterSet = new Set(sec.decoyLetters));
 
     // Subtle tactical grid lines
     gCtx.save();
@@ -1107,19 +1161,23 @@ export function mount(container, ctx) {
       const cy = node.y * arenaH;
       const flash = nodeFlash.get(node.letter);
       const hasFlash = flash && flash.until > now;
-      const isDecoyNode = isDecoyFlashing && sec.decoyLetters.includes(node.letter) && !node.solved;
+      const isDecoyNode =
+        isDecoyFlashing &&
+        decoyLetterSet.has(node.letter) &&
+        !targetLetterSet.has(node.letter) &&
+        !node.solved;
 
-      // Flicker warning during final 1.2s of Sector 3 memorize
+      // Decode pulses fade their last 180ms so the numbers never pop out abruptly
       let numberAlpha = 1;
-      if (showNumbers && sec.decoy && sec.memorizeSec - phaseElapsed <= 1.2) {
-        numberAlpha = Math.sin(now * 0.032 + node.phase) > -0.25 ? 1 : 0.25;
+      if (phase === 'decode') {
+        numberAlpha = Math.min(1, numberFlashTimer / 0.18);
       }
 
       gCtx.save();
 
       // Lock-on contracting reticle
       if (isLockOn) {
-        const t = Math.min(1, phaseElapsed / LOCK_ON_DURATION);
+        const t = Math.min(1, phaseElapsed / getLockOnDuration(sec));
         const retR = r * (1.85 - t * 0.72);
         gCtx.strokeStyle = 'rgba(34, 211, 238, 0.75)';
         gCtx.lineWidth = 1.5;
@@ -1182,7 +1240,7 @@ export function mount(container, ctx) {
       gCtx.textAlign = 'center';
       gCtx.textBaseline = 'middle';
 
-      if (showNumbers) {
+      if (showNumbers && !node.solved) {
         // Alphabet top, bold Number bottom
         gCtx.fillStyle = '#94a3b8';
         gCtx.font = `800 ${Math.round(r * 0.44)}px Outfit, sans-serif`;
@@ -1246,9 +1304,10 @@ export function mount(container, ctx) {
       updateBursts(rawDt);
 
       if (phase === 'lockon') {
-        const ratio = Math.min(1, phaseElapsed / LOCK_ON_DURATION);
+        const lockOnSec = getLockOnDuration(sec);
+        const ratio = Math.min(1, phaseElapsed / lockOnSec);
         timerFillEl.style.setProperty('--df-bar', ratio.toFixed(4));
-        if (phaseElapsed >= LOCK_ON_DURATION) {
+        if (phaseElapsed >= lockOnSec) {
           enterPhase('memorize');
         }
       } else if (phase === 'memorize') {
@@ -1304,6 +1363,31 @@ export function mount(container, ctx) {
           }
         }
 
+        // SIGNAL LEAK: every few seconds the hidden numbers briefly come back,
+        // so beginners can re-check a pairing instead of getting stuck.
+        if (numberFlashTimer > 0) {
+          numberFlashTimer = Math.max(0, numberFlashTimer - rawDt);
+          if (numberFlashTimer === 0) {
+            arenaEl.classList.remove('is-refresh');
+            if (phase === 'decode') {
+              showBanner('', 'info');
+              const nextTargetNum = sec.targets[activeSlotIdx]?.number;
+              keypadHintEl.textContent = nextTargetNum
+                ? `타겟 [${nextTargetNum}] 에 해당하는 알파벳을 선택하세요!`
+                : '남은 타겟 코드를 해독하세요!';
+            }
+          }
+        }
+
+        if (decodeElapsed >= nextNumberFlashAt) {
+          nextNumberFlashAt += NFLASH_INTERVAL;
+          numberFlashTimer = NFLASH_DURATION;
+          arenaEl.classList.add('is-refresh');
+          showBanner('신호 누출! 숫자가 잠깐 되살아납니다', 'warn');
+          keypadHintEl.textContent = '신호 복구 중! 숫자를 재확인하세요!';
+          ctx.audio.playHint();
+        }
+
         // Sector 3 decode decoy telemetry & warning ring (only wrong nodes + side telemetry)
         if (sec.decoy && decodeElapsed >= nextDecodeDecoyAt) {
           nextDecodeDecoyAt += 4.2;
@@ -1328,6 +1412,11 @@ export function mount(container, ctx) {
   // Event bindings
   const onResize = () => resizeCanvas();
   window.addEventListener('resize', onResize);
+  const resizeObserver =
+    typeof ResizeObserver === 'function' && arenaEl
+      ? new ResizeObserver(() => resizeCanvas())
+      : null;
+  resizeObserver?.observe(arenaEl);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('pm:pausechange', handlePauseChange);
   canvas.addEventListener('pointerdown', handleCanvasPointerDown);
@@ -1353,6 +1442,9 @@ export function mount(container, ctx) {
       }
       activeTimers.clear();
       window.removeEventListener('resize', onResize);
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('pm:pausechange', handlePauseChange);
       canvas.removeEventListener('pointerdown', handleCanvasPointerDown);
