@@ -560,6 +560,10 @@ function renderGameGrid() {
       audio.playClick();
       state.selectedModes[game.id] = nextId;
       renderGameGrid();
+      // The grid is rebuilt, so restore focus to the same select for keyboard users
+      dom.gameGrid
+        ?.querySelector(`.game-card[data-game-id="${game.id}"] [data-mode-select]`)
+        ?.focus({ preventScroll: true });
     });
 
     card.querySelector('[data-launch-game]')?.addEventListener('click', () => {
