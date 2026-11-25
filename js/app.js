@@ -247,8 +247,8 @@ function renderHeroBanner() {
         오늘 워크샵, <span class="hero-banner__title-accent">텐션 한계 돌파!</span>
       </h1>
       <p class="hero-banner__desc">
-        서버 로그인 없이 <strong>같은 룸 시드</strong>만 맞추면 전원 동일한 문제로 승부!
-        모바일과 노트북 어디서든 1분 컷 미니게임 4종으로 팀 자존심을 걸어보세요.
+        로그인 없이 <strong>1분 컷</strong>. 같은 <strong>룸 시드</strong>만 맞추면
+        모두 똑같은 문제로 겨룹니다.
       </p>
       <div class="hero-banner__actions">
         <button id="hero-random-play-btn" class="btn-neon-primary" type="button">
@@ -286,6 +286,12 @@ function renderWorkshopBar() {
   const profile = storage.getProfile();
 
   dom.workshopBar.innerHTML = `
+    <ol class="quick-start" aria-label="시작 방법">
+      <li class="quick-start__step"><b>1</b> 이름 입력 <span>(선택)</span></li>
+      <li class="quick-start__step"><b>2</b> 룸 시드 확인</li>
+      <li class="quick-start__step"><b>3</b> 게임 카드에서 <b>출격</b></li>
+    </ol>
+
     <div class="workshop-bar__row">
       <label class="workshop-field workshop-field--nick">
         <span class="workshop-field__label">
@@ -319,7 +325,7 @@ function renderWorkshopBar() {
 
       <div class="workshop-field workshop-field--seed">
         <label class="workshop-field__label" for="seed-input">
-          <span>룸 시드 (ROOM SEED) — 같은 시드 = 같은 문제!</span>
+          <span>룸 시드 — 모두 같은 코드를 입력하면 같은 문제!</span>
           <span class="workshop-field__sub">5–100 SYNC</span>
         </label>
         <div class="seed-input-wrap">
@@ -338,23 +344,29 @@ function renderWorkshopBar() {
     </div>
 
     <div class="workshop-bar__bottom">
-      <div id="seed-chips" class="seed-chips" role="group" aria-label="프리셋 룸 시드"></div>
       <div class="workshop-actions">
         <button id="copy-invite-btn" class="workshop-tool-btn workshop-tool-btn--accent" type="button">
-          🔗 링크 복사
-        </button>
-        <button id="open-qr-btn" class="workshop-tool-btn" type="button">
-          📱 QR 코드
-        </button>
-        <button id="open-hof-btn" class="workshop-tool-btn" type="button">
-          🏆 명예의 전당
-        </button>
-        <button id="open-mc-guide-btn" class="workshop-tool-btn workshop-tool-btn--mc" type="button">
-          🎙️ MC 가이드
+          🔗 초대 링크 복사
         </button>
         <button id="lobby-mute-btn" class="workshop-tool-btn" type="button" aria-pressed="false">
           🔊 SFX ON
         </button>
+        <details class="workshop-more">
+          <summary class="workshop-tool-btn">🎛️ 진행자 도구</summary>
+          <div class="workshop-more__panel">
+            <div class="workshop-more__tools">
+              <button id="open-qr-btn" class="workshop-tool-btn" type="button">📱 QR 코드</button>
+              <button id="open-hof-btn" class="workshop-tool-btn" type="button">📋 결과 취합기</button>
+              <button id="open-mc-guide-btn" class="workshop-tool-btn workshop-tool-btn--mc" type="button">
+                🎙️ MC 가이드
+              </button>
+            </div>
+            <div class="workshop-more__seeds">
+              <span class="workshop-more__label">빠른 시드</span>
+              <div id="seed-chips" class="seed-chips" role="group" aria-label="프리셋 룸 시드"></div>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   `;
@@ -1408,6 +1420,18 @@ function init() {
   });
 
   syncMuteButtons();
+
+  // Host-tools popover: close on outside click or Escape
+  document.addEventListener('click', (e) => {
+    const details = document.querySelector('.workshop-more');
+    if (details?.open && !details.contains(e.target)) details.open = false;
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const details = document.querySelector('.workshop-more');
+      if (details?.open) details.open = false;
+    }
+  });
 
   window.addEventListener('popstate', handlePopState);
 
