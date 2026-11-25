@@ -52,6 +52,7 @@ Every programmer works strictly inside their assigned CSS + JS module(s). Modify
    - `memory-match.js` → root `<div class="game-root game-memory">`, keyframes prefixed `mm-`
    - `despair-fortress.js` → root `<div class="game-root game-fortress">`, keyframes prefixed `df-`
 3. Game stylesheets MUST NOT style bare tags (`button`, `canvas`, `h2`, `body`) outside their root scope class, and MUST consume tokens from `styles/main.css` (`var(--neon-cyan)`, etc.).
+4. **16:9 Arcade Cabinet (PC first)**: on viewports `>= 900px` every mini-game MUST render inside a fixed 16:9 stage frame. `styles/main.css` owns this rule (`.game-stage > .game-root { aspect-ratio: 16/9; width: min(100%, calc((100dvh - var(--hud-height) - 2 * clamp(8px, 1.6vh, 20px)) * 16 / 9)); }`), so game modules must fill the frame (`width/height: 100%`) and never assume the viewport aspect ratio. Game-specific desktop layouts may switch to a 2-column grid inside the frame (e.g. `despair-fortress` arena | keypad, `hidden-object` stage | target dock).
 
 ---
 
@@ -547,6 +548,8 @@ export function mount(container, ctx) {
 ```
 *Strict Rule*: A game MUST NEVER leak `requestAnimationFrame`, intervals, or `window` listeners after `unmount()`. Every game MUST pause its internal clock when `pm:pausechange` fires with `e.detail.paused === true` and adjust elapsed `performance.now()` delta so paused time is never counted against `timeMs`.
 
+**History Contract (hub owned)**: entering a game `pushState`s `?game=&mode=`, returning to the lobby walks back through that entry, and `popstate` while a game is mounted performs the same unmount + lobby render as the `로비로` button. Deep links (`?game=...`) first `replaceState` a lobby entry so the browser Back button never leaves the arcade site. Games must not touch `history` themselves.
+
 ---
 
 ## 5. Common Fairness, Input & Anti-Cheat Rules
@@ -728,11 +731,12 @@ export function mount(container, ctx) {
   | `2` | 제2구역: 중앙 제어실 | `8` | `A`–`H` | `4.0s` | Smooth drift (`55–75 px/s`) + safe-area bounce + pairwise repulsion | `15.0s` | `550` |
   | `3` | 제3구역: 절대 영점 금고 | `10` | `A`–`J` | `4.5s` | Fast drift (`85–115 px/s`) + repulsion + **Decoy Blink** | `15.0s` | `700` |
 - **4-Phase Micro-Loop per Sector**:
-  1. `LOCK-ON` (`0.8s`): Spawn nodes inside safe play area with pairwise repulsion ensuring zero overlap. Assign unique 2-digit numbers (`03`–`98`, zero-padded) with **no mirror-pair collisions** (e.g., if `17` is chosen, `71` is forbidden in that sector).
+  1. `LOCK-ON` (`1.8s` for Sector 1, `0.8s` afterwards): Spawn nodes inside safe play area with pairwise repulsion ensuring zero overlap. Assign unique 2-digit numbers (`03`–`98`, zero-padded) with **no mirror-pair collisions** (e.g., if `17` is chosen, `71` is forbidden in that sector).
   2. `MEMORIZE`: Show both large letter (`A..J`) and 2-digit number (`03..98`). `audio.playTick()` pulses during final `1.5s`.
   3. `BLACKOUT` (`0.35s`): `audio.playAlarm()` / EMP flash; numbers vanish (`opacity: 0`), leaving ONLY letter badges.
   4. `TERMINAL DECODE` (`15.0s`): Terminal header displays 3 distinct target numbers in order: e.g. `CODE: [17] - [04] - [82]` (active slot highlighted cyan).
-     - **Dual Input**: Direct tap/click on floating node (`r = 0.048`, `+0.012` touch slop) **OR** keyboard `A–J` **OR** bottom tactile `A–J` keypad buttons (prevents mobile frustration on fast Sector 3 nodes).
+     - **Dual Input**: Direct tap/click on floating node (`r = 0.048`, `+0.012` touch slop) **OR** keyboard `A–J` **OR** tactile `A–J` keypad buttons (prevents mobile frustration on fast Sector 3 nodes).
+     - **SIGNAL LEAK (beginner mercy pulse)**: every `4.6s` of decode time, all still-unsolved numbers reappear for `0.68s` (cyan arena glow + `신호 누출!` banner + hint chime, fading out over the last `180ms`). First pulse fires at `3.0s`. This keeps the game a memory test while never leaving a player completely stuck; it never reveals solved slots or decoy data.
 - **Fairness Rule for Sector 3 `Decoy Blink`**:
   - NEVER swap a node's true letter-number pairing.
   - During memorize (`1.2s..3.2s` window only): flash red border on 2 random nodes for `180ms` with `"교란 신호 감지! GLITCH"` banner.
