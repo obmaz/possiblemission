@@ -1,5 +1,659 @@
-/* Scoped styles for Game 1: Hidden Object (.game-hidden) */
+/* ==========================================================================
+   POSSIBLE MISSION — Game 1: 숨은그림찾기 (Hidden Object)
+   Scoped strictly under .game-hidden with ho-* keyframes.
+   ========================================================================== */
+
 .game-hidden {
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px clamp(10px, 2.2vw, 22px) 12px;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* === Top Mission Control Strip === */
+.game-hidden .ho-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-deep);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  flex-shrink: 0;
+}
+
+.game-hidden .ho-stage-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.game-hidden .ho-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(34, 211, 238, 0.14);
+  border: 1px solid rgba(34, 211, 238, 0.42);
+  color: #cffafe;
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.game-hidden .ho-stage-sub {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.game-hidden .ho-streak-pill {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: rgba(251, 191, 36, 0.16);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  color: var(--neon-gold);
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  font-weight: 800;
+}
+
+.game-hidden .ho-streak-pill.is-active {
+  display: inline-flex;
+  animation: ho-pop-in 220ms var(--ease-pop);
+}
+
+.game-hidden .ho-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.game-hidden .ho-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition:
+    transform var(--dur-fast) var(--ease-pop),
+    background-color var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease;
+}
+
+.game-hidden .ho-tool-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: var(--border-specular);
+  transform: translateY(-1px);
+}
+
+.game-hidden .ho-tool-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.game-hidden .ho-tool-btn.is-active {
+  background: rgba(34, 211, 238, 0.2);
+  border-color: var(--neon-cyan);
+  color: #ecfeff;
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.3);
+}
+
+.game-hidden .ho-tool-btn--hint {
+  border-color: rgba(251, 191, 36, 0.48);
+  background: rgba(251, 191, 36, 0.14);
+  color: #fef3c7;
+}
+
+.game-hidden .ho-tool-btn--hint:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.24);
+  border-color: var(--neon-gold);
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.28);
+}
+
+.game-hidden .ho-hint-count {
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(7, 9, 20, 0.65);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  color: var(--neon-gold);
+}
+
+.game-hidden .ho-key-cap {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* === Scene Viewport & Aspect-Locked 1376x768 Frame === */
+.game-hidden .ho-viewport {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.game-hidden .ho-stage-frame {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 1376 / 768;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-specular);
+  box-shadow: var(--shadow-floating), 0 0 36px rgba(34, 211, 238, 0.12);
+  background: #090d1f;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.game-hidden .ho-stage-frame.is-zoomed {
+  cursor: grab;
+}
+
+.game-hidden .ho-stage-frame.is-zoomed.is-dragging {
+  cursor: grabbing;
+}
+
+.game-hidden .ho-stage-frame.is-shake {
+  animation: ho-shake 320ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.game-hidden .ho-scene-transform {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.game-hidden .ho-bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+  pointer-events: none;
+}
+
+.game-hidden .ho-props-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.game-hidden .ho-prop-node {
+  transform-origin: 24px 24px;
+  transition: opacity 260ms ease, filter 260ms ease;
+}
+
+.game-hidden .ho-prop-node.is-found {
+  animation: ho-prop-collect 420ms var(--ease-pop) forwards;
+}
+
+.game-hidden .ho-fx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* === Visual FX: Found Rings, Sparkles, Miss Ripple, Hint Radar === */
+.game-hidden .ho-found-ring {
+  position: absolute;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 3px solid var(--neon-emerald);
+  box-shadow: 0 0 18px rgba(52, 211, 153, 0.8), inset 0 0 12px rgba(52, 211, 153, 0.35);
+  transform: translate(-50%, -50%);
+  animation: ho-found-ring 650ms var(--ease-arcade) forwards;
+}
+
+.game-hidden .ho-found-badge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(6, 78, 59, 0.92);
+  border: 1px solid var(--neon-emerald);
+  color: #ecfdf5;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  animation: ho-float-up 900ms var(--ease-arcade) forwards;
+}
+
+.game-hidden .ho-sparkle {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: ho-sparkle 580ms var(--ease-arcade) forwards;
+}
+
+.game-hidden .ho-miss-ripple {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2.5px solid var(--neon-crimson);
+  background: rgba(239, 68, 68, 0.16);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.65);
+  transform: translate(-50%, -50%);
+  animation: ho-miss-ripple 520ms ease-out forwards;
+}
+
+.game-hidden .ho-miss-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(127, 29, 29, 0.94);
+  border: 1px solid var(--neon-crimson);
+  color: #fee2e2;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+  animation: ho-float-up 950ms var(--ease-arcade) forwards;
+}
+
+.game-hidden .ho-hint-beacon {
+  position: absolute;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 2.5px dashed var(--neon-gold);
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.24) 0%, rgba(34, 211, 238, 0.12) 55%, transparent 72%);
+  box-shadow: 0 0 26px rgba(251, 191, 36, 0.6), inset 0 0 18px rgba(34, 211, 238, 0.45);
+  animation: ho-radar 1.15s ease-in-out infinite;
+}
+
+.game-hidden .ho-hint-beacon::after {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  border: 2px solid rgba(34, 211, 238, 0.7);
+  animation: ho-radar-wave 1.15s ease-out infinite;
+}
+
+/* === Optical Magnifier Loupe (2.0x) === */
+.game-hidden .ho-loupe {
+  position: absolute;
+  width: 146px;
+  height: 146px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--neon-cyan);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.75),
+    0 0 22px rgba(34, 211, 238, 0.5),
+    inset 0 0 18px rgba(7, 9, 20, 0.65);
+  background: #070914;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+}
+
+.game-hidden .ho-loupe[hidden] {
+  display: none;
+}
+
+.game-hidden .ho-loupe__world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.game-hidden .ho-loupe__reticle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.game-hidden .ho-loupe__reticle::before,
+.game-hidden .ho-loupe__reticle::after {
+  content: '';
+  position: absolute;
+  background: rgba(34, 211, 238, 0.48);
+}
+
+.game-hidden .ho-loupe__reticle::before {
+  left: 50%;
+  top: 12px;
+  bottom: 12px;
+  width: 1px;
+  transform: translateX(-0.5px);
+}
+
+.game-hidden .ho-loupe__reticle::after {
+  top: 50%;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  transform: translateY(-0.5px);
+}
+
+.game-hidden .ho-loupe__tag {
+  position: absolute;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(7, 9, 20, 0.8);
+  border: 1px solid rgba(34, 211, 238, 0.45);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: var(--neon-cyan);
+}
+
+.game-hidden .ho-zoom-pill {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(7, 9, 20, 0.82);
+  border: 1px solid rgba(34, 211, 238, 0.48);
+  color: var(--neon-cyan);
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 12;
+}
+
+/* === Target Dock === */
+.game-hidden .ho-dock {
+  flex-shrink: 0;
+  background: var(--bg-surface-deep);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.game-hidden .ho-dock__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+.game-hidden .ho-dock__title {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--neon-cyan);
+}
+
+.game-hidden .ho-dock__tip {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.game-hidden .ho-dock__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 7px;
+}
+
+@media (min-width: 1024px) {
+  .game-hidden .ho-dock__list[data-count='10'] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.game-hidden .ho-target-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: var(--radius-md);
+  background: rgba(7, 9, 20, 0.72);
+  border: 1px solid var(--border-subtle);
+  transition:
+    border-color var(--dur-fast) ease,
+    background-color var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-pop),
+    opacity var(--dur-fast) ease;
+}
+
+.game-hidden .ho-target-card__icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 3px;
+}
+
+.game-hidden .ho-target-card__icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.game-hidden .ho-target-card__name {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  word-break: keep-all;
+  min-width: 0;
+}
+
+.game-hidden .ho-target-card__check {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--neon-emerald);
+  color: #022c22;
+  font-size: 0.72rem;
+  font-weight: 900;
+  display: none;
+  place-items: center;
+  box-shadow: 0 2px 8px rgba(52, 211, 153, 0.65);
+}
+
+.game-hidden .ho-target-card.is-found {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(52, 211, 153, 0.45);
+  opacity: 0.62;
+}
+
+.game-hidden .ho-target-card.is-found .ho-target-card__name {
+  text-decoration: line-through;
+  color: #a7f3d0;
+}
+
+.game-hidden .ho-target-card.is-found .ho-target-card__check {
+  display: grid;
+  animation: ho-pop-in 320ms var(--ease-pop);
+}
+
+.game-hidden .ho-target-card.is-hinted {
+  border-color: var(--neon-gold);
+  background: rgba(251, 191, 36, 0.18);
+  box-shadow: 0 0 18px rgba(251, 191, 36, 0.35);
+  animation: ho-card-pulse 1s ease-in-out infinite alternate;
+}
+
+/* === Keyframes (ho-* scoped) === */
+@keyframes ho-prop-collect {
+  0% { opacity: 1; transform: scale(1); }
+  40% { opacity: 1; transform: scale(1.25); }
+  100% { opacity: 0; transform: scale(0.35); }
+}
+
+@keyframes ho-found-ring {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(0.4); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.55); }
+}
+
+@keyframes ho-miss-ripple {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(0.45); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.45); }
+}
+
+@keyframes ho-float-up {
+  0% { opacity: 0; transform: translate(-50%, -20%) scale(0.85); }
+  18% { opacity: 1; transform: translate(-50%, -50%) scale(1.04); }
+  100% { opacity: 0; transform: translate(-50%, -145%) scale(0.96); }
+}
+
+@keyframes ho-sparkle {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(0.2);
+  }
+}
+
+@keyframes ho-radar {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.92); }
+  50% { transform: translate(-50%, -50%) scale(1.06); }
+}
+
+@keyframes ho-radar-wave {
+  0% { opacity: 0.9; transform: scale(0.75); }
+  100% { opacity: 0; transform: scale(1.38); }
+}
+
+@keyframes ho-card-pulse {
+  from { transform: translateY(0); }
+  to { transform: translateY(-2px); }
+}
+
+@keyframes ho-pop-in {
+  0% { transform: scale(0.3); }
+  100% { transform: scale(1); }
+}
+
+@keyframes ho-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  45% { transform: translateX(6px); }
+  70% { transform: translateX(-4px); }
+  85% { transform: translateX(3px); }
+}
+
+/* === Responsive Adjustments === */
+@media (max-width: 767px) {
+  .game-hidden {
+    padding: 8px 10px 10px;
+    gap: 8px;
+  }
+  .game-hidden .ho-toolbar {
+    padding: 6px 10px;
+  }
+  .game-hidden .ho-key-cap,
+  .game-hidden .ho-stage-sub {
+    display: none;
+  }
+  .game-hidden .ho-dock__tip {
+    font-size: 0.7rem;
+    line-height: 1.25;
+  }
+  .game-hidden .ho-controls {
+    gap: 6px;
+  }
+  .game-hidden .ho-tool-btn {
+    min-height: 44px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+  .game-hidden .ho-dock__list {
+    display: flex;
+    overflow-x: auto;
+    gap: 7px;
+    padding: 6px 6px 4px 2px;
+    scrollbar-width: thin;
+  }
+  .game-hidden .ho-target-card {
+    flex: 0 0 auto;
+    min-width: 112px;
+  }
+  .game-hidden .ho-loupe {
+    width: 126px;
+    height: 126px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-hidden .ho-stage-frame.is-shake,
+  .game-hidden .ho-hint-beacon,
+  .game-hidden .ho-hint-beacon::after,
+  .game-hidden .ho-target-card.is-hinted {
+    animation: none !important;
+  }
 }
