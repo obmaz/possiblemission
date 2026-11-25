@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#070914" />
+  <title>POSSIBLE MISSION | 네온 워크샵 아케이드</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Outfit:wght@600;700;800;900&family=Space+Grotesk:wght@500;700&display=swap"
+    rel="stylesheet"
+  />
+  <link
+    rel="stylesheet"
+    as="style"
+    crossorigin
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+  />
+  <link rel="stylesheet" href="./styles/main.css" />
+  <link rel="stylesheet" href="./styles/game-hidden.css" />
+  <link rel="stylesheet" href="./styles/game-spot.css" />
+  <link rel="stylesheet" href="./styles/game-memory.css" />
+  <link rel="stylesheet" href="./styles/game-fortress.css" />
+</head>
+<body>
+  <!-- Fixed atmospheric layer -->
+  <div class="arcade-backdrop" aria-hidden="true">
+    <div class="arcade-backdrop__grid"></div>
+    <div class="arcade-backdrop__aurora arcade-backdrop__aurora--cyan"></div>
+    <div class="arcade-backdrop__aurora arcade-backdrop__aurora--magenta"></div>
+  </div>
+
+  <!-- VIEW 1: LOBBY -->
+  <main id="lobby-view" class="lobby-view" data-active="true">
+    <section id="hero-banner" class="hero-banner" aria-label="워크샵 아케이드 배너"></section>
+    <section id="workshop-bar" class="workshop-bar" aria-label="플레이어 및 룸 시드 설정"></section>
+    <section id="game-grid" class="game-grid" aria-label="미니게임 선택"></section>
+    <section id="hall-of-fame" class="hall-of-fame" aria-label="명예의 전당 및 최근 기록"></section>
+  </main>
+
+  <!-- VIEW 2: ACTIVE GAME -->
+  <section id="game-view" class="game-view" hidden aria-label="게임 플레이 화면">
+    <header id="game-hud" class="game-hud" role="banner">
+      <div class="game-hud__left">
+        <button id="hud-exit-btn" class="hud-btn hud-btn--ghost" type="button" aria-label="로비로 나가기">
+          <span aria-hidden="true">←</span>
+          <span class="game-hud__back-label">로비로</span>
+        </button>
+        <div class="game-hud__identity">
+          <span id="hud-game-title" class="game-hud__title"></span>
+          <span id="hud-mode-label" class="game-hud__mode"></span>
+        </div>
+      </div>
+
+      <div class="game-hud__center">
+        <span id="hud-seed-badge" class="game-hud__seed"></span>
+        <div id="hud-timer" class="hud-timer" data-state="normal" aria-live="off">00:00</div>
+        <div id="hud-progress-pill" class="hud-pill hud-pill--progress" hidden></div>
+      </div>
+
+      <div class="game-hud__right">
+        <div class="game-hud__metrics">
+          <div id="hud-extra-slot" class="hud-extra-slot"></div>
+          <div id="hud-score" class="hud-score">0 PTS</div>
+        </div>
+        <div class="game-hud__actions">
+          <button id="hud-restart-btn" class="hud-btn hud-btn--icon" type="button" aria-label="다시 시작" title="같은 시드로 다시 시작">↻</button>
+          <button id="hud-pause-btn" class="hud-btn hud-btn--icon" type="button" aria-label="일시정지" title="일시정지">⏸</button>
+          <button id="hud-mute-btn" class="hud-btn hud-btn--icon" type="button" aria-label="사운드 토글" title="사운드 켜기/끄기">🔊</button>
+        </div>
+      </div>
+
+      <!-- Hairline bottom progress bar controlled via --hud-progress (0..1) -->
+      <div id="hud-progress-bar" class="game-hud__progress" style="--hud-progress: 1;"></div>
+    </header>
+
+    <!-- Game mount target: 100dvh minus --hud-height -->
+    <div id="game-stage" class="game-stage"></div>
+
+    <!-- Anti-cheat pause / tab-blur curtain -->
+    <div id="pause-curtain" class="pause-curtain" hidden>
+      <div class="pause-curtain__card">
+        <p class="pause-curtain__sub">PAUSED // FAIR PLAY LOCK</p>
+        <h2 class="pause-curtain__title">잠깐 쉬는 중!</h2>
+        <p class="pause-curtain__desc">공정한 플레이를 위해 화면이 가려졌습니다.</p>
+        <button id="pause-resume-btn" class="btn-neon-primary" type="button">▶ 미션 재개</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Shared Modal, Confetti & Toast Layers -->
+  <div id="modal-root" class="modal-root" hidden></div>
+  <canvas id="confetti-canvas" class="confetti-canvas" aria-hidden="true"></canvas>
+  <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="true"></div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
