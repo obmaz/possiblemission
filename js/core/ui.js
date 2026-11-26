@@ -614,6 +614,8 @@ export function openModal({
   className = '',
   onClose = null,
   lockBackdrop = false,
+  // false → no ✕, no Esc, no backdrop close: the content's own buttons are the only way out
+  dismissible = true,
 }) {
   const root = document.getElementById('modal-root');
   if (!root) return;
@@ -659,7 +661,8 @@ export function openModal({
   closeBtn.textContent = '✕';
   closeBtn.addEventListener('click', () => closeModal());
 
-  header.append(titles, closeBtn);
+  header.append(titles);
+  if (dismissible) header.append(closeBtn);
   dialog.appendChild(header);
 
   const body = document.createElement('div');
@@ -674,14 +677,14 @@ export function openModal({
   backdrop.appendChild(dialog);
   root.appendChild(backdrop);
 
-  if (!lockBackdrop) {
+  if (!lockBackdrop && dismissible) {
     backdrop.addEventListener('click', (e) => {
       if (e.target === backdrop) closeModal();
     });
   }
 
   activeEscHandler = (e) => {
-    if (e.key === 'Escape') {
+    if (e.key === 'Escape' && dismissible) {
       closeModal();
     }
   };

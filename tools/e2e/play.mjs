@@ -127,31 +127,27 @@ const plan = await page.evaluate(async ({ seed, mode }) => {
   const { createRng } = await import('/js/core/seed.js');
   const { generateFortressRun } = await import('/js/games/despair-fortress.js');
   const { parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
-  return generateFortressRun(createRng(`${seed}::despair-fortress::${mode}`), parseHideSeekMode(mode)).map((r) => r.targets.map((t) => t.letter));
+  return generateFortressRun(createRng(`${seed}::despair-fortress::${mode}`), parseHideSeekMode(mode)).targets.map((t) => t.letter);
 }, { seed: SEED, mode: hsMode });
-const overlayGone = () => page.waitForFunction(() => document.querySelector('[data-df-overlay]').hidden, null, { timeout: 8000 });
 const timerText = () => page.textContent('#hud-timer');
 const toSec = (t) => (t.includes(':') ? Number(t.split(':')[0]) * 60 + Number(t.split(':')[1]) : parseFloat(t));
-await overlayGone();
-// A wrong answer typed into the answer box costs WRONG_PENALTY_SEC (3 s)
-const wrong = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').find((l) => l !== plan[0][0]);
+await afterCountdown();
+// A wrong letter typed into a number's box costs WRONG_PENALTY_SEC (3 s)
+const wrong = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').find((l) => !plan.includes(l));
 const before = toSec(await timerText());
-await page.fill('[data-df-input]', wrong);
+await page.fill('[data-box="2"]', wrong);
 await page.waitForTimeout(150);
 out.hideSeekWrongPenaltySec = Math.round(before - toSec(await timerText()));
-await page.waitForTimeout(500); // wrong-answer cooldown
-for (let r = 0; r < plan.length; r += 1) {
-  if (r > 0) {
-    await page.waitForFunction(() => !document.querySelector('[data-df-overlay]').hidden);
-    await overlayGone();
-  }
-  for (const letter of plan[r]) {
-    await page.fill('[data-df-input]', letter);
-    await page.waitForTimeout(80);
-  }
+out.hideSeekBoxMaxLength = await page.getAttribute('[data-box="0"]', 'maxlength');
+await page.waitForTimeout(500); // wrong-answer input cooldown (450 ms)
+// Any order: answer the last number first
+for (const i of [2, 0, 1]) {
+  await page.fill(`[data-box="${i}"]`, plan[i]);
+  await page.waitForTimeout(80);
 }
 await page.waitForSelector('.arcade-modal', { timeout: 6000 }).catch(() => {});
 out.fortress = `${await page.textContent('.result-hero__status').catch(() => '?')} · ${await page.textContent('.result-hero__score').catch(() => '?')}`;
+out.resultClosable = await page.evaluate(() => Boolean(document.querySelector('.arcade-modal__close')));
 out.resultHasCopyButton = await page.evaluate(() => Boolean(document.querySelector('#result-copy-btn, .result-preview-line, .result-stat-box__label')));
 out.resultStats = await page.$$eval('.result-stat-box', (els) => els.map((e) => e.textContent.trim()));
 // "난이도 바꾸기" goes back to the setup screen
@@ -163,21 +159,23 @@ out.hideSeekRules = await page.evaluate(async () => {
   const { generateFortressRun } = await import('/js/games/despair-fortress.js');
   const { parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
   const run = generateFortressRun(createRng('X::despair-fortress::god'), parseHideSeekMode('god'));
-  const consistent = run.every((r) => {
-    const map = new Map();
-    return r.tiles.every((t) => (map.has(t.letter) ? map.get(t.letter) === t.number : (map.set(t.letter, t.number), true)));
-  });
-  const hangul = run.some((r) => r.tiles.some((t) => /[가-힣]/.test(t.letter)));
+  const map = new Map();
+  const consistent = run.tiles.every((t) => (map.has(t.letter) ? map.get(t.letter) === t.number : (map.set(t.letter, t.number), true)));
+  const hangul = run.tiles.some((t) => /[가-힣]/.test(t.letter));
   const easy = generateFortressRun(createRng('X::despair-fortress::easy'), parseHideSeekMode('easy'));
-  const noHangulOnEasy = easy.every((r) => r.tiles.every((t) => /[A-Z]/.test(t.letter)));
-  return consistent && hangul && noHangulOnEasy;
+  const noHangulOnEasy = easy.tiles.every((t) => /[A-Z]/.test(t.letter));
+  // Humanly winnable: never more than 5 hide at once and never sooner than 1.5 s
+  const byTime = new Map();
+  run.tiles.forEach((t) => byTime.set(t.hideAt, (byTime.get(t.hideAt) || 0) + 1));
+  const paced = Math.max(...byTime.values()) <= 5 && Math.min(...byTime.keys()) >= 1.5;
+  return consistent && hangul && noHangulOnEasy && paced;
 });
 // Starting again from the lobby shows the setup screen again (it used to skip it)
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="despair-fortress"] [data-launch-game]');
 out.hideSeekSetupAgain = Boolean(await page.waitForSelector('.df-setup', { timeout: 4000 }).catch(() => null));
 // …and remembers the last settings
-out.hideSeekRemembersLast = (await page.textContent('[data-field="revealSec"] [data-value]')) === '3초';
+out.hideSeekRemembersLast = (await page.textContent('[data-field="revealSec"] [data-value]')) === '4초';
 
 /* ---------- Determinism: same seed+mode twice → same layout ---------- */
 out.deterministic = await page.evaluate(async () => {
@@ -203,6 +201,8 @@ const failures = [];
 const cleared = (v) => typeof v === 'string' && v.includes('성공');
 Object.entries(out.spot).forEach(([k, v]) => cleared(v) || failures.push(`spot ${k}: ${v}`));
 if (!cleared(out.fortress)) failures.push(`fortress: ${out.fortress}`);
+if (out.hideSeekBoxMaxLength !== '1') failures.push('answer box accepts more than one character');
+if (out.resultClosable) failures.push('result modal can be dismissed');
 if (out.hideSeekWrongPenaltySec !== 3) failures.push(`wrong answer penalty: ${out.hideSeekWrongPenaltySec}s`);
 if (out.resultHasCopyButton) failures.push('result modal still shows copy / labels');
 if (!out.hideSeekRules) failures.push('hide & seek symbol/number rules');
@@ -216,7 +216,7 @@ if (!/^성공 · 🧮 5\/5 정답/.test(out.anzan || '')) failures.push(`flash a
 if (out.spotCardHasSelect || out.pickerCards !== 10 || !out.pickerExitNoConfirm) failures.push('spot picker flow');
 if (!out.deterministic) failures.push('determinism');
 if (out.hideSeekPresets !== 'easy,medium,hard,extreme,insane,god') failures.push('hide & seek presets');
-if (!/^custom-60-30-5-6-11-35-0$/.test(out.hideSeekMode || '')) failures.push(`hide & seek custom mode: ${out.hideSeekMode}`);
+if (!/^custom-60-40-2-8-15-60-0-0$/.test(out.hideSeekMode || '')) failures.push(`hide & seek custom mode: ${out.hideSeekMode}`);
 if (!out.hideSeekRemembersLast) failures.push('hide & seek setup does not remember the last settings');
 if (out.consoleErrors.length) failures.push(`console errors: ${out.consoleErrors.length}`);
 if (failures.length) {

@@ -697,12 +697,16 @@ function setPaused(paused) {
 
 const COUNTDOWN_FROM = 3;
 const COUNTDOWN_STEP_MS = 900;
+const COUNTDOWN_GO_MS = 650;
 let countdownTimer = 0;
 
 function stopCountdown() {
   window.clearTimeout(countdownTimer);
   countdownTimer = 0;
-  if (dom.countdown) dom.countdown.hidden = true;
+  if (!dom.countdown) return;
+  dom.countdown.hidden = true;
+  dom.countdown.classList.remove('is-go');
+  dom.countdownNum?.classList.remove('is-tick', 'is-go');
 }
 
 /**
@@ -723,10 +727,16 @@ function runCountdown(entry) {
       return undefined;
     }
     if (n === 0) {
-      stopCountdown();
+      // "Go!" grows and fades; the game starts with it
+      dom.countdownNum.textContent = 'Go!';
+      dom.countdownNum.classList.remove('is-tick');
+      dom.countdown.classList.add('is-go');
+      void dom.countdownNum.offsetWidth;
+      dom.countdownNum.classList.add('is-go');
       entry.countdown = false;
       audio.playHint();
       window.dispatchEvent(new CustomEvent('pm:pausechange', { detail: { paused: false } }));
+      countdownTimer = window.setTimeout(stopCountdown, COUNTDOWN_GO_MS);
       return undefined;
     }
     dom.countdownNum.textContent = String(n);
@@ -1087,7 +1097,8 @@ function openResultModal({ gameMeta, mode, modeLabel, score, timeMs, cleared, is
   ui.openModal({
     title: `${gameMeta.title} (${modeLabel})`,
     contentEl: wrap,
-    lockBackdrop: false,
+    // A finished run must always offer retry / change difficulty / other game
+    dismissible: false,
   });
 
   document.getElementById('result-retry-btn')?.addEventListener('click', () => {

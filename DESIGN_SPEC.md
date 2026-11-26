@@ -65,7 +65,7 @@ All routing (`?game=<id>&mode=<mode>`), dynamic imports (`./games/<id>.js`), sto
 | `spot-difference` | `spot-difference.js` | 틀린그림찾기 | `SPOT THE DIFFERENCE` | `--neon-magenta` | `pick` (in-game picture → difficulty chooser), then `<picture>-<difficulty>` for the 10 pictures in `js/games/spot-stages.js` (e.g. `beach-normal`; difficulty `easy` / `normal` / `hard`) |
 | `flash-anzan` | `flash-anzan.js` | 플래시 암산 | `FLASH ANZAN` | `--neon-cyan` | `setup` (in-game settings), presets `easy` … `god`, or `custom-<digits>-<count>-<interval×10>-<problems>` (see `js/games/flash-anzan-settings.js`) |
 | `memory-match` | `memory-match.js` | 메모리 매치 | `MEMORY MATCH` | `--neon-violet` | `setup` (in-game difficulty chooser), then `4x3`, `4x4`, `6x4` |
-| `despair-fortress` | `despair-fortress.js` | 숫자 숨바꼭질 | `NUMBER HIDE & SEEK` | `--neon-crimson` | `setup` (in-game settings screen), presets `easy` `medium` `hard` `extreme` `insane` `god`, or `custom-<t>-<r>-<b>-<i>-<w>-<s>-<h>` (see `js/games/hide-seek-settings.js`) |
+| `despair-fortress` | `despair-fortress.js` | 숫자 숨바꼭질 | `NUMBER HIDE & SEEK` | `--neon-crimson` | `setup` (in-game settings screen), presets `easy` `medium` `hard` `extreme` `insane` `god`, or `custom-<t>-<r>-<b>-<i>-<w>-<s>-<h>-<v>` (see `js/games/hide-seek-settings.js`) |
 
 ---
 
@@ -477,7 +477,7 @@ export function closeModal()
    - Calls `activeInstance = mod.mount(stageEl, ctx)`.
    - Handles `visibilitychange` (auto-shows `#pause-curtain` and dispatches `pm:pausechange` `{ paused: true }`).
    - On `exitToHub()` or switching games: calls `activeInstance?.unmount()`, clears `#game-stage`, resets HUD state, restores `#lobby-view`.
-   - On `completeGame(payload)`: records run via `storage.recordRun(...)`, computes rank via `ui.calculateGrade(...)`, triggers `audio.playClear()` (or `playAlarm()` if `cleared === false`), launches `ui.launchConfetti(...)` for `S`/`A`, and opens the **Result Modal**: `성공`/`실패` status, the score, an optional `최고 기록!` pill, up to 4 value-only stat boxes (`details[].value`, e.g. `⏱ 12.3초` — no labels), and `다시 하기` / `다른 게임`. The grade is still stored for the Hall of Fame but not shown in the modal.
+   - On `completeGame(payload)`: records run via `storage.recordRun(...)`, computes rank via `ui.calculateGrade(...)`, triggers `audio.playClear()` (or `playAlarm()` if `cleared === false`), launches `ui.launchConfetti(...)` for `S`/`A`, and opens the **Result Modal**: `성공`/`실패` status, the score, an optional `최고 기록!` pill, up to 4 value-only stat boxes (`details[].value`, e.g. `⏱ 12.3초` — no labels), and `다시 하기` / `난이도 바꾸기` / `다른 게임`. It cannot be dismissed (no ✕ / Esc / backdrop) so a finished run always offers a way on. The grade is still stored for the Hall of Fame but not shown in the modal.
 
 #### Exact `ctx` Contract Passed to `mount(container, ctx)`
 ```js
@@ -530,7 +530,7 @@ const ctx = {
 };
 ```
 
-**Start countdown (hub owned)**: when a non-idle game mounts, the hub covers the stage with a `준비 3 · 2 · 1` overlay (`#stage-countdown`, 0.9 s per step) and keeps the game paused via `pm:pausechange` until it ends, so nobody gets a free look. A pause during the countdown holds it; restarts run it again.
+**Start countdown (hub owned)**: when a non-idle game mounts, the hub covers the stage with a `준비 3 · 2 · 1` overlay (`#stage-countdown`, 0.9 s per step) and keeps the game paused via `pm:pausechange`; then `Go!` grows and fades (0.65 s) over the starting game, so nobody gets a free look. A pause during the countdown holds it; restarts run it again.
 
 `mount()` may return `{ unmount, idle: true }` for a screen that has no run to lose (e.g. a picker). The hub then skips the exit-confirm modal, hides the pause button and does not auto-pause on tab switch.
 
@@ -657,34 +657,22 @@ export function mount(container, ctx) {
 ---
 
 ### 6.4 Game 4: 숫자 숨바꼭질 (`js/games/despair-fortress.js`)
-- **Reference**: the かくれんぼ room of Fuji-Q Highland's 絶望要塞. Numbers hide behind letter tiles on a wall screen; the player answers with the **letter** of the tile hiding each requested number. The module id stays `despair-fortress` so existing links and records keep working.
-- **CSS Scope**: `.game-fortress` in `styles/game-fortress.css`. Built for **one screen** (e.g. a venue wall display): the dark wall canvas always fills the available area; portrait screens swap the tile grid.
-- **Setup screen (`setup` mode, idle)**: shown on entry. Six presets plus six steppers; the last choice is remembered per device (`storage.getPref('hideSeekLastMode')`). Starting calls `ctx.switchMode(<preset id | custom id>)`, so the room seed + settings reproduce the same wall for everyone.
+- **Reference**: the かくれんぼ room of Fuji-Q Highland's 絶望要塞. Numbers hide behind symbol tiles on a wall screen; the player answers with the **symbol** of the tile hiding each requested number. The module id stays `despair-fortress` so existing links keep working.
+- **One game, no rounds**: one wall, 3 numbers to find **in any order**. Each number has its own one-character answer box in the console; tapping a tile answers the active box.
+- **Setup (`setup`, idle)**: presets EASY … GOD + steppers; INSANE/GOD turn on Hangul and the spinning spiral. Ranges are capped so a person can still win: reveal ≥ 1.5 s, at most 5 numbers hide per batch (never all at once), hide interval ≥ 0.5 s, peek ≥ 0.9 s (cycle = peek × 3 + 2 s).
 
-  | Field | Options |
-  | :--- | :--- |
-  | Tiles (grid) | 24 (6×4), 40 (8×5), 60 (10×6), 84 (12×7), 104 (13×8), 126 (14×9) |
-  | Opening reveal (all numbers out) | 0.6 – 5 s |
-  | Numbers hidden at once | 1, 2, 3, 5, 8, 12, all |
-  | Hide interval | 0.3 – 2 s |
-  | Peek time (hidden numbers come back) | 0.5 – 2.5 s, cycle = peek × 3 + 2 s |
-  | Round time limit | 20 – 60 s |
-  | Mix Hangul 가–하 | off / on |
+  | Preset | Tiles | Reveal | Hide batch / interval | Peek | Time | Hangul · Spiral |
+  | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+  | EASY | 24 | 5 s | 1 / 1.5 s | 2.5 s | 90 s | – |
+  | MEDIUM | 40 | 4 s | 2 / 1 s | 2 s | 75 s | – |
+  | HARD | 60 | 3 s | 2 / 0.8 s | 1.5 s | 60 s | – |
+  | EXTREME | 84 | 2 s | 3 / 0.8 s | 1.5 s | 60 s | – |
+  | INSANE | 104 | 2 s | 4 / 0.6 s | 1.1 s | 60 s | ✓ · ✓ |
+  | GOD | 126 | 1.5 s | 5 / 0.5 s | 0.9 s | 60 s | ✓ · ✓ |
 
-  | Preset | Tiles | Reveal | Hide batch / interval | Peek | Time |
-  | :--- | :---: | :---: | :---: | :---: | :---: |
-  | EASY | 24 | 4 s | 2 / 1 s | 2 s | 45 s |
-  | MEDIUM | 40 | 3 s | 3 / 0.8 s | 1.5 s | 40 s |
-  | HARD | 60 | 2 s | 5 / 0.6 s | 1.1 s | 35 s |
-  | EXTREME | 84 | 1.5 s | 8 / 0.5 s | 0.9 s | 30 s |
-  | INSANE | 104 | 1 s | all | 0.7 s | 30 s |
-  | GOD | 126 | 0.6 s | all | 0.5 s | 25 s |
-
-- **Round flow** (3 rounds, 3 targets each, no shields): `intro` (2.2 s, targets shown) → `play` (all numbers out, then hidden batch by batch in a seeded order; hidden numbers keep peeking) → `clear` / `fail`. All timing runs on the game clock, so pausing freezes everything.
-- **Symbols**: `A–Z`, plus `가나다라마바사아자차카타파하` when `hangul` is on (INSANE and GOD presets, or the custom toggle). Every symbol owns exactly one number per round, so duplicate symbols always hide the same number; the 3 targets are 3 different symbols.
-- **Input**: the console's answer box (one character answers immediately; Hangul answers on IME composition end; Enter also submits) or a tile tap/click (rotated-square hit test, touch slop from `rules.js`). There are no global letter hotkeys.
-- **Wrong answer**: `-3 s` from the round clock (`WRONG_PENALTY_SEC`) + the shared input cooldown. The round fails when time runs out.
-- **Scoring**: per target `basePoints(settings)` (grows with tile count, shorter reveal and bigger hide batches) + streak bonus `60 × min(streak, 9)` + round speed bonus `remaining s × 60` + perfect round `+500`.
+- **Symbols**: `A–Z` (+ `가`–`하` with Hangul). Every symbol owns exactly one number, so duplicates always hide the same number; the 3 targets are different symbols.
+- **Spiral background**: a black/white Archimedean band rotating at 1.8 rad/s so the bands flow toward the centre; numbers get a dark tag so they stay readable on white bands.
+- **Wrong answer**: `-3 s` + shared input cooldown. Time out → fail. Clearing adds `remaining s × 60` and `+500` when there were no mistakes.
 
 ---
 

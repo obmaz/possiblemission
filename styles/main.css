@@ -1192,6 +1192,31 @@ textarea:focus-visible {
   animation: countdown-pop 900ms ease-out;
 }
 
+/* "Go!": the backdrop and circle fall away while the word grows and fades */
+.stage-countdown.is-go {
+  background: transparent;
+  pointer-events: none;
+}
+
+.stage-countdown.is-go .stage-countdown__label,
+.stage-countdown.is-go .stage-countdown__circle {
+  background: transparent;
+  box-shadow: none;
+  color: transparent;
+}
+
+.stage-countdown__circle span.is-go {
+  color: var(--btn-primary);
+  font-size: 4.2rem;
+  animation: countdown-go 650ms ease-out forwards;
+}
+
+@keyframes countdown-go {
+  0% { transform: scale(0.8); opacity: 1; }
+  60% { opacity: 1; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
 @keyframes countdown-pop {
   0% { transform: scale(0.7); opacity: 0; box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35); }
   25% { transform: scale(1.05); opacity: 1; }
@@ -1199,7 +1224,8 @@ textarea:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stage-countdown__circle span.is-tick {
+  .stage-countdown__circle span.is-tick,
+  .stage-countdown__circle span.is-go {
     animation: none;
   }
 }

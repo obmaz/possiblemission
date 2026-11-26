@@ -1,5 +1,5 @@
 /**
- * Game 4: 숫자 숨바꼭질 (NUMBER HIDE & SEEK)
+ * Game: 숫자 숨바꼭질 (NUMBER HIDE & SEEK)
  *
  * Modelled on the "かくれんぼ" room of Fuji-Q Highland's 絶望要塞: one wall screen is
  * covered in tilted letter tiles, and every tile hides a 3-digit number behind it.
@@ -23,27 +23,29 @@ import {
   TILE_GRID,
   hideSeekModeId,
   matchPreset,
+  hideSeekModeLabel,
   parseHideSeekMode,
 } from './hide-seek-settings.js';
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 const HANGUL = '가나다라마바사아자차카타파하'.split('');
-const ROUND_COUNT = 3;
-const TARGETS_PER_ROUND = 3;
-const PERFECT_ROUND_BONUS = 500;
-// A wrong answer costs time (there are no shields), so guessing is never free
+const TARGET_COUNT = 3;
+const PERFECT_BONUS = 500;
+// A wrong answer costs time, so guessing is never free
 const WRONG_PENALTY_SEC = 3;
 const LAST_MODE_PREF = 'hideSeekLastMode';
 
-// Phase timings (seconds, game clock — everything stops while paused)
-const INTRO_SEC = 2.2;
-const ROUND_CLEAR_SEC = 1.3;
-const FAIL_SEC = 1.1;
+// Timings (seconds, game clock — everything stops while paused)
+const END_OVERLAY_SEC = 1.3;
 const PEEK_EASE_SEC = 0.16; // how long a number takes to slide out / back in
 const PEEK_REST_SEC = 0.6; // a number that just hid stays hidden at least this long
 const TILE_FLASH_SEC = 0.6;
 const MESSAGE_SEC = 1.1;
-const DANGER_TIME_SEC = 8;
+const DANGER_TIME_SEC = 10;
+
+// Spinning spiral background (INSANE / GOD or the custom toggle)
+const SPIRAL_SPACING = 110; // distance between two white bands, logical px
+const SPIRAL_SPEED = 1.8; // rad/s; bands flow toward the centre
 
 // Logical wall size: the short side is fixed and the long side follows the screen's
 // aspect ratio, so the wall always fills the display. Portrait screens swap the grid.
@@ -59,14 +61,14 @@ const peekCycleSec = (settings) => settings.peekSec * 3 + 2;
 /** Points per found number grow with how hard the settings are. */
 function basePoints(settings) {
   const density = settings.tiles / 24; // 1 … 5.25
-  const speed = 4 / Math.max(0.6, settings.revealSec); // 1 … 6.7
-  const batch = settings.hideBatch === 0 ? 2 : 1 + Math.min(settings.hideBatch, 12) / 12;
-  return Math.round((200 + 60 * density + 40 * speed) * batch);
+  const speed = 5 / settings.revealSec; // 1 … 3.3
+  const batch = 1 + settings.hideBatch / 5; // 1.2 … 2
+  return Math.round((200 + 60 * density + 60 * speed) * batch * (settings.spiral ? 1.2 : 1));
 }
 
 /**
- * Pure deterministic run generator: same rng seed + settings → same letters, numbers,
- * tilts, hide order, peek timing and targets on every device.
+ * Pure deterministic generator: same rng seed + settings → same letters, numbers,
+ * tilts, hide order, peek timing and targets on every device. One wall per game.
  * @param {() => number} rng
  * @param {object} settings - parsed values from parseHideSeekMode()
  */
@@ -74,40 +76,36 @@ export function generateFortressRun(rng, settings) {
   const [cols, rows] = TILE_GRID[settings.tiles];
   const count = cols * rows;
   const cycleSec = peekCycleSec(settings);
-  return Array.from({ length: ROUND_COUNT }, (_round, r) => {
-    const symbols = settings.hangul ? [...LETTERS, ...HANGUL] : LETTERS;
-    // Every symbol owns exactly one number, so duplicate letters hide the same number
-    const numberPool = shuffleSeeded(
-      rng,
-      Array.from({ length: 1000 }, (_, n) => String(n).padStart(3, '0'))
-    );
-    const numberOf = Object.fromEntries(symbols.map((sym, i) => [sym, numberPool[i]]));
-    const tiles = Array.from({ length: count }, (_, index) => {
-      const letter = symbols[Math.floor(rng() * symbols.length)];
-      return { index, letter, number: numberOf[letter] };
-    }).map((tile) => ({
-      ...tile,
-      angle: TILE_ANGLES[Math.floor(rng() * TILE_ANGLES.length)],
-      size: 0.74 + rng() * 0.26, // fraction of the cell
-      jx: (rng() - 0.5) * 0.14, // jitter inside the cell
-      jy: (rng() - 0.5) * 0.1,
-      peekOffset: rng() * cycleSec,
-      hideAt: settings.revealSec,
-    }));
-    // Numbers disappear a batch at a time, in a seeded order
-    if (settings.hideBatch > 0) {
-      shuffleSeeded(rng, tiles).forEach((tile, rank) => {
-        tile.hideAt = settings.revealSec + Math.floor(rank / settings.hideBatch) * settings.hideIntervalSec;
-      });
-    }
-    // Three different symbols per round
-    const seen = new Set();
-    const targets = shuffleSeeded(rng, tiles)
-      .filter((tile) => !seen.has(tile.letter) && seen.add(tile.letter))
-      .slice(0, TARGETS_PER_ROUND)
-      .map((tile) => ({ number: tile.number, letter: tile.letter, solved: false }));
-    return { round: r + 1, cols, rows, cycleSec, tiles, targets };
+  const symbols = settings.hangul ? [...LETTERS, ...HANGUL] : LETTERS;
+  // Every symbol owns exactly one number, so duplicate letters hide the same number
+  const numberPool = shuffleSeeded(
+    rng,
+    Array.from({ length: 1000 }, (_, n) => String(n).padStart(3, '0'))
+  );
+  const numberOf = Object.fromEntries(symbols.map((sym, i) => [sym, numberPool[i]]));
+  const tiles = Array.from({ length: count }, (_, index) => {
+    const letter = symbols[Math.floor(rng() * symbols.length)];
+    return { index, letter, number: numberOf[letter] };
+  }).map((tile) => ({
+    ...tile,
+    angle: TILE_ANGLES[Math.floor(rng() * TILE_ANGLES.length)],
+    size: 0.74 + rng() * 0.26, // fraction of the cell
+    jx: (rng() - 0.5) * 0.14, // jitter inside the cell
+    jy: (rng() - 0.5) * 0.1,
+    peekOffset: rng() * cycleSec,
+    hideAt: settings.revealSec,
+  }));
+  // Numbers disappear a batch at a time, in a seeded order
+  shuffleSeeded(rng, tiles).forEach((tile, rank) => {
+    tile.hideAt = settings.revealSec + Math.floor(rank / settings.hideBatch) * settings.hideIntervalSec;
   });
+  // Three different symbols to find
+  const seen = new Set();
+  const targets = shuffleSeeded(rng, tiles)
+    .filter((tile) => !seen.has(tile.letter) && seen.add(tile.letter))
+    .slice(0, TARGET_COUNT)
+    .map((tile) => ({ number: tile.number, letter: tile.letter, solved: false }));
+  return { cols, rows, cycleSec, tiles, targets };
 }
 
 /** Canvas colours come from the shared design tokens so the wall matches the shell. */
@@ -117,7 +115,7 @@ function readPalette(el) {
   return {
     neon: pick('--neon-emerald', '#3fbf92'),
     danger: pick('--neon-crimson', '#e06767'),
-    text: pick('--text-primary', '#eef2f8'),
+    text: pick('--text-on-image', '#f6f8fc'),
     wall: '#121a17',
     wallDot: 'rgba(255, 255, 255, 0.035)',
     tile: '#e8eee9',
@@ -135,19 +133,12 @@ function roundedRect(g, x, y, w, h, r) {
   else g.rect(x, y, w, h);
 }
 
-const formatValue = (field, value) => {
-  if (field.valueLabels) return field.valueLabels[value];
-  return value === 0 && field.allLabel ? field.allLabel : `${value}${field.unit}`;
-};
+const formatValue = (field, value) => (field.valueLabels ? field.valueLabels[value] : `${value}${field.unit}`);
 
 /** One-line plain-language summary of a set of values. */
 function describe(s) {
-  const hide =
-    s.hideBatch === 0
-      ? `${s.revealSec}초 뒤 한꺼번에 사라지고`
-      : `${s.revealSec}초 뒤 ${s.hideBatch}개씩 ${s.hideIntervalSec}초마다 사라지고`;
-  const hangul = s.hangul ? ' 한글 포함.' : '';
-  return `타일 ${s.tiles}개 · 처음 ${hide}, 이후 ${s.peekSec}초씩 다시 보입니다.${hangul}`;
+  const extras = [s.hangul ? '한글 포함' : '', s.spiral ? '회오리 배경' : ''].filter(Boolean).join(' · ');
+  return `타일 ${s.tiles}개 · 처음 ${s.revealSec}초 뒤 ${s.hideBatch}개씩 ${s.hideIntervalSec}초마다 사라지고, 이후 ${s.peekSec}초씩 다시 보입니다 · 제한 ${s.timeSec}초${extras ? ` · ${extras}` : ''}`;
 }
 
 /**
@@ -175,7 +166,7 @@ function mountSetup(container, ctx) {
   root.innerHTML = `
     <div class="df-setup__head">
       <h2 class="df-setup__title">숫자 숨바꼭질 · 난이도</h2>
-      <p class="df-setup__sub">타일 뒤에 숨은 숫자를 찾아 그 타일의 <b>글자</b>를 맞히세요. 같은 룸 시드와 같은 설정이면 모두 같은 벽이 나옵니다.</p>
+      <p class="df-setup__sub">타일 뒤에 숨은 숫자 3개를 찾아 그 타일의 <b>글자</b>를 맞히세요. 같은 룸 시드와 같은 설정이면 모두 같은 벽이 나옵니다.</p>
     </div>
     <div class="df-setup__body">
       <div class="df-presets" role="radiogroup" aria-label="난이도 프리셋">
@@ -264,73 +255,67 @@ function mountSetup(container, ctx) {
 }
 
 /* ============================================================================
- * The game
+ * The game: one wall, three numbers to find in any order
  * ========================================================================== */
 function mountGame(container, ctx, settings) {
-  const rounds = generateFortressRun(ctx.rng, settings);
-  const totalRounds = rounds.length;
-  const totalTargets = totalRounds * TARGETS_PER_ROUND;
-  const roundPts = basePoints(settings);
+  const wall = generateFortressRun(ctx.rng, settings);
+  const { targets } = wall;
+  const pts = basePoints(settings);
 
   const root = document.createElement('div');
   root.className = 'game-root game-fortress';
   root.innerHTML = `
     <header class="df-console">
-      <span class="df-round" data-df-round>ROUND 1/${totalRounds}</span>
-      <div class="df-targets" aria-live="polite">
-        <span class="df-targets__label">찾을 숫자</span>
-        <div class="df-targets__slots" data-df-slots></div>
+      <span class="df-console__label">찾을 숫자</span>
+      <div class="df-targets" data-df-targets>
+        ${targets
+          .map(
+            (t, i) => `
+          <label class="df-target" data-target="${i}">
+            <span class="df-target__num">${t.number}</span>
+            <input class="df-target__box" data-box="${i}" maxlength="1" autocomplete="off" spellcheck="false"
+              aria-label="${t.number}을(를) 숨긴 글자" />
+          </label>`
+          )
+          .join('')}
       </div>
-      <form class="df-answer" data-df-answer autocomplete="off">
-        <input class="df-answer__input" data-df-input maxlength="2" placeholder="정답" aria-label="정답 글자 입력" spellcheck="false" />
-        <button type="submit" class="df-answer__btn">확인</button>
-      </form>
       <div class="df-timebar" aria-hidden="true"><span data-df-timebar></span></div>
     </header>
     <div class="df-wall-wrap" data-df-wrap>
-      <canvas class="df-wall" data-df-canvas aria-label="알파벳 타일 벽. 숫자를 숨긴 타일을 누르세요."></canvas>
+      <canvas class="df-wall" data-df-canvas aria-label="글자 타일 벽. 숫자를 숨긴 타일을 누르세요."></canvas>
       <div class="df-overlay" data-df-overlay hidden>
-        <p class="df-overlay__eyebrow" data-df-overlay-sub></p>
         <h2 class="df-overlay__title" data-df-overlay-title></h2>
         <p class="df-overlay__body" data-df-overlay-body></p>
       </div>
     </div>
-    <p class="df-help" data-df-help>숫자를 숨기고 있는 타일의 글자를 정답 칸에 입력하세요. 타일을 눌러도 됩니다.</p>
+    <p class="df-help" data-df-help>숫자 옆 칸에 그 숫자를 숨긴 타일의 글자를 한 글자 입력하세요. 순서는 상관없고, 칸을 고른 뒤 타일을 눌러도 됩니다.</p>
   `;
   container.appendChild(root);
 
-  const roundEl = root.querySelector('[data-df-round]');
-  const slotsEl = root.querySelector('[data-df-slots]');
-  const answerForm = root.querySelector('[data-df-answer]');
-  const answerInput = root.querySelector('[data-df-input]');
-  const finePointer = !window.matchMedia?.('(pointer: coarse)').matches;
+  const boxes = [...root.querySelectorAll('[data-box]')];
   const timebarEl = root.querySelector('[data-df-timebar]');
   const wrapEl = root.querySelector('[data-df-wrap]');
   const canvas = root.querySelector('[data-df-canvas]');
   const overlayEl = root.querySelector('[data-df-overlay]');
-  const overlaySubEl = root.querySelector('[data-df-overlay-sub]');
   const overlayTitleEl = root.querySelector('[data-df-overlay-title]');
   const overlayBodyEl = root.querySelector('[data-df-overlay-body]');
-  const helpEl = root.querySelector('[data-df-help]');
   const g = canvas.getContext('2d');
   const color = readPalette(root);
+  const finePointer = !window.matchMedia?.('(pointer: coarse)').matches;
 
   // --- Run state ---------------------------------------------------------------
-  let roundIdx = 0;
-  let phase = 'intro'; // intro | play | clear | fail | ended
-  let phaseClock = 0; // seconds in the current phase (play: time since numbers appeared)
+  let phase = 'play'; // play | clear | fail | ended
+  let clock = 0; // seconds since numbers appeared (drives reveal, hiding, peeking)
+  let phaseClock = 0;
+  let penaltySec = 0;
   let activeMs = 0;
-  let activeTarget = 0;
-  let penaltySec = 0; // added to the round clock by wrong answers
-  let roundsCleared = 0;
+  let activeBox = 0; // the box a tapped tile answers
   let score = 0;
   let streak = 0;
-  let maxStreak = 0;
-  let roundMistakes = 0;
-  let inputs = 0;
-  let correct = 0;
-  let solvedTotal = 0;
-  let cooldownUntil = 0; // activeMs
+  let mistakes = 0;
+  let cooldownUntil = 0; // activeMs; blocks rapid-fire guessing after a miss
+  let solved = 0;
+  let spin = 0;
   let message = null; // { text, tone, until }
   const tileFlash = new Map(); // tileIndex -> { color, until }
 
@@ -344,29 +329,27 @@ function mountGame(container, ctx, settings) {
   let logical = { w: 1600, h: WALL_SHORT_SIDE };
   let portrait = false;
   let view = { scale: 1, ox: 0, oy: 0, cssW: 1, cssH: 1, dpr: 1 };
-  let geometry = []; // per round: tile index -> { x, y, half, angleRad, cell }
+  let geometry = []; // tile index -> { x, y, half, angleRad, cell }
 
   function buildGeometry() {
-    geometry = rounds.map((r) => {
-      const cols = portrait ? r.rows : r.cols;
-      const rows = portrait ? r.cols : r.rows;
-      const cellW = (logical.w - WALL_PAD * 2) / cols;
-      const cellH = (logical.h - WALL_PAD * 2) / rows;
-      const cell = Math.min(cellW, cellH);
-      return r.tiles.map((tile) => {
-        const i = tile.index;
-        const c = portrait ? Math.floor(i / r.cols) : i % r.cols;
-        const row = portrait ? i % r.cols : Math.floor(i / r.cols);
-        return {
-          // Sit slightly low in the cell to leave head-room for the popping number
-          x: WALL_PAD + (c + 0.5 + tile.jx) * cellW,
-          y: WALL_PAD + (row + 0.58 + tile.jy) * cellH,
-          // A 45° tile must still fit its cell: half-diagonal ≤ half cell
-          half: cell * tile.size * 0.31,
-          angleRad: (tile.angle * Math.PI) / 180,
-          cell,
-        };
-      });
+    const cols = portrait ? wall.rows : wall.cols;
+    const rows = portrait ? wall.cols : wall.rows;
+    const cellW = (logical.w - WALL_PAD * 2) / cols;
+    const cellH = (logical.h - WALL_PAD * 2) / rows;
+    const cell = Math.min(cellW, cellH);
+    geometry = wall.tiles.map((tile) => {
+      const i = tile.index;
+      const c = portrait ? Math.floor(i / wall.cols) : i % wall.cols;
+      const row = portrait ? i % wall.cols : Math.floor(i / wall.cols);
+      return {
+        // Sit slightly low in the cell to leave head-room for the popping number
+        x: WALL_PAD + (c + 0.5 + tile.jx) * cellW,
+        y: WALL_PAD + (row + 0.58 + tile.jy) * cellH,
+        // A 45° tile must still fit its cell: half-diagonal ≤ half cell
+        half: cell * tile.size * 0.31,
+        angleRad: (tile.angle * Math.PI) / 180,
+        cell,
+      };
     });
   }
 
@@ -397,22 +380,21 @@ function mountGame(container, ctx, settings) {
   }
 
   // --- DOM sync --------------------------------------------------------------------
-  const round = () => rounds[roundIdx];
+  const remainingSec = () => Math.max(0, settings.timeSec - clock - penaltySec);
 
-  function renderSlots() {
-    slotsEl.innerHTML = round()
-      .targets.map((t, i) => {
-        const state = t.solved ? 'is-solved' : i === activeTarget ? 'is-active' : '';
-        const tail = t.solved ? `<b class="df-slot__letter">${t.letter}</b>` : '';
-        return `<span class="df-slot ${state}">${t.number}${tail}</span>`;
-      })
-      .join('<span class="df-slot__arrow" aria-hidden="true">→</span>');
+  function syncHud() {
+    const remaining = remainingSec();
+    timebarEl.style.setProperty('--df-time', (remaining / settings.timeSec).toFixed(4));
+    timebarEl.dataset.state = remaining <= DANGER_TIME_SEC ? 'danger' : 'normal';
+    ctx.updateHud({
+      timer: phase === 'play' ? remaining : { text: '--:--', state: 'normal' },
+      score,
+      progress: `찾은 숫자 ${solved}/${targets.length}`,
+      progressRatio: remaining / settings.timeSec,
+    });
   }
 
-  const timeUsed = () => (phase === 'play' ? phaseClock + penaltySec : 0);
-
-  function showOverlay(sub, title, body, tone) {
-    overlaySubEl.textContent = sub;
+  function showOverlay(title, body, tone) {
     overlayTitleEl.textContent = title;
     overlayBodyEl.textContent = body;
     overlayEl.dataset.tone = tone;
@@ -423,143 +405,145 @@ function mountGame(container, ctx, settings) {
     message = { text, tone, until: activeMs + MESSAGE_SEC * 1000 };
   }
 
-  function syncHud() {
-    const limit = settings.timeSec;
-    const remaining = Math.max(0, limit - timeUsed());
-    const counting = phase === 'play';
-    timebarEl.style.setProperty('--df-time', (remaining / limit).toFixed(4));
-    timebarEl.dataset.state = counting && remaining <= DANGER_TIME_SEC ? 'danger' : 'normal';
-    ctx.updateHud({
-      timer: counting ? remaining : { text: phase === 'intro' ? 'READY' : '--:--', state: 'normal' },
-      score,
-      progress: `ROUND ${roundIdx + 1}/${totalRounds}`,
-      progressRatio: remaining / limit,
-    });
-  }
+  const firstOpenBox = () => targets.findIndex((t) => !t.solved);
 
-  // --- Flow ------------------------------------------------------------------------
-  function enterPhase(next) {
-    phase = next;
-    phaseClock = 0;
-    if (next === 'intro') {
-      activeTarget = 0;
-      roundMistakes = 0;
-      penaltySec = 0;
-      tileFlash.clear();
-      roundEl.textContent = `ROUND ${roundIdx + 1}/${totalRounds}`;
-      renderSlots();
-      showOverlay(`ROUND ${roundIdx + 1}`, `숫자 ${TARGETS_PER_ROUND}개를 찾으세요`, describe(settings), 'info');
-    } else if (next === 'play') {
-      overlayEl.hidden = true;
-      ctx.audio.playHint();
-      if (finePointer) answerInput.focus({ preventScroll: true });
-    }
-    syncHud();
+  function focusBox(i) {
+    activeBox = i;
+    boxes.forEach((b, k) => b.closest('.df-target').classList.toggle('is-active', k === i && !targets[k].solved));
+    if (finePointer && i >= 0) boxes[i].focus({ preventScroll: true });
   }
 
   function finishRun(cleared) {
     if (finished) return;
     finished = true;
     phase = 'ended';
-    const accuracy = inputs > 0 ? Math.round((correct / inputs) * 100) : 0;
     ctx.completeGame({
       score,
       timeMs: Math.round(activeMs),
-      accuracy,
+      accuracy: solved + mistakes > 0 ? Math.round((solved / (solved + mistakes)) * 100) : 0,
       cleared,
       details: [
-        { value: `🏁 ${roundsCleared}/${totalRounds} 라운드` },
-        { value: `🔢 ${solvedTotal}/${totalTargets} 숫자` },
+        { value: `🔢 ${solved}/${targets.length} 숫자` },
         { value: `⏱ ${(activeMs / 1000).toFixed(1)}초` },
-        { value: `❌ 오답 ${inputs - correct}회` },
+        { value: `❌ 오답 ${mistakes}회` },
+        { value: `🎚 ${hideSeekModeLabel(ctx.mode)}` },
       ],
     });
   }
 
-  function failRun(title) {
-    if (phase === 'fail' || finished) return;
-    ctx.audio.playAlarm();
-    showOverlay('GAME OVER', title, `${score.toLocaleString('en-US')}점`, 'danger');
-    enterPhase('fail');
+  function endPhase(next) {
+    phase = next;
+    phaseClock = 0;
+    boxes.forEach((b) => {
+      b.disabled = true;
+    });
+    if (next === 'clear') {
+      const bonus = Math.round(remainingSec() * 60) + (mistakes === 0 ? PERFECT_BONUS : 0);
+      score += bonus;
+      ctx.audio.playMatch(6);
+      showOverlay('모두 찾았습니다!', `남은 시간 보너스 +${bonus.toLocaleString('en-US')}`, 'success');
+    } else {
+      ctx.audio.playAlarm();
+      showOverlay('시간 초과!', `${solved}/${targets.length}개 찾음`, 'danger');
+    }
+    syncHud();
   }
 
-  function roundCleared() {
-    const remaining = Math.max(0, settings.timeSec - timeUsed());
-    const speedBonus = Math.round(remaining * 60);
-    roundsCleared += 1;
-    const perfect = roundMistakes === 0 ? PERFECT_ROUND_BONUS : 0;
-    score += speedBonus + perfect;
-    const isFinal = roundIdx >= totalRounds - 1;
-    ctx.audio.playMatch(6);
-    const parts = [`스피드 +${speedBonus}`];
-    if (perfect) parts.push(`PERFECT +${PERFECT_ROUND_BONUS}`);
-    showOverlay(`ROUND ${roundIdx + 1} CLEAR`, isFinal ? '숨바꼭질 완전 정복!' : '라운드 돌파!', parts.join(' · '), 'success');
-    enterPhase('clear');
-  }
-
-  /** Answers the active target with a letter; `tileIndex` is set when a tile was tapped. */
-  function answer(letter, tileIndex = -1) {
+  /** Answers target `i` with `letter`; `tileIndex` is set when a tile was tapped. */
+  function answer(i, letter, tileIndex = -1) {
     if (finished || isPaused || phase !== 'play') return;
-    if (activeMs < cooldownUntil) return;
-    const target = round().targets[activeTarget];
-    if (!target) return;
-    inputs += 1;
-
+    const target = targets[i];
+    if (!target || target.solved) return;
+    const box = boxes[i];
+    if (activeMs < cooldownUntil) {
+      box.value = '';
+      return;
+    }
     if (letter === target.letter) {
-      correct += 1;
-      solvedTotal += 1;
       target.solved = true;
+      solved += 1;
       streak += 1;
-      maxStreak = Math.max(maxStreak, streak);
-      score += roundPts + (streak >= 2 ? 60 * Math.min(streak, 9) : 0);
+      score += pts + (streak >= 2 ? 60 * Math.min(streak, 9) : 0);
       ctx.audio.playMatch(streak);
-      // Reveal every tile that hides this number
-      for (const tile of round().tiles) {
+      box.value = target.letter;
+      box.disabled = true;
+      box.closest('.df-target').classList.add('is-solved');
+      for (const tile of wall.tiles) {
         if (tile.letter === target.letter) {
           tileFlash.set(tile.index, { color: color.neon, until: activeMs + TILE_FLASH_SEC * 2000 });
         }
       }
       flashMessage(`${target.number} = ${target.letter} 정답!`, 'success');
-      activeTarget += 1;
-      renderSlots();
-      if (activeTarget >= round().targets.length) roundCleared();
+      if (solved >= targets.length) endPhase('clear');
+      else focusBox(firstOpenBox());
     } else {
-      cooldownUntil = activeMs + WRONG_INPUT_COOLDOWN_MS;
       penaltySec += WRONG_PENALTY_SEC;
+      cooldownUntil = activeMs + WRONG_INPUT_COOLDOWN_MS;
       streak = 0;
-      roundMistakes += 1;
+      mistakes += 1;
       ctx.audio.playError();
+      box.value = '';
+      const slot = box.closest('.df-target');
+      slot.classList.remove('is-wrong');
+      void slot.offsetWidth;
+      slot.classList.add('is-wrong');
       if (tileIndex >= 0) {
         tileFlash.set(tileIndex, { color: color.danger, until: activeMs + TILE_FLASH_SEC * 1000 });
       }
-      wrapEl.classList.remove('is-shake');
-      void wrapEl.offsetWidth;
-      wrapEl.classList.add('is-shake');
       flashMessage(`${letter} 아님! -${WRONG_PENALTY_SEC}초`, 'danger');
     }
     syncHud();
   }
 
   // --- Drawing ---------------------------------------------------------------------
-  /** 0 (hidden behind the tile) … 1 (fully out above it) at play time `t`. */
-  function peekAmount(tile, r, t) {
+  /** 0 (hidden behind the tile) … 1 (fully out above it) at time `t`. */
+  function peekAmount(tile, t) {
     if (t < tile.hideAt) {
       // Opening reveal: pop out, then slide back in when this tile's batch hides
       return Math.max(0, Math.min(1, t / PEEK_EASE_SEC, (tile.hideAt - t) / PEEK_EASE_SEC));
     }
     const since = t - tile.hideAt;
     if (since < PEEK_REST_SEC) return 0;
-    const p = (since + tile.peekOffset) % r.cycleSec;
+    const p = (since + tile.peekOffset) % wall.cycleSec;
     if (p >= settings.peekSec) return 0;
     return Math.min(1, Math.min(p, settings.peekSec - p) / PEEK_EASE_SEC);
   }
 
-  function drawWall() {
-    g.fillStyle = color.wall;
+  /** Black-and-white spiral turning so the bands flow toward the centre. */
+  function drawSpiral() {
+    g.fillStyle = '#0b0b0b';
     g.fillRect(0, 0, logical.w, logical.h);
-    g.fillStyle = color.wallDot;
-    for (let y = 24; y < logical.h; y += 36) {
-      for (let x = 24; x < logical.w; x += 36) g.fillRect(x, y, 2, 2);
+    const cx = logical.w / 2;
+    const cy = logical.h / 2;
+    const k = SPIRAL_SPACING / (Math.PI * 2);
+    const maxTheta = Math.hypot(logical.w, logical.h) / 2 / k + Math.PI * 2;
+    g.save();
+    g.strokeStyle = '#f2f2f2';
+    g.lineWidth = SPIRAL_SPACING / 2;
+    g.lineCap = 'butt';
+    g.beginPath();
+    for (let th = 0; th <= maxTheta; th += 0.06) {
+      const r = k * th;
+      const a = th + spin;
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r;
+      if (th === 0) g.moveTo(x, y);
+      else g.lineTo(x, y);
+    }
+    g.stroke();
+    g.restore();
+  }
+
+  function drawWall() {
+    if (settings.spiral) {
+      drawSpiral();
+    } else {
+      g.fillStyle = color.wall;
+      g.fillRect(0, 0, logical.w, logical.h);
+      g.fillStyle = color.wallDot;
+      for (let y = 24; y < logical.h; y += 36) {
+        for (let x = 24; x < logical.w; x += 36) g.fillRect(x, y, 2, 2);
+      }
     }
     g.save();
     g.strokeStyle = color.neon;
@@ -577,14 +561,22 @@ function mountGame(container, ctx, settings) {
     // Number first, so the tile covers it until it slides up and out from behind
     if (peek > 0.01) {
       const rise = p.half * 1.5 * peek;
+      const size = Math.round(p.cell * 0.24);
       g.save();
       g.globalAlpha = Math.min(1, peek * 1.4);
-      g.fillStyle = color.number;
-      g.font = `700 ${Math.round(p.cell * 0.24)}px "Space Grotesk", monospace`;
+      g.font = `700 ${size}px "Space Grotesk", monospace`;
       g.textAlign = 'center';
       g.textBaseline = 'alphabetic';
+      if (settings.spiral) {
+        // A dark tag keeps the white number readable over the white spiral bands
+        const w = g.measureText(tile.number).width + size * 0.5;
+        g.fillStyle = 'rgba(10, 10, 10, 0.88)';
+        roundedRect(g, p.x - w / 2, p.y - rise - size * 0.95, w, size * 1.2, size * 0.3);
+        g.fill();
+      }
+      g.fillStyle = color.number;
       g.fillText(tile.number, p.x, p.y - rise);
-      g.fillRect(p.x - p.cell * 0.17, p.y - rise + p.cell * 0.03, p.cell * 0.34, 2);
+      if (!settings.spiral) g.fillRect(p.x - p.cell * 0.17, p.y - rise + p.cell * 0.03, p.cell * 0.34, 2);
       g.restore();
     }
 
@@ -634,11 +626,9 @@ function mountGame(container, ctx, settings) {
     g.clearRect(0, 0, view.cssW, view.cssH);
     g.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * ox, dpr * oy);
     drawWall();
-    const r = round();
-    const geo = geometry[roundIdx];
     const showNumbers = phase === 'play';
-    for (const tile of r.tiles) {
-      drawTile(tile, geo[tile.index], showNumbers ? peekAmount(tile, r, phaseClock) : 0);
+    for (const tile of wall.tiles) {
+      drawTile(tile, geometry[tile.index], showNumbers ? peekAmount(tile, clock) : 0);
     }
     drawMessage();
   }
@@ -652,27 +642,16 @@ function mountGame(container, ctx, settings) {
 
     if (!isPaused && !finished) {
       activeMs += dt * 1000;
-      phaseClock += dt;
-
-      if (phase === 'intro') {
-        if (phaseClock >= INTRO_SEC) enterPhase('play');
-      } else if (phase === 'play') {
-        const remaining = settings.timeSec - timeUsed();
+      spin += dt * SPIRAL_SPEED;
+      if (phase === 'play') {
+        clock += dt;
+        const remaining = remainingSec();
         if (remaining <= 5 && Math.ceil(remaining) !== Math.ceil(remaining + dt)) ctx.audio.playTick();
-        if (remaining <= 0) failRun('시간 초과!');
+        if (remaining <= 0) endPhase('fail');
         else syncHud();
-      } else if (phase === 'clear') {
-        if (phaseClock >= ROUND_CLEAR_SEC) {
-          overlayEl.hidden = true;
-          if (roundIdx >= totalRounds - 1) {
-            finishRun(true);
-          } else {
-            roundIdx += 1;
-            enterPhase('intro');
-          }
-        }
-      } else if (phase === 'fail' && phaseClock >= FAIL_SEC) {
-        finishRun(false);
+      } else {
+        phaseClock += dt;
+        if (phaseClock >= END_OVERLAY_SEC) finishRun(phase === 'clear');
       }
     }
     draw();
@@ -683,11 +662,10 @@ function mountGame(container, ctx, settings) {
     const rect = canvas.getBoundingClientRect();
     const lx = (clientX - rect.left - view.ox) / view.scale;
     const ly = (clientY - rect.top - view.oy) / view.scale;
-    const geo = geometry[roundIdx];
     const slop = isTouch ? TOUCH_HIT_SLOP * Math.min(logical.w, logical.h) : 0;
     // Topmost first: tiles are drawn in index order
-    for (let i = geo.length - 1; i >= 0; i -= 1) {
-      const p = geo[i];
+    for (let i = geometry.length - 1; i >= 0; i -= 1) {
+      const p = geometry[i];
       const dx = lx - p.x;
       const dy = ly - p.y;
       const cos = Math.cos(-p.angleRad);
@@ -702,37 +680,32 @@ function mountGame(container, ctx, settings) {
   const onPointerDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const idx = tileAt(e.clientX, e.clientY, e.pointerType === 'touch');
-    if (idx >= 0) answer(round().tiles[idx].letter, idx);
-    if (finePointer) answerInput.focus({ preventScroll: true });
+    if (idx < 0) return;
+    if (targets[activeBox]?.solved) activeBox = firstOpenBox();
+    if (activeBox >= 0) answer(activeBox, wall.tiles[idx].letter, idx);
+    if (finePointer && activeBox >= 0) boxes[activeBox].focus({ preventScroll: true });
   };
 
-  /** Validates one typed symbol and answers with it. */
-  function submitTyped() {
-    const value = answerInput.value.trim().toUpperCase();
-    answerInput.value = '';
+  /** A box holds exactly one symbol; a finished one is checked right away. */
+  function checkBox(i) {
+    const box = boxes[i];
+    const value = [...box.value.trim().toUpperCase()].pop() || '';
+    box.value = value;
     if (!value) return;
-    const symbol = [...value].pop();
-    if (!LETTERS.includes(symbol) && !HANGUL.includes(symbol)) {
-      flashMessage('알파벳이나 가~하 한 글자를 입력하세요', 'danger');
+    if (!LETTERS.includes(value) && !HANGUL.includes(value)) {
+      box.value = '';
+      flashMessage('알파벳이나 가~하 한 글자만 입력하세요', 'danger');
       return;
     }
-    answer(symbol);
+    answer(i, value);
   }
 
-  const onAnswerSubmit = (e) => {
-    e.preventDefault();
-    submitTyped();
+  const onBoxInput = (e) => {
+    if (e.isComposing) return; // Hangul is checked when composition ends
+    checkBox(Number(e.target.dataset.box));
   };
-
-  // A single finished character answers immediately (Hangul waits for IME composition)
-  const onAnswerInput = (e) => {
-    if (e.isComposing) return;
-    const value = answerInput.value.trim();
-    if (value && /^[A-Za-z]$/.test(value)) submitTyped();
-  };
-  const onCompositionEnd = () => {
-    if (/^[가-힣]$/.test(answerInput.value.trim())) submitTyped();
-  };
+  const onBoxComposed = (e) => checkBox(Number(e.target.dataset.box));
+  const onBoxFocus = (e) => focusBox(Number(e.target.dataset.box));
 
   const onPause = (e) => {
     isPaused = Boolean(e.detail?.paused);
@@ -742,17 +715,17 @@ function mountGame(container, ctx, settings) {
   const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : null;
   resizeObserver?.observe(wrapEl);
   window.addEventListener('resize', resize);
-  answerForm.addEventListener('submit', onAnswerSubmit);
-  answerInput.addEventListener('input', onAnswerInput);
-  answerInput.addEventListener('compositionend', onCompositionEnd);
   window.addEventListener('pm:pausechange', onPause);
   canvas.addEventListener('pointerdown', onPointerDown);
-
-  if (window.matchMedia?.('(pointer: coarse)').matches) {
-    helpEl.textContent = '숫자를 숨긴 타일을 터치하거나, 그 글자를 정답 칸에 입력하세요.';
+  for (const box of boxes) {
+    box.addEventListener('input', onBoxInput);
+    box.addEventListener('compositionend', onBoxComposed);
+    box.addEventListener('focus', onBoxFocus);
   }
+
   resize();
-  enterPhase('intro');
+  focusBox(0);
+  syncHud();
   rafId = requestAnimationFrame(step);
 
   return {
@@ -761,11 +734,13 @@ function mountGame(container, ctx, settings) {
       cancelAnimationFrame(rafId);
       resizeObserver?.disconnect();
       window.removeEventListener('resize', resize);
-      answerForm.removeEventListener('submit', onAnswerSubmit);
-      answerInput.removeEventListener('input', onAnswerInput);
-      answerInput.removeEventListener('compositionend', onCompositionEnd);
       window.removeEventListener('pm:pausechange', onPause);
       canvas.removeEventListener('pointerdown', onPointerDown);
+      for (const box of boxes) {
+        box.removeEventListener('input', onBoxInput);
+        box.removeEventListener('compositionend', onBoxComposed);
+        box.removeEventListener('focus', onBoxFocus);
+      }
       container.innerHTML = '';
     },
   };

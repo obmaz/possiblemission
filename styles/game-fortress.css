@@ -20,97 +20,96 @@
   font-family: var(--font-sans);
 }
 
-/* --- Console: round · target numbers · answer box · time ------------------ */
+/* --- Console: numbers to find, one answer box each · time ---------------- */
 .game-fortress .df-console {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) 160px;
   align-items: center;
-  gap: 14px;
-  padding: 8px 14px;
-  border: 1px solid rgba(63, 191, 146, 0.35);
+  gap: 16px;
+  padding: 10px 16px;
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--bg-surface-soft);
 }
 
-.game-fortress .df-round {
-  padding: 5px 12px;
-  border-radius: var(--radius-pill);
-  background: rgba(63, 191, 146, 0.14);
-  color: var(--df-neon);
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 0.86rem;
-  letter-spacing: 0.06em;
+.game-fortress .df-console__label {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 800;
   white-space: nowrap;
 }
 
 .game-fortress .df-targets {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  min-width: 0;
 }
 
-.game-fortress .df-targets__label {
-  color: var(--text-muted);
-  font-size: 0.86rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.game-fortress .df-targets__slots {
-  display: flex;
+.game-fortress .df-target {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  padding: 6px 8px 6px 14px;
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-deep);
+  cursor: text;
+  transition: border-color 140ms ease, background 140ms ease;
 }
 
-.game-fortress .df-slot {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 4px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: rgba(15, 23, 42, 0.04);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 1.15rem;
-  letter-spacing: 0.08em;
-}
-
-.game-fortress .df-slot.is-active {
+.game-fortress .df-target.is-active {
   border-color: var(--df-neon);
-  background: rgba(63, 191, 146, 0.16);
+  box-shadow: 0 0 0 3px rgba(22, 147, 106, 0.15);
+}
+
+.game-fortress .df-target.is-solved {
+  border-color: var(--df-neon);
+  background: rgba(22, 147, 106, 0.1);
+}
+
+.game-fortress .df-target.is-wrong {
+  animation: df-shake 320ms ease;
+  border-color: var(--neon-crimson);
+}
+
+.game-fortress .df-target__num {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-fortress .df-target__box {
+  width: 48px;
+  height: 44px;
+  border: 1px solid var(--border-specular);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-soft);
   color: var(--text-primary);
-  font-size: 1.45rem;
-  animation: df-pulse 1.4s ease-in-out infinite;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
 }
 
-.game-fortress .df-slot.is-solved {
-  border-color: rgba(63, 191, 146, 0.4);
-  color: var(--df-neon);
+.game-fortress .df-target__box:focus {
+  outline: none;
+  border-color: var(--df-neon);
 }
 
-.game-fortress .df-slot__letter {
-  display: inline-block;
-  padding: 0 6px;
-  border-radius: 6px;
+.game-fortress .df-target.is-solved .df-target__box {
+  border-color: transparent;
   background: var(--df-neon);
   color: #ffffff;
-  font-family: var(--font-display);
+  opacity: 1;
 }
-
-.game-fortress .df-slot__arrow {
-  color: var(--text-dim);
-}
-
-
 
 .game-fortress .df-timebar {
-  width: 140px;
-  height: 6px;
+  height: 8px;
   overflow: hidden;
   border-radius: var(--radius-pill);
   background: rgba(15, 23, 42, 0.08);
@@ -126,48 +125,6 @@
 
 .game-fortress .df-timebar span[data-state='danger'] {
   background: var(--neon-crimson);
-}
-
-/* --- Answer box ------------------------------------------------------------ */
-.game-fortress .df-answer {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.game-fortress .df-answer__input {
-  width: 74px;
-  height: 42px;
-  padding: 0 8px;
-  border: 2px solid var(--df-neon);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface-deep);
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  font-weight: 800;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.game-fortress .df-answer__input:focus {
-  outline: 3px solid rgba(22, 147, 106, 0.25);
-}
-
-.game-fortress .df-answer__btn {
-  height: 42px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: var(--btn-primary);
-  color: #ffffff;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.game-fortress .df-answer__btn:hover {
-  background: var(--btn-primary-hover);
 }
 
 /* --- Wall screen ----------------------------------------------------------- */
@@ -215,19 +172,6 @@
   border-color: var(--neon-crimson);
 }
 
-.game-fortress .df-overlay__eyebrow {
-  margin: 0 0 6px;
-  color: var(--df-neon);
-  font-family: var(--font-mono);
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-}
-
-.game-fortress .df-overlay[data-tone='danger'] .df-overlay__eyebrow {
-  color: var(--neon-crimson);
-}
-
 .game-fortress .df-overlay__title {
   margin: 0 0 8px;
   font-family: var(--font-display);
@@ -259,35 +203,24 @@
   }
 
   .game-fortress .df-console {
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas:
-      'round timebar answer'
-      'targets targets targets';
+    grid-template-columns: 1fr;
     gap: 8px;
     padding: 8px 10px;
   }
 
-  .game-fortress .df-round { grid-area: round; justify-self: start; }
-  .game-fortress .df-answer { grid-area: answer; }
-  .game-fortress .df-timebar { grid-area: timebar; justify-self: stretch; width: auto; }
-  .game-fortress .df-targets { grid-area: targets; }
-  .game-fortress .df-targets__label { display: none; }
-  .game-fortress .df-slot { padding: 3px 8px; font-size: 0.95rem; }
-  .game-fortress .df-slot.is-active { font-size: 1.15rem; }
+  .game-fortress .df-console__label { display: none; }
+  .game-fortress .df-target__num { font-size: 1.1rem; }
+  .game-fortress .df-target__box { width: 40px; height: 38px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .game-fortress .df-slot.is-active,
+  .game-fortress .df-target.is-wrong,
   .game-fortress .df-wall-wrap.is-shake,
   .game-fortress .df-overlay {
     animation: none;
   }
 }
 
-@keyframes df-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(63, 191, 146, 0.35); }
-  50% { box-shadow: 0 0 0 6px rgba(63, 191, 146, 0); }
-}
 
 @keyframes df-shake {
   0%, 100% { transform: translateX(0); }
