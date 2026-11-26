@@ -1,0 +1,12 @@
+---
+description: POSSIBLE MISSION project rules (imports root agent.md)
+alwaysApply: true
+---
+
+# Cursor 전용 설정
+
+@agent.md
+
+## Cursor 환경 규칙
+- 루트 `agent.md`의 프로젝트 아키텍처, UI 규칙, 검증 명령을 항상 따릅니다.
+- 틀린그림찾기 생성형 스테이지 제작(`.agents/skills/spot-difference-stage/SKILL.md`) 요청 시, 현재 환경에 이미지 생성 모델/MCP 도구가 없으면 작업을 진행하지 말고 진행 불가 사유를 사용자에게 알리세요.

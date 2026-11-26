@@ -4,7 +4,8 @@
   "type": "module",
   "description": "Dev-only end-to-end checks. The site itself has no dependencies.",
   "scripts": {
-    "test": "node play.mjs"
+    "verify:spot": "node verify-spot-sets.mjs",
+    "test": "node verify-spot-sets.mjs && node play.mjs"
   },
   "devDependencies": {
     "playwright": "^1.65.1"

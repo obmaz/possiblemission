@@ -11,6 +11,18 @@ import { SPOT_DIFFICULTIES, SPOT_STAGES, parseSpotMode, spotModeId } from './spo
 import { CAFE_IMAGES, CAFE_REGIONS } from './spot-cafe-manifest.js';
 import { TOUCH_HIT_SLOP, WRONG_INPUT_COOLDOWN_MS } from '../core/rules.js';
 
+/**
+ * Photo-set stage registry: each entry maps a `SPOT_STAGES` id (`kind: 'photo-set'`)
+ * to its manifest `{ regions, images }`. Adding a new generative stage only needs
+ * registering its manifest here and adding metadata in `./spot-stages.js`.
+ */
+export const PHOTO_SET_STAGES = {
+  cafe: {
+    regions: CAFE_REGIONS,
+    images: CAFE_IMAGES,
+  },
+};
+
 export const BASE_W = 1200;
 export const BASE_H = 896;
 
@@ -225,7 +237,7 @@ export function parseModeConfig(mode) {
 
 /** Full anomaly pool of a picture. */
 export function getStagePool(stage) {
-  if (stage.kind === 'photo-set') return CAFE_REGIONS;
+  if (stage.kind === 'photo-set') return PHOTO_SET_STAGES[stage.id]?.regions || [];
   return PHOTO_STAGES[stage.id].pool;
 }
 
@@ -236,12 +248,13 @@ export function getStagePool(stage) {
  */
 export function resolveRoundData(rng, stage, targetCount, difficultyId = 'normal') {
   if (stage.kind === 'photo-set') {
-    const n = CAFE_IMAGES.length;
+    const set = PHOTO_SET_STAGES[stage.id];
+    const n = set.images.length;
     const idxA = Math.floor(rng() * n);
     const idxB = (idxA + 1 + Math.floor(rng() * (n - 1))) % n;
-    const imgA = CAFE_IMAGES[idxA];
-    const imgB = CAFE_IMAGES[idxB];
-    const pool = CAFE_REGIONS.filter((_, rIdx) => imgA.states[rIdx] !== imgB.states[rIdx]);
+    const imgA = set.images[idxA];
+    const imgB = set.images[idxB];
+    const pool = set.regions.filter((_, rIdx) => imgA.states[rIdx] !== imgB.states[rIdx]);
     const anomalies = selectRoundAnomalies(rng, pool, targetCount, difficultyId);
     return {
       leftSrc: imgA.src,
