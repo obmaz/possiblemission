@@ -3,23 +3,15 @@
  * Shared by the lobby (mode list, labels) and the game (picker, parsing) without
  * pulling in the heavy drawing code.
  *
- * Mode ids: `${stageId}-${difficultyId}` (e.g. `beach-normal`), plus `pick`, which
+ * Mode ids: `${stageId}-${difficultyId}` (e.g. `cafe-normal`), plus `pick`, which
  * opens the in-game picture → difficulty chooser.
  */
 
 export const SPOT_PICK_MODE = 'pick';
 
 export const SPOT_STAGES = [
-  { id: 'cafe', titleKo: '보드게임 디저트 카페', shortKo: '카페', thumb: './assets/images/spot-cafe.jpg', kind: 'photo' },
+  { id: 'cafe', titleKo: '보드게임 디저트 카페', shortKo: '카페', thumb: './assets/images/spot-cafe.jpg', kind: 'photo-set' },
   { id: 'camp', titleKo: '황혼의 모험 캠프', shortKo: '캠프', thumb: './assets/images/spot-camp.jpg', kind: 'photo' },
-  { id: 'beach', titleKo: '여름 해변', shortKo: '해변', kind: 'vector' },
-  { id: 'city', titleKo: '반짝이는 밤 도시', shortKo: '밤 도시', kind: 'vector' },
-  { id: 'farm', titleKo: '평화로운 시골 농장', shortKo: '농장', kind: 'vector' },
-  { id: 'sea', titleKo: '알록달록 바닷속', shortKo: '바닷속', kind: 'vector' },
-  { id: 'snow', titleKo: '눈 내리는 겨울 마을', shortKo: '겨울 마을', kind: 'vector' },
-  { id: 'space', titleKo: '우주 탐사 기지', shortKo: '우주', kind: 'vector' },
-  { id: 'kitchen', titleKo: '아늑한 주방', shortKo: '주방', kind: 'vector' },
-  { id: 'park', titleKo: '주말 공원 나들이', shortKo: '공원', kind: 'vector' },
 ];
 
 export const SPOT_DIFFICULTIES = [
@@ -48,7 +40,7 @@ export function spotCatalogModes() {
       SPOT_DIFFICULTIES.map((d) => ({
         id: spotModeId(stage.id, d.id),
         label: `${stage.shortKo} · ${d.label}`,
-        thumb: stage.thumb || SPOT_STAGES[0].thumb,
+        thumb: stage.thumb,
       }))
     ),
   ];

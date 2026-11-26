@@ -1,0 +1,368 @@
+/* ==========================================================================
+   Game: 도블 스피드 매치 (.game-dobble) — keyframes prefixed db-
+   No hover or focus visual effects per user preference.
+   ========================================================================== */
+
+.game-dobble {
+  --db-accent: var(--neon-gold, #c08419);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: clamp(10px, 1.5vh, 18px) clamp(12px, 2vw, 24px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(8px, 1.2vh, 14px);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-deep);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  color: var(--text-primary);
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+
+/* === Setup Screen === */
+.game-dobble.db-setup {
+  justify-content: center;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+.game-dobble .db-setup__head {
+  text-align: center;
+}
+
+.game-dobble .db-setup__title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2.2vw, 1.7rem);
+  font-weight: 800;
+}
+
+.game-dobble .db-setup__sub {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  word-break: keep-all;
+}
+
+.game-dobble .db-setup__sub b {
+  color: var(--db-accent);
+}
+
+.game-dobble .db-setup__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 18px;
+  width: 100%;
+}
+
+.game-dobble .db-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.game-dobble .db-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-deep);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.game-dobble .db-preset.is-active {
+  border-color: var(--db-accent);
+  background: rgba(192, 132, 25, 0.09);
+  box-shadow: inset 0 0 0 1px var(--db-accent);
+}
+
+.game-dobble .db-preset__name {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.game-dobble .db-preset--easy .db-preset__name { color: var(--neon-emerald); }
+.game-dobble .db-preset--medium .db-preset__name { color: var(--neon-cyan); }
+.game-dobble .db-preset--hard .db-preset__name { color: var(--neon-gold); }
+.game-dobble .db-preset--extreme .db-preset__name { color: #d9692c; }
+.game-dobble .db-preset--insane .db-preset__name { color: var(--neon-crimson); }
+.game-dobble .db-preset--god .db-preset__name { color: var(--neon-violet); }
+
+.game-dobble .db-preset__ko {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.game-dobble .db-preset__meta {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+.game-dobble .db-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-soft);
+}
+
+.game-dobble .db-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.game-dobble .db-field__label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.game-dobble .db-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.game-dobble .db-stepper__btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-deep);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-dobble .db-stepper__btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.game-dobble .db-stepper__value {
+  min-width: 64px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-align: center;
+}
+
+.game-dobble .db-fields__summary {
+  margin: 4px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--db-accent);
+  font-size: 0.85rem;
+  word-break: keep-all;
+}
+
+.game-dobble .db-setup__start {
+  min-width: 240px;
+  padding: 14px 28px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--btn-primary);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* === Active Board === */
+.game-dobble .db-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-soft);
+  border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.game-dobble .db-header__status {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-dobble .db-header__status[data-tone='success'] {
+  color: var(--neon-emerald);
+}
+
+.game-dobble .db-header__status[data-tone='error'] {
+  color: var(--neon-crimson);
+}
+
+.game-dobble .db-header__badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.game-dobble .db-combo {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(192, 132, 25, 0.14);
+  border: 1px solid rgba(192, 132, 25, 0.35);
+  color: var(--neon-gold);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.game-dobble .db-round-pill {
+  padding: 3px 11px;
+  border-radius: var(--radius-pill);
+  background: rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-dobble .db-arena {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  justify-items: center;
+  gap: clamp(10px, 2vw, 24px);
+}
+
+.game-dobble .db-arena.is-shaking {
+  animation: db-shake 320ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@keyframes db-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  45% { transform: translateX(6px); }
+  70% { transform: translateX(-4px); }
+}
+
+.game-dobble .db-card-wrap {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.game-dobble .db-card-label {
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface-soft);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.game-dobble .db-vs {
+  font-size: 1.4rem;
+  color: var(--db-accent);
+  font-weight: 800;
+}
+
+.game-dobble .db-card {
+  position: relative;
+  width: min(100%, 400px, 52dvh);
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #f8fafc 75%, #eef2f7 100%);
+  border: 4px solid #cbd5e1;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12), inset 0 0 0 6px #ffffff;
+}
+
+.game-dobble .db-sym {
+  position: absolute;
+  padding: 2px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  outline: none;
+}
+
+.game-dobble .db-sym svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.game-dobble .db-sym.is-matched {
+  background: rgba(22, 147, 106, 0.22);
+  box-shadow: 0 0 0 4px var(--neon-emerald);
+}
+
+.game-dobble .db-footer {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 899px) {
+  .game-dobble {
+    height: auto;
+    min-height: calc(100dvh - var(--hud-height, 64px) - 16px);
+  }
+
+  .game-dobble .db-setup__body {
+    grid-template-columns: 1fr;
+  }
+
+  .game-dobble .db-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .game-dobble .db-arena {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .game-dobble .db-vs {
+    display: none;
+  }
+
+  .game-dobble .db-card {
+    width: min(76vw, 310px, 34dvh);
+  }
+}

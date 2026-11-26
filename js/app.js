@@ -13,6 +13,7 @@ import {
   hideSeekModeLabel,
   parseHideSeekMode,
 } from './games/hide-seek-settings.js';
+import { DOBBLE_SETUP_MODE, dobbleCatalogModes, dobbleModeLabel, parseDobbleMode } from './games/dobble-settings.js';
 
 const PRESET_SEEDS = ['MISSION-1', 'ROUND-1', 'ROUND-2', 'ROUND-3', 'ROUND-4', 'ROUND-5'];
 
@@ -24,9 +25,22 @@ const GAME_CATALOG = [
     accent: 'magenta',
     tag: '매의 눈',
     timeHint: '75~90초',
-    hook: '그림 10장 중 하나를 고르고 난이도를 선택하세요. 좌우 그림에서 달라진 곳을 빠르게 짚어내는 눈썰미 대결!',
+    hook: '· 카페 20장 조합·캠프 2종\n· 좌우 다른 곳을 빠르게 터치',
     defaultMode: SPOT_PICK_MODE,
     modes: spotCatalogModes(),
+  },
+  {
+    id: 'dobble',
+    title: '도블 스피드 매치',
+    subEn: 'DOBBLE MATCH',
+    accent: 'gold',
+    art: 'dobble',
+    tag: '순발력',
+    timeHint: '45~75초',
+    hook: '· 두 카드 속 공통 그림 1개 찾기\n· 겹치는 아이콘 빠르게 터치',
+    defaultMode: DOBBLE_SETUP_MODE,
+    modes: dobbleCatalogModes(),
+    resolveMode: (id) => (parseDobbleMode(id) ? { id, label: dobbleModeLabel(id), thumb: null } : null),
   },
   {
     id: 'flash-anzan',
@@ -36,7 +50,7 @@ const GAME_CATALOG = [
     art: 'anzan',
     tag: '암산',
     timeHint: '약 60초',
-    hook: '숫자가 하나씩 번쩍 나타납니다. 머릿속으로 더해서 합계를 맞히세요. EASY부터 GOD까지 직접 고릅니다!',
+    hook: '· 번쩍이는 숫자 연속 암산\n· 합계를 입력해 맞히기',
     defaultMode: ANZAN_SETUP_MODE,
     modes: anzanCatalogModes(),
     resolveMode: (id) => (parseAnzanMode(id) ? { id, label: anzanModeLabel(id), thumb: null } : null),
@@ -49,7 +63,7 @@ const GAME_CATALOG = [
     art: 'memory',
     tag: '단기기억',
     timeHint: '45~80초',
-    hook: '2초 동안 카드를 외운 뒤 같은 그림 짝을 찾으세요. 고속열차·트램·자기부상열차 등 철도 카드도 섞여 나옵니다!',
+    hook: '· 2초 암기 후 같은 짝 찾기\n· 연속 성공 시 콤보 점수',
     defaultMode: 'setup',
     modes: [
       { id: 'setup', label: '난이도 선택', thumb: null },
@@ -66,7 +80,7 @@ const GAME_CATALOG = [
     art: 'tiles',
     tag: '순간 포착',
     timeHint: '약 90초',
-    hook: '글자 타일 뒤에 숨었다 고개를 내미는 숫자를 찾아 그 타일의 글자를 맞히세요. EASY부터 GOD까지 난이도를 직접 고릅니다!',
+    hook: '· 타일 뒤 숨은 숫자 순간 포착\n· 목표 숫자의 글자 입력',
     defaultMode: HIDE_SEEK_SETUP_MODE,
     modes: hideSeekCatalogModes(),
     // Custom settings live in the mode id (custom-…), so accept any valid one
@@ -76,6 +90,14 @@ const GAME_CATALOG = [
 
 /** Hand-made lobby card artwork for games whose look isn't a stage photo. */
 const CARD_ART = {
+  dobble: `<div class="game-card__dobble-art" aria-hidden="true">
+      <div class="dobble-preview-disc">
+        <span>⭐</span><span>🍎</span><span>🔑</span><span>👑</span>
+      </div>
+      <div class="dobble-preview-disc">
+        <span>👑</span><span>🚀</span><span>💎</span><span>🍀</span>
+      </div>
+    </div>`,
   memory: `<div class="game-card__memory-art" aria-hidden="true">
       <div class="memory-preview-tile">🚄</div>
       <div class="memory-preview-tile">⚡</div>
@@ -1088,9 +1110,9 @@ function openResultModal({ gameMeta, mode, modeLabel, score, timeMs, cleared, is
     </div>
 
     <div class="result-actions">
-      <button type="button" id="result-retry-btn" class="btn-neon-primary">다시 하기</button>
-      <button type="button" id="result-change-btn" class="btn-neon-secondary">난이도 바꾸기</button>
-      <button type="button" id="result-lobby-btn" class="btn-neon-ghost">다른 게임</button>
+      <button type="button" id="result-lobby-btn" class="btn-neon-ghost">로비</button>
+      <button type="button" id="result-change-btn" class="btn-neon-secondary">난이도 변경</button>
+      <button type="button" id="result-retry-btn" class="btn-neon-primary">재도전</button>
     </div>
   `;
 

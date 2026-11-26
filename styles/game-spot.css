@@ -533,9 +533,9 @@
 
 .game-spot .sd-picker__grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
-  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: min(100%, 760px);
 }
 
 .game-spot .sd-picker__grid[hidden],

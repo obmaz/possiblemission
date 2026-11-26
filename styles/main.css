@@ -569,11 +569,11 @@ textarea:focus-visible {
   color: var(--neon-violet);
 }
 
-/* === 4 Game Selection Cards === */
+/* === Game Selection Cards === */
 .game-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .game-card {
@@ -625,6 +625,7 @@ textarea:focus-visible {
 .game-card--magenta { --card-accent: var(--neon-magenta); }
 .game-card--violet { --card-accent: var(--neon-violet); }
 .game-card--crimson { --card-accent: var(--neon-crimson); }
+.game-card--gold { --card-accent: var(--neon-gold); }
 
 @media (hover: hover) and (pointer: fine) {
   .game-card:hover {
@@ -654,6 +655,41 @@ textarea:focus-visible {
 
 .game-card:hover .game-card__img {
   transform: scale(1.06);
+}
+
+/* Custom Dobble circular card pair preview */
+.game-card__dobble-art {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  background: radial-gradient(circle at 50% 45%, #fffdf5 0%, #f5ebd2 80%);
+}
+
+.dobble-preview-disc {
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3px solid #d6c59a;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.14);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  place-items: center;
+  padding: 10px;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.dobble-preview-disc:first-child {
+  transform: rotate(-8deg);
+}
+
+.dobble-preview-disc:last-child {
+  transform: rotate(8deg);
 }
 
 /* Custom neon card deck artwork for Memory Match card */
@@ -853,9 +889,10 @@ textarea:focus-visible {
 
 .game-card__hook {
   color: var(--text-secondary);
-  font-size: 0.875rem;
-  line-height: 1.48;
-  min-height: 2.95em;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  min-height: 3em;
+  white-space: pre-line;
 }
 
 .game-card__play {
@@ -1442,8 +1479,15 @@ textarea:focus-visible {
 
 .result-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.result-actions > button {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 8px;
+  white-space: nowrap;
 }
 
 /* === QR Invite & MC Guide === */

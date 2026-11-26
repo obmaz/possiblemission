@@ -8,7 +8,7 @@
  */
 import { createRng, pickDispersed } from '../core/seed.js';
 import { SPOT_DIFFICULTIES, SPOT_STAGES, parseSpotMode, spotModeId } from './spot-stages.js';
-import { SCENE_H, SCENE_W, VECTOR_SCENES, buildScenePool, renderScene } from './spot-scenes.js';
+import { CAFE_IMAGES, CAFE_REGIONS } from './spot-cafe-manifest.js';
 import { TOUCH_HIT_SLOP, WRONG_INPUT_COOLDOWN_MS } from '../core/rules.js';
 
 export const BASE_W = 1200;
@@ -57,153 +57,6 @@ function withAlpha(hex, a) {
  * the 1200×896 artwork. Titles live in ./spot-stages.js.
  */
 export const PHOTO_STAGES = {
-  cafe: {
-    imageSrc: './assets/images/spot-cafe.jpg',
-    pool: [
-      {
-        id: 'cafe-lamp-blue',
-        label: '왼쪽 펜던트 조명 색상',
-        x: 0.397,
-        y: 0.166,
-        r: 0.055,
-        kind: 'color-swap',
-        rx: 0.038,
-        ry: 0.048,
-        hueMin: 175,
-        hueMax: 235,
-        minSat: 0.22,
-        minLight: 0.22,
-        targetHue: 14,
-        satScale: 1.15,
-      },
-      {
-        id: 'cafe-clock-hands',
-        label: '벽시계 바늘 시각',
-        x: 0.295,
-        y: 0.169,
-        r: 0.06,
-        kind: 'cel-prop',
-        propType: 'clock-hands',
-      },
-      {
-        id: 'cafe-mug-middle',
-        label: '쇼케이스 위 가운데 머그',
-        x: 0.195,
-        y: 0.562,
-        r: 0.048,
-        kind: 'color-swap',
-        rx: 0.028,
-        ry: 0.028,
-        hueMin: 120,
-        hueMax: 185,
-        minSat: 0.14,
-        minLight: 0.22,
-        targetHue: 306,
-        satScale: 1.55,
-      },
-      {
-        id: 'cafe-cake-frosting',
-        label: '진열장 상단 중앙 케이크 크림',
-        x: 0.245,
-        y: 0.642,
-        r: 0.052,
-        kind: 'color-swap',
-        rx: 0.048,
-        ry: 0.028,
-        hueMin: 295,
-        hueMax: 357,
-        minSat: 0.18,
-        minLight: 0.46,
-        targetHue: 150,
-        satScale: 1.1,
-      },
-      {
-        id: 'cafe-vase-flowers',
-        label: '카운터 좌측 꽃병 꽃잎',
-        x: 0.085,
-        y: 0.543,
-        r: 0.052,
-        kind: 'color-swap',
-        rx: 0.036,
-        ry: 0.038,
-        filterFn: (h, s, l) =>
-          l >= 0.32 &&
-          l <= 0.78 &&
-          (((h >= 312 || h <= 8) && s >= 0.34) || (h >= 40 && h <= 58 && s >= 0.56)),
-        targetHue: 215,
-        satScale: 1.25,
-      },
-      {
-        id: 'cafe-barista-apron',
-        label: '바리스타 앞치마 색상',
-        x: 0.391,
-        y: 0.558,
-        r: 0.06,
-        kind: 'color-swap',
-        rx: 0.042,
-        ry: 0.072,
-        hueMin: 10,
-        hueMax: 40,
-        minSat: 0.16,
-        maxSat: 0.65,
-        minLight: 0.2,
-        maxLight: 0.56,
-        targetHue: 164,
-        satScale: 1.35,
-      },
-      {
-        id: 'cafe-girl-shirt',
-        label: '창가 여성 티셔츠 색상',
-        x: 0.729,
-        y: 0.602,
-        r: 0.055,
-        kind: 'color-swap',
-        rx: 0.032,
-        ry: 0.038,
-        hueMin: 40,
-        hueMax: 68,
-        minSat: 0.4,
-        minLight: 0.45,
-        targetHue: 272,
-        satScale: 1.0,
-      },
-      {
-        id: 'cafe-green-pawn',
-        label: '앞 테이블 초록 말 제거',
-        x: 0.82,
-        y: 0.848,
-        r: 0.05,
-        kind: 'patch-remove',
-        rx: 0.022,
-        ry: 0.044,
-        srcDx: 0.062,
-        srcDy: 0.006,
-      },
-      {
-        id: 'cafe-card-suit',
-        label: '앞 테이블 카드 하트 색',
-        x: 0.7275,
-        y: 0.888,
-        r: 0.05,
-        kind: 'color-swap',
-        rx: 0.031,
-        ry: 0.027,
-        filterFn: (h, s, l) => (h >= 340 || h <= 16) && s >= 0.4 && l >= 0.3 && l <= 0.82,
-        targetHue: 212,
-        satScale: 1.25,
-      },
-      {
-        id: 'cafe-window-bird',
-        label: '창밖 하늘 날아가는 새',
-        x: 0.885,
-        y: 0.178,
-        r: 0.055,
-        kind: 'cel-prop',
-        propType: 'cafe-bird',
-      },
-    ],
-  },
-
   camp: {
     imageSrc: './assets/images/spot-camp.jpg',
     pool: [
@@ -370,10 +223,45 @@ export function parseModeConfig(mode) {
   };
 }
 
-/** Full anomaly pool of a picture (photo: curated list, vector: derived from the scene). */
+/** Full anomaly pool of a picture. */
 export function getStagePool(stage) {
-  if (stage.kind === 'photo') return PHOTO_STAGES[stage.id].pool;
-  return buildScenePool(VECTOR_SCENES.find((sc) => sc.id === stage.id));
+  if (stage.kind === 'photo-set') return CAFE_REGIONS;
+  return PHOTO_STAGES[stage.id].pool;
+}
+
+/**
+ * Resolves the two board images + deterministic round anomalies for a seeded run.
+ * For `photo-set` stages (20 similar illustrations), picks 2 distinct images and
+ * extracts only the regions where those 2 images actually differ.
+ */
+export function resolveRoundData(rng, stage, targetCount, difficultyId = 'normal') {
+  if (stage.kind === 'photo-set') {
+    const n = CAFE_IMAGES.length;
+    const idxA = Math.floor(rng() * n);
+    const idxB = (idxA + 1 + Math.floor(rng() * (n - 1))) % n;
+    const imgA = CAFE_IMAGES[idxA];
+    const imgB = CAFE_IMAGES[idxB];
+    const pool = CAFE_REGIONS.filter((_, rIdx) => imgA.states[rIdx] !== imgB.states[rIdx]);
+    const anomalies = selectRoundAnomalies(rng, pool, targetCount, difficultyId);
+    return {
+      leftSrc: imgA.src,
+      rightSrc: imgB.src,
+      leftLabel: '그림 A',
+      rightLabel: '그림 B',
+      pool,
+      anomalies,
+    };
+  }
+  const pool = PHOTO_STAGES[stage.id].pool;
+  const anomalies = selectRoundAnomalies(rng, pool, targetCount, difficultyId);
+  return {
+    leftSrc: PHOTO_STAGES[stage.id].imageSrc,
+    rightSrc: null,
+    leftLabel: '원본 그림',
+    rightLabel: '변형 그림',
+    pool,
+    anomalies,
+  };
 }
 
 /**
@@ -988,7 +876,8 @@ export function mount(container, ctx) {
   const config = parseModeConfig(ctx.mode);
   if (!config) return mountPicker(container, ctx);
   const { stage, difficulty, targetCount, timeLimitSec, modeLabel } = config;
-  const anomalies = selectRoundAnomalies(ctx.rng, getStagePool(stage), targetCount, difficulty.id);
+  const roundData = resolveRoundData(ctx.rng, stage, targetCount, difficulty.id);
+  const anomalies = roundData.anomalies;
 
   let unmounted = false;
   let isPaused = false;
@@ -1060,8 +949,8 @@ export function mount(container, ctx) {
       <div class="sd-toolbar__actions">
         <div class="sd-view-tabs" role="tablist" aria-label="모바일 보기 전환">
           <button type="button" class="sd-view-tab is-active" data-sd-view="both" role="tab" aria-selected="true">함께보기</button>
-          <button type="button" class="sd-view-tab" data-sd-view="orig" role="tab" aria-selected="false">원본</button>
-          <button type="button" class="sd-view-tab" data-sd-view="mod" role="tab" aria-selected="false">변형</button>
+          <button type="button" class="sd-view-tab" data-sd-view="orig" role="tab" aria-selected="false">${roundData.leftLabel}</button>
+          <button type="button" class="sd-view-tab" data-sd-view="mod" role="tab" aria-selected="false">${roundData.rightLabel}</button>
         </div>
         <button type="button" class="sd-tool-btn sd-tool-btn--loupe" data-sd-loupe aria-pressed="false" title="확대경 토글 (M)">
           🔍 돋보기
@@ -1077,11 +966,11 @@ export function mount(container, ctx) {
         <header class="sd-board-header">
           <span class="sd-board-label">
             <span class="sd-board-label__dot" aria-hidden="true"></span>
-            <span>원본 그림</span>
+            <span>${roundData.leftLabel}</span>
           </span>
         </header>
         <div class="sd-canvas-wrap" data-sd-wrap="orig">
-          <canvas class="sd-canvas" data-sd-canvas="orig" width="${BASE_W}" height="${BASE_H}" tabindex="0" role="img" aria-label="원본 그림. 차이점을 클릭해 찾고, Enter 또는 Space로 힌트를 사용할 수 있습니다."></canvas>
+          <canvas class="sd-canvas" data-sd-canvas="orig" width="${BASE_W}" height="${BASE_H}" tabindex="0" role="img" aria-label="${roundData.leftLabel}. 차이점을 클릭해 찾고, Enter 또는 Space로 힌트를 사용할 수 있습니다."></canvas>
           <canvas class="sd-loupe" data-sd-loupe-canvas="orig" width="146" height="146" aria-hidden="true"></canvas>
           <div class="sd-loading" data-sd-loading>스테이지 이미지 로딩 중...</div>
         </div>
@@ -1091,13 +980,13 @@ export function mount(container, ctx) {
         <header class="sd-board-header">
           <span class="sd-board-label">
             <span class="sd-board-label__dot" aria-hidden="true"></span>
-            <span>변형 그림</span>
+            <span>${roundData.rightLabel}</span>
           </span>
         </header>
         <div class="sd-canvas-wrap" data-sd-wrap="mod">
-          <canvas class="sd-canvas" data-sd-canvas="mod" width="${BASE_W}" height="${BASE_H}" tabindex="0" role="img" aria-label="변형 그림. 원본과 다른 부분을 클릭해 찾으세요."></canvas>
+          <canvas class="sd-canvas" data-sd-canvas="mod" width="${BASE_W}" height="${BASE_H}" tabindex="0" role="img" aria-label="${roundData.rightLabel}. 다른 부분을 클릭해 찾으세요."></canvas>
           <canvas class="sd-loupe" data-sd-loupe-canvas="mod" width="146" height="146" aria-hidden="true"></canvas>
-          <div class="sd-loading" data-sd-loading>변형 레이어 생성 중...</div>
+          <div class="sd-loading" data-sd-loading>이미지 준비 중...</div>
         </div>
       </section>
     </div>
@@ -1883,38 +1772,49 @@ export function mount(container, ctx) {
     rafId = requestAnimationFrame(frame);
   }
 
-  let img = null;
-  if (stage.kind === 'vector') {
-    // Drawn scenes: both pictures come from the same data, the modified one with the
-    // round's differences applied.
-    const scene = VECTOR_SCENES.find((sc) => sc.id === stage.id);
-    const fit = (g) => g.setTransform(BASE_W / SCENE_W, 0, 0, BASE_H / SCENE_H, 0, 0);
-    fit(origBaseCtx);
-    renderScene(origBaseCtx, scene);
-    fit(modBaseCtx);
-    renderScene(modBaseCtx, scene, anomalies.map((a) => a.diff));
-    origBaseCtx.setTransform(1, 0, 0, 1, 0, 0);
-    modBaseCtx.setTransform(1, 0, 0, 1, 0, 0);
-    startRound();
-  } else {
-    img = new Image();
-    img.decoding = 'async';
-    img.onload = () => {
-      if (unmounted) return;
-      origBaseCtx.drawImage(img, 0, 0, BASE_W, BASE_H);
-      modBaseCtx.drawImage(img, 0, 0, BASE_W, BASE_H);
-      // Apply ONLY the N seeded anomalies onto the modified buffer
-      for (const spot of anomalies) applyAnomalyToBuffer(modBaseCtx, spot);
-      startRound();
-    };
-    img.onerror = () => {
-      if (unmounted) return;
-      loadingEls.forEach((el) => {
-        el.textContent = '이미지를 불러오지 못했습니다.';
+  const imgs = [];
+  const loadImage = (src) =>
+    new Promise((resolve, reject) => {
+      const im = new Image();
+      im.decoding = 'async';
+      im.onload = () => resolve(im);
+      im.onerror = () => reject(new Error(`Failed to load ${src}`));
+      im.src = src;
+      imgs.push(im);
+    });
+
+  if (stage.kind === 'photo-set') {
+    Promise.all([loadImage(roundData.leftSrc), loadImage(roundData.rightSrc)])
+      .then(([leftImg, rightImg]) => {
+        if (unmounted) return;
+        origBaseCtx.drawImage(leftImg, 0, 0, BASE_W, BASE_H);
+        modBaseCtx.drawImage(rightImg, 0, 0, BASE_W, BASE_H);
+        startRound();
+      })
+      .catch(() => {
+        if (unmounted) return;
+        loadingEls.forEach((el) => {
+          el.textContent = '이미지를 불러오지 못했습니다.';
+        });
+        ctx.ui.showToast('스테이지 이미지를 불러오는 데 실패했습니다.', 'error');
       });
-      ctx.ui.showToast('스테이지 이미지를 불러오는 데 실패했습니다.', 'error');
-    };
-    img.src = PHOTO_STAGES[stage.id].imageSrc;
+  } else {
+    loadImage(roundData.leftSrc)
+      .then((loaded) => {
+        if (unmounted) return;
+        origBaseCtx.drawImage(loaded, 0, 0, BASE_W, BASE_H);
+        modBaseCtx.drawImage(loaded, 0, 0, BASE_W, BASE_H);
+        // Apply ONLY the N seeded anomalies onto the modified buffer
+        for (const spot of anomalies) applyAnomalyToBuffer(modBaseCtx, spot);
+        startRound();
+      })
+      .catch(() => {
+        if (unmounted) return;
+        loadingEls.forEach((el) => {
+          el.textContent = '이미지를 불러오지 못했습니다.';
+        });
+        ctx.ui.showToast('스테이지 이미지를 불러오는 데 실패했습니다.', 'error');
+      });
   }
 
   return {
@@ -1934,9 +1834,9 @@ export function mount(container, ctx) {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('pm:pausechange', onPauseChange);
 
-      if (img) {
-        img.onload = null;
-        img.onerror = null;
+      for (const im of imgs) {
+        im.onload = null;
+        im.onerror = null;
       }
       container.innerHTML = '';
     },
@@ -1997,19 +1897,6 @@ function mountPicker(container, ctx) {
   `;
   container.appendChild(root);
 
-  // Drawn pictures get a live thumbnail rendered from the scene itself
-  for (const stage of SPOT_STAGES) {
-    if (stage.thumb) continue;
-    const slot = root.querySelector(`[data-thumb="${stage.id}"]`);
-    const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 224;
-    const g = canvas.getContext('2d');
-    g.setTransform(300 / SCENE_W, 0, 0, 224 / SCENE_H, 0, 0);
-    renderScene(g, VECTOR_SCENES.find((sc) => sc.id === stage.id));
-    slot.appendChild(canvas);
-  }
-
   const titleEl = root.querySelector('[data-sd-pick-title]');
   const chosenEl = root.querySelector('[data-sd-pick-chosen]');
   const TITLES = { start: '난이도를 고르세요', grid: '그림을 고르세요' };
@@ -2038,10 +1925,6 @@ function mountPicker(container, ctx) {
       ctx.audio.playClick();
       chosen = SPOT_STAGES.find((st) => st.id === card.dataset.stage);
       chosenEl.replaceChildren(card.querySelector('.sd-pick-card__thumb').cloneNode(true));
-      if (!chosen.thumb) {
-        // cloneNode does not copy canvas pixels
-        chosenEl.querySelector('canvas').getContext('2d').drawImage(card.querySelector('canvas'), 0, 0);
-      }
       show('levels');
     } else if (level) {
       ctx.audio.playClick();

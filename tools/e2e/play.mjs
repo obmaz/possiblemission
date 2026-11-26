@@ -55,7 +55,7 @@ for (const stageId of stages) {
     const m = await import('/js/games/spot-difference.js');
     const cfg = m.parseModeConfig(mode);
     const rng = createRng(`${seed}::spot-difference::${mode}`);
-    return m.selectRoundAnomalies(rng, m.getStagePool(cfg.stage), cfg.targetCount, cfg.difficulty.id).map((a) => ({ x: a.x, y: a.y, label: a.label }));
+    return m.resolveRoundData(rng, cfg.stage, cfg.targetCount, cfg.difficulty.id).anomalies.map((a) => ({ x: a.x, y: a.y, label: a.label }));
   }, { seed: SEED, mode });
   const box = await page.locator('[data-sd-canvas="mod"]').boundingBox();
   for (const t of targets) {
@@ -77,6 +77,50 @@ await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]'
 await page.click('[data-view="start"] [data-level="easy"]');
 await page.waitForSelector('[data-sd-canvas="orig"]');
 out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode') && /-easy$/.test(quickMode1) ? quickMode1 : `mismatch ${quickMode1}`;
+
+/* ---------- 도블 스피드 매치: projective plane math + setup → full play + result buttons ---------- */
+await page.goto(`${base}/?seed=${SEED}`);
+await page.click('.game-card[data-game-id="dobble"] [data-launch-game]');
+await page.waitForSelector('.db-setup');
+out.dobbleMathValid = await page.evaluate(async () => {
+  const { buildProjectiveDeck } = await import('/js/games/dobble.js');
+  return [3, 5, 7].every((p) => {
+    const deck = buildProjectiveDeck(p);
+    for (let i = 0; i < deck.length; i += 1) {
+      const a = new Set(deck[i]);
+      for (let j = i + 1; j < deck.length; j += 1) {
+        let shared = 0;
+        for (const s of deck[j]) if (a.has(s)) shared += 1;
+        if (shared !== 1) return false;
+      }
+    }
+    return true;
+  });
+});
+await page.click('[data-preset="easy"]');
+await page.click('[data-start]');
+await page.waitForSelector('.db-card');
+await afterCountdown();
+const dobbleMode = new URL(page.url()).searchParams.get('mode');
+const dobbleMatches = await page.evaluate(async ({ seed, mode }) => {
+  const { createRng } = await import('/js/core/seed.js');
+  const { generateDobbleRun } = await import('/js/games/dobble.js');
+  const { parseDobbleMode } = await import('/js/games/dobble-settings.js');
+  return generateDobbleRun(createRng(`${seed}::dobble::${mode}`), parseDobbleMode(mode)).map((r) => r.matchId);
+}, { seed: SEED, mode: dobbleMode });
+for (const symId of dobbleMatches) {
+  await page.click(`[data-db-card="left"] [data-sym="${symId}"]`);
+  await page.waitForTimeout(30);
+}
+await page.waitForSelector('.arcade-modal', { timeout: 4000 }).catch(() => {});
+out.dobble = `${await resultStatus()} · ${dobbleMatches.length} rounds`;
+out.resultButtons = await page.evaluate(() => {
+  const btns = Array.from(document.querySelectorAll('.result-actions > button'));
+  const rects = btns.map((b) => b.getBoundingClientRect());
+  const sameRow = rects.every((r) => Math.abs(r.top - rects[0].top) < 2);
+  const sameSize = rects.every((r) => Math.abs(r.width - rects[0].width) < 2 && Math.abs(r.height - rects[0].height) < 2);
+  return { labels: btns.map((b) => b.textContent.trim()), sameRow, sameSize };
+});
 
 /* ---------- 플래시 암산: countdown, setup → full play ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
@@ -186,8 +230,8 @@ out.deterministic = await page.evaluate(async () => {
   const god = parseHideSeekMode('god');
   const a = JSON.stringify(df.generateFortressRun(createRng('X::despair-fortress::god'), god));
   const b = JSON.stringify(df.generateFortressRun(createRng('X::despair-fortress::god'), god));
-  const cfg = sd.parseModeConfig('city-hard');
-  const pick = () => JSON.stringify(sd.selectRoundAnomalies(createRng('X'), sd.getStagePool(cfg.stage), 9, 'hard').map((s) => s.id));
+  const cfg = sd.parseModeConfig('cafe-hard');
+  const pick = () => JSON.stringify(sd.resolveRoundData(createRng('X::spot-difference::cafe-hard'), cfg.stage, 9, 'hard').anomalies.map((s) => s.id));
   return a === b && pick() === pick();
 });
 
@@ -213,7 +257,11 @@ if (!out.hideSeekChangeDifficulty) failures.push('result "난이도 바꾸기" d
 if (!out.hideSeekSetupAgain) failures.push('lobby start skipped the hide & seek setup');
 if (!out.countdownShown) failures.push('no start countdown');
 if (!/^성공 · 🧮 5\/5 정답/.test(out.anzan || '')) failures.push(`flash anzan: ${out.anzan}`);
-if (out.spotCardHasSelect || out.pickerCards !== 10 || !out.pickerExitNoConfirm) failures.push('spot picker flow');
+if (out.spotCardHasSelect || out.pickerCards !== 2 || !out.pickerExitNoConfirm) failures.push('spot picker flow');
+if (!out.dobbleMathValid || !cleared(out.dobble)) failures.push(`dobble: ${out.dobbleMathValid} / ${out.dobble}`);
+if (out.resultButtons?.labels?.join(',') !== '로비,난이도 변경,재도전' || !out.resultButtons?.sameRow || !out.resultButtons?.sameSize) {
+  failures.push(`resultButtons: ${JSON.stringify(out.resultButtons)}`);
+}
 if (!out.deterministic) failures.push('determinism');
 if (out.hideSeekPresets !== 'easy,medium,hard,extreme,insane,god') failures.push('hide & seek presets');
 if (!/^custom-60-40-2-8-15-60-0-0$/.test(out.hideSeekMode || '')) failures.push(`hide & seek custom mode: ${out.hideSeekMode}`);
