@@ -1,31 +1,45 @@
 /**
- * Game 4: 절망요새 숨바꼭질 (DESPAIR FORTRESS · HIDE & SEEK)
+ * Game 4: 숫자 숨바꼭질 (NUMBER HIDE & SEEK)
  *
  * Modelled on the "かくれんぼ" room of Fuji-Q Highland's 絶望要塞: one wall screen is
  * covered in tilted letter tiles, and every tile hides a 3-digit number behind it.
- * Numbers peek out above their tile one by one and duck back down. The player is told
- * which numbers to find and answers with the LETTER of the tile hiding each number
- * (tap the tile, or type the letter). Right when a round starts, every number pops
- * out at once for about a second — the famous "photograph that moment" tip.
+ * When a round starts every number is out; then they duck behind their tiles a few at
+ * a time and keep peeking out again. The player is told which numbers to find and
+ * answers with the LETTER of the tile hiding each number (tap the tile, or type it).
  *
+ * Difficulty is fully configurable on an in-game setup screen (mode `setup`): six
+ * presets (EASY … GOD) or custom tile count, reveal time, hide batch/interval, peek time
+ * and time limit — see ./hide-seek-settings.js.
+ *
+ * The module id stays `despair-fortress` so existing links and records keep working.
  * Built for a single screen (e.g. a wall display in a venue).
- * Implements mount(container, ctx) -> { unmount() } and exports the pure generator
- * generateFortressRun(rng) for determinism checks.
  */
 import { shuffleSeeded } from '../core/seed.js';
 import { TOUCH_HIT_SLOP, WRONG_INPUT_COOLDOWN_MS } from '../core/rules.js';
+import {
+  DEFAULT_PRESET_ID,
+  PRESETS,
+  SETTING_FIELDS,
+  TILE_GRID,
+  hideSeekModeId,
+  matchPreset,
+  parseHideSeekMode,
+} from './hide-seek-settings.js';
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const ROUND_COUNT = 3;
 const MAX_SHIELDS = 3;
 const TARGETS_PER_ROUND = 3;
 const SURVIVAL_BONUS_PER_SHIELD = 400;
 const PERFECT_ROUND_BONUS = 500;
+const LAST_MODE_PREF = 'hideSeekLastMode';
 
 // Phase timings (seconds, game clock — everything stops while paused)
-const INTRO_SEC = 1.6;
+const INTRO_SEC = 2.2;
 const ROUND_CLEAR_SEC = 1.3;
 const FAIL_SEC = 1.1;
 const PEEK_EASE_SEC = 0.16; // how long a number takes to slide out / back in
+const PEEK_REST_SEC = 0.6; // a number that just hid stays hidden at least this long
 const TILE_FLASH_SEC = 0.6;
 const MESSAGE_SEC = 1.1;
 const DANGER_TIME_SEC = 8;
@@ -36,23 +50,30 @@ const WALL_SHORT_SIDE = 900;
 const PORTRAIT_ASPECT = 0.87;
 const WALL_PAD = 46;
 
-const ROUNDS = [
-  { round: 1, cols: 8, rows: 5, flashSec: 1.6, cycleSec: 4.2, windowSec: 1.1, timeSec: 30, basePts: 400 },
-  { round: 2, cols: 10, rows: 6, flashSec: 1.2, cycleSec: 5.0, windowSec: 0.9, timeSec: 32, basePts: 550 },
-  { round: 3, cols: 12, rows: 7, flashSec: 1.0, cycleSec: 5.6, windowSec: 0.75, timeSec: 35, basePts: 700 },
-];
-
 const TILE_ANGLES = [45, 45, 38, 30, 20, 12, 0, -12, -20, -30, -38];
 
+/** Peek cycle for hidden numbers: longer peeks also come back less often. */
+const peekCycleSec = (settings) => settings.peekSec * 3 + 2;
+
+/** Points per found number grow with how hard the settings are. */
+function basePoints(settings) {
+  const density = settings.tiles / 24; // 1 … 5.25
+  const speed = 4 / Math.max(0.6, settings.revealSec); // 1 … 6.7
+  const batch = settings.hideBatch === 0 ? 2 : 1 + Math.min(settings.hideBatch, 12) / 12;
+  return Math.round((200 + 60 * density + 40 * speed) * batch);
+}
+
 /**
- * Pure deterministic run generator: same rng seed → same letters, numbers, tilts,
- * peek timing and targets on every device. Screen positions are derived later from
- * each tile's grid cell, so landscape and portrait screens share the same content.
+ * Pure deterministic run generator: same rng seed + settings → same letters, numbers,
+ * tilts, hide order, peek timing and targets on every device.
  * @param {() => number} rng
+ * @param {object} settings - parsed values from parseHideSeekMode()
  */
-export function generateFortressRun(rng) {
-  return ROUNDS.map((cfg) => {
-    const count = cfg.cols * cfg.rows;
+export function generateFortressRun(rng, settings) {
+  const [cols, rows] = TILE_GRID[settings.tiles];
+  const count = cols * rows;
+  const cycleSec = peekCycleSec(settings);
+  return Array.from({ length: ROUND_COUNT }, (_round, r) => {
     const numberPool = shuffleSeeded(
       rng,
       Array.from({ length: 1000 }, (_, n) => String(n).padStart(3, '0'))
@@ -65,12 +86,19 @@ export function generateFortressRun(rng) {
       size: 0.74 + rng() * 0.26, // fraction of the cell
       jx: (rng() - 0.5) * 0.14, // jitter inside the cell
       jy: (rng() - 0.5) * 0.1,
-      peekOffset: rng() * cfg.cycleSec,
+      peekOffset: rng() * cycleSec,
+      hideAt: settings.revealSec,
     }));
+    // Numbers disappear a batch at a time, in a seeded order
+    if (settings.hideBatch > 0) {
+      shuffleSeeded(rng, tiles).forEach((tile, rank) => {
+        tile.hideAt = settings.revealSec + Math.floor(rank / settings.hideBatch) * settings.hideIntervalSec;
+      });
+    }
     const targets = shuffleSeeded(rng, tiles)
       .slice(0, TARGETS_PER_ROUND)
       .map((tile) => ({ tileIndex: tile.index, number: tile.number, letter: tile.letter, solved: false }));
-    return { ...cfg, tiles, targets };
+    return { round: r + 1, cols, rows, cycleSec, tiles, targets };
   });
 }
 
@@ -99,15 +127,139 @@ function roundedRect(g, x, y, w, h, r) {
   else g.rect(x, y, w, h);
 }
 
+const formatValue = (field, value) =>
+  value === 0 && field.allLabel ? field.allLabel : `${value}${field.unit}`;
+
+/** One-line plain-language summary of a set of values. */
+function describe(s) {
+  const hide =
+    s.hideBatch === 0
+      ? `${s.revealSec}초 뒤 한꺼번에 사라지고`
+      : `${s.revealSec}초 뒤 ${s.hideBatch}개씩 ${s.hideIntervalSec}초마다 사라지고`;
+  return `타일 ${s.tiles}개 · 처음 ${hide}, 이후 ${s.peekSec}초씩 다시 보입니다.`;
+}
+
 /**
  * @param {HTMLElement} container
  * @param {object} ctx
- * @returns {{ unmount: () => void }}
+ * @returns {{ unmount: () => void, idle?: boolean }}
  */
 export function mount(container, ctx) {
-  const rounds = generateFortressRun(ctx.rng);
+  const settings = parseHideSeekMode(ctx.mode);
+  return settings ? mountGame(container, ctx, settings) : mountSetup(container, ctx);
+}
+
+/* ============================================================================
+ * Setup screen (mode `setup`): presets + custom values, then start
+ * ========================================================================== */
+function mountSetup(container, ctx) {
+  const last = parseHideSeekMode(ctx.storage.getPref?.(LAST_MODE_PREF, '') || '');
+  const preset = PRESETS.find((p) => p.id === DEFAULT_PRESET_ID);
+  let values = last
+    ? Object.fromEntries(SETTING_FIELDS.map((f) => [f.key, last[f.key]]))
+    : Object.fromEntries(SETTING_FIELDS.map((f) => [f.key, preset[f.key]]));
+
+  const root = document.createElement('div');
+  root.className = 'game-root game-fortress df-setup';
+  root.innerHTML = `
+    <div class="df-setup__head">
+      <h2 class="df-setup__title">숫자 숨바꼭질 · 난이도</h2>
+      <p class="df-setup__sub">타일 뒤에 숨은 숫자를 찾아 그 타일의 <b>알파벳</b>을 맞히세요. 같은 룸 시드와 같은 설정이면 모두 같은 벽이 나옵니다.</p>
+    </div>
+    <div class="df-setup__body">
+      <div class="df-presets" role="radiogroup" aria-label="난이도 프리셋">
+        ${PRESETS.map(
+          (p) => `
+          <button type="button" class="df-preset df-preset--${p.id}" role="radio" data-preset="${p.id}">
+            <span class="df-preset__name">${p.label}</span>
+            <span class="df-preset__ko">${p.ko}</span>
+            <span class="df-preset__meta">타일 ${p.tiles} · 공개 ${p.revealSec}초</span>
+          </button>`
+        ).join('')}
+      </div>
+      <div class="df-fields">
+        ${SETTING_FIELDS.map(
+          (f) => `
+          <div class="df-field" data-field="${f.key}">
+            <span class="df-field__label">${f.label}</span>
+            <div class="df-stepper">
+              <button type="button" class="df-stepper__btn" data-step="-1" aria-label="${f.label} 줄이기">−</button>
+              <output class="df-stepper__value" data-value></output>
+              <button type="button" class="df-stepper__btn" data-step="1" aria-label="${f.label} 늘리기">+</button>
+            </div>
+          </div>`
+        ).join('')}
+        <p class="df-fields__summary" data-summary></p>
+      </div>
+    </div>
+    <button type="button" class="df-setup__start" data-start>시작하기 <span aria-hidden="true">→</span></button>
+  `;
+  container.appendChild(root);
+
+  function render() {
+    const match = matchPreset(values);
+    root.querySelectorAll('[data-preset]').forEach((btn) => {
+      const on = match?.id === btn.dataset.preset;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-checked', String(on));
+    });
+    for (const f of SETTING_FIELDS) {
+      const row = root.querySelector(`[data-field="${f.key}"]`);
+      const idx = f.options.indexOf(values[f.key]);
+      row.querySelector('[data-value]').textContent = formatValue(f, values[f.key]);
+      row.querySelector('[data-step="-1"]').disabled = idx <= 0;
+      row.querySelector('[data-step="1"]').disabled = idx >= f.options.length - 1;
+      // The interval only matters when numbers hide in batches
+      row.classList.toggle('is-muted', f.key === 'hideIntervalSec' && values.hideBatch === 0);
+    }
+    root.querySelector('[data-summary]').textContent = `${match ? `${match.label} · ` : '커스텀 · '}${describe(values)}`;
+  }
+
+  const onClick = (e) => {
+    const presetBtn = e.target.closest('[data-preset]');
+    const stepBtn = e.target.closest('[data-step]');
+    if (presetBtn) {
+      const p = PRESETS.find((x) => x.id === presetBtn.dataset.preset);
+      values = Object.fromEntries(SETTING_FIELDS.map((f) => [f.key, p[f.key]]));
+      ctx.audio.playClick();
+      render();
+    } else if (stepBtn) {
+      const key = stepBtn.closest('[data-field]').dataset.field;
+      const field = SETTING_FIELDS.find((f) => f.key === key);
+      const idx = field.options.indexOf(values[key]) + Number(stepBtn.dataset.step);
+      if (idx < 0 || idx >= field.options.length) return;
+      values = { ...values, [key]: field.options[idx] };
+      ctx.audio.playClick();
+      render();
+    } else if (e.target.closest('[data-start]')) {
+      ctx.audio.playClick();
+      const mode = hideSeekModeId(values);
+      ctx.storage.setPref?.(LAST_MODE_PREF, mode);
+      ctx.switchMode(mode);
+    }
+  };
+  root.addEventListener('click', onClick);
+  render();
+  ctx.updateHud({ timer: { text: '--:--', state: 'normal' }, score: 0, progress: '난이도 설정', progressRatio: 1 });
+  root.querySelector('[data-start]').focus({ preventScroll: true });
+
+  return {
+    idle: true,
+    unmount() {
+      root.removeEventListener('click', onClick);
+      container.innerHTML = '';
+    },
+  };
+}
+
+/* ============================================================================
+ * The game
+ * ========================================================================== */
+function mountGame(container, ctx, settings) {
+  const rounds = generateFortressRun(ctx.rng, settings);
   const totalRounds = rounds.length;
   const totalTargets = totalRounds * TARGETS_PER_ROUND;
+  const roundPts = basePoints(settings);
 
   const root = document.createElement('div');
   root.className = 'game-root game-fortress';
@@ -151,10 +303,8 @@ export function mount(container, ctx) {
 
   // --- Run state ---------------------------------------------------------------
   let roundIdx = 0;
-  let phase = 'intro'; // intro | flash | hunt | clear | fail | ended
-  let phaseClock = 0; // seconds spent in the current phase
-  let huntClock = 0; // seconds since numbers started peeking (drives the cycle)
-  let roundElapsed = 0; // counts against the round's limit (flash + hunt)
+  let phase = 'intro'; // intro | play | clear | fail | ended
+  let phaseClock = 0; // seconds in the current phase (play: time since numbers appeared)
   let activeMs = 0;
   let activeTarget = 0;
   let shields = MAX_SHIELDS;
@@ -262,9 +412,9 @@ export function mount(container, ctx) {
   }
 
   function syncHud() {
-    const limit = round().timeSec;
-    const remaining = Math.max(0, limit - roundElapsed);
-    const counting = phase === 'flash' || phase === 'hunt';
+    const limit = settings.timeSec;
+    const remaining = Math.max(0, limit - (phase === 'play' ? phaseClock : 0));
+    const counting = phase === 'play';
     timebarEl.style.setProperty('--df-time', (remaining / limit).toFixed(4));
     timebarEl.dataset.state = counting && remaining <= DANGER_TIME_SEC ? 'danger' : 'normal';
     ctx.updateHud({
@@ -281,19 +431,12 @@ export function mount(container, ctx) {
     phaseClock = 0;
     if (next === 'intro') {
       activeTarget = 0;
-      huntClock = 0;
-      roundElapsed = 0;
       roundMistakes = 0;
       tileFlash.clear();
       roundEl.textContent = `ROUND ${roundIdx + 1}/${totalRounds}`;
       renderSlots();
-      showOverlay(
-        `ROUND ${roundIdx + 1}`,
-        `타일 ${round().tiles.length}개 · 숫자 ${TARGETS_PER_ROUND}개`,
-        '시작하는 순간 모든 숫자가 잠깐 보입니다. 놓치지 마세요!',
-        'info'
-      );
-    } else if (next === 'flash') {
+      showOverlay(`ROUND ${roundIdx + 1}`, `숫자 ${TARGETS_PER_ROUND}개를 찾으세요`, describe(settings), 'info');
+    } else if (next === 'play') {
       overlayEl.hidden = true;
       ctx.audio.playHint();
     }
@@ -323,12 +466,12 @@ export function mount(container, ctx) {
   function failRun(title) {
     if (phase === 'fail' || finished) return;
     ctx.audio.playAlarm();
-    showOverlay('LOCKDOWN', title, `최종 점수 ${score.toLocaleString('en-US')} PTS`, 'danger');
+    showOverlay('GAME OVER', title, `최종 점수 ${score.toLocaleString('en-US')} PTS`, 'danger');
     enterPhase('fail');
   }
 
   function roundCleared() {
-    const remaining = Math.max(0, round().timeSec - roundElapsed);
+    const remaining = Math.max(0, settings.timeSec - phaseClock);
     const speedBonus = Math.round(remaining * 60);
     const perfect = roundMistakes === 0 ? PERFECT_ROUND_BONUS : 0;
     score += speedBonus + perfect;
@@ -337,13 +480,13 @@ export function mount(container, ctx) {
     const parts = [`스피드 +${speedBonus}`];
     if (perfect) parts.push(`PERFECT +${PERFECT_ROUND_BONUS}`);
     if (isFinal) parts.push(`생존 +${shields * SURVIVAL_BONUS_PER_SHIELD}`);
-    showOverlay(`ROUND ${roundIdx + 1} CLEAR`, isFinal ? '절망요새 탈출 성공!' : '라운드 돌파!', parts.join(' · '), 'success');
+    showOverlay(`ROUND ${roundIdx + 1} CLEAR`, isFinal ? '숨바꼭질 완전 정복!' : '라운드 돌파!', parts.join(' · '), 'success');
     enterPhase('clear');
   }
 
   /** Answers the active target with a letter; `tileIndex` is set when a tile was tapped. */
   function answer(letter, tileIndex = -1) {
-    if (finished || isPaused || (phase !== 'flash' && phase !== 'hunt')) return;
+    if (finished || isPaused || phase !== 'play') return;
     if (activeMs < cooldownUntil) return;
     const target = round().targets[activeTarget];
     if (!target) return;
@@ -355,7 +498,7 @@ export function mount(container, ctx) {
       target.solved = true;
       streak += 1;
       maxStreak = Math.max(maxStreak, streak);
-      score += round().basePts + (streak >= 2 ? 60 * Math.min(streak, 9) : 0);
+      score += roundPts + (streak >= 2 ? 60 * Math.min(streak, 9) : 0);
       ctx.audio.playMatch(streak);
       // Always reveal where the number really was
       tileFlash.set(target.tileIndex, { color: color.neon, until: activeMs + TILE_FLASH_SEC * 2000 });
@@ -377,18 +520,23 @@ export function mount(container, ctx) {
       void wrapEl.offsetWidth;
       wrapEl.classList.add('is-shake');
       flashMessage(`${letter} 아님! 쉴드 -1`, 'danger');
-      if (shields <= 0) failRun('쉴드 소진! 요새 봉쇄');
+      if (shields <= 0) failRun('쉴드 소진!');
     }
     syncHud();
   }
 
   // --- Drawing ---------------------------------------------------------------------
-  function peekAmount(tile, r) {
-    if (phase === 'flash') return 1;
-    if (phase !== 'hunt') return 0;
-    const t = (huntClock + tile.peekOffset) % r.cycleSec;
-    if (t >= r.windowSec) return 0;
-    return Math.min(1, Math.min(t, r.windowSec - t) / PEEK_EASE_SEC);
+  /** 0 (hidden behind the tile) … 1 (fully out above it) at play time `t`. */
+  function peekAmount(tile, r, t) {
+    if (t < tile.hideAt) {
+      // Opening reveal: pop out, then slide back in when this tile's batch hides
+      return Math.max(0, Math.min(1, t / PEEK_EASE_SEC, (tile.hideAt - t) / PEEK_EASE_SEC));
+    }
+    const since = t - tile.hideAt;
+    if (since < PEEK_REST_SEC) return 0;
+    const p = (since + tile.peekOffset) % r.cycleSec;
+    if (p >= settings.peekSec) return 0;
+    return Math.min(1, Math.min(p, settings.peekSec - p) / PEEK_EASE_SEC);
   }
 
   function drawWall() {
@@ -473,9 +621,9 @@ export function mount(container, ctx) {
     drawWall();
     const r = round();
     const geo = geometry[roundIdx];
-    const showNumbers = phase === 'flash' || phase === 'hunt';
+    const showNumbers = phase === 'play';
     for (const tile of r.tiles) {
-      drawTile(tile, geo[tile.index], showNumbers ? peekAmount(tile, r) : 0);
+      drawTile(tile, geo[tile.index], showNumbers ? peekAmount(tile, r, phaseClock) : 0);
     }
     drawMessage();
   }
@@ -490,17 +638,13 @@ export function mount(container, ctx) {
     if (!isPaused && !finished) {
       activeMs += dt * 1000;
       phaseClock += dt;
-      const r = round();
 
       if (phase === 'intro') {
-        if (phaseClock >= INTRO_SEC) enterPhase('flash');
-      } else if (phase === 'flash' || phase === 'hunt') {
-        roundElapsed += dt;
-        if (phase === 'hunt') huntClock += dt;
-        else if (phaseClock >= r.flashSec) enterPhase('hunt');
-        const remaining = r.timeSec - roundElapsed;
+        if (phaseClock >= INTRO_SEC) enterPhase('play');
+      } else if (phase === 'play') {
+        const remaining = settings.timeSec - phaseClock;
         if (remaining <= 5 && Math.ceil(remaining) !== Math.ceil(remaining + dt)) ctx.audio.playTick();
-        if (remaining <= 0) failRun('시간 초과! 금고 봉쇄');
+        if (remaining <= 0) failRun('시간 초과!');
         else syncHud();
       } else if (phase === 'clear') {
         if (phaseClock >= ROUND_CLEAR_SEC) {
@@ -548,7 +692,7 @@ export function mount(container, ctx) {
 
   const onKeyDown = (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
-    if (phase !== 'flash' && phase !== 'hunt') return;
+    if (phase !== 'play') return;
     const key = String(e.key || '').toUpperCase();
     if (key.length !== 1 || !LETTERS.includes(key)) return;
     e.preventDefault();
@@ -568,7 +712,7 @@ export function mount(container, ctx) {
   canvas.addEventListener('pointerdown', onPointerDown);
 
   if (window.matchMedia?.('(pointer: coarse)').matches) {
-    helpEl.textContent = '숫자를 숨기고 있는 타일을 터치하세요. 라운드 시작 순간 모든 숫자가 잠깐 보입니다!';
+    helpEl.textContent = '숫자를 숨기고 있는 타일을 터치하세요. 라운드 시작 때 모든 숫자가 잠깐 보입니다!';
   }
   resize();
   renderShields();

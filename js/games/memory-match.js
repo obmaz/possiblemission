@@ -410,9 +410,9 @@ function renderCardBackHtml() {
   return `
     <div class="mm-back-emblem">
       <svg class="mm-back-sigil" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-        <polygon points="20,3 35,11.5 35,28.5 20,37 5,28.5 5,11.5" fill="rgba(161,137,232,0.12)" stroke="#a189e8" stroke-width="1.6"/>
+        <polygon points="20,3 35,11.5 35,28.5 20,37 5,28.5 5,11.5" fill="rgba(123,91,214,0.1)" stroke="#7b5bd6" stroke-width="1.6"/>
         <polygon points="20,8 30,14 30,26 20,32 10,26 10,14" stroke="rgba(148,163,184,0.55)" stroke-width="1.2" stroke-dasharray="3 2"/>
-        <path d="M16.8 15.5C16.8 13.8 18.2 12.6 20.1 12.6C22.1 12.6 23.4 13.8 23.4 15.4C23.4 16.9 22.3 17.7 21.1 18.4C20.2 19 19.9 19.6 19.9 20.7V21.5" stroke="#f8fafc" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M16.8 15.5C16.8 13.8 18.2 12.6 20.1 12.6C22.1 12.6 23.4 13.8 23.4 15.4C23.4 16.9 22.3 17.7 21.1 18.4C20.2 19 19.9 19.6 19.9 20.7V21.5" stroke="#5b47b8" stroke-width="2.2" stroke-linecap="round"/>
         <circle cx="20" cy="25.5" r="1.5" fill="#fbbf24"/>
       </svg>
       <span class="mm-back-brand">POSSIBLE<br/>MISSION</span>

@@ -62,33 +62,24 @@ for (const stageId of stages) {
   out.spot[stageId] = `${mode} · ${targets.length} diffs → ${await resultSubtitle()}`;
 }
 
-/* ---------- Hidden object: both stages on hard, every item clicked ---------- */
-out.hidden = {};
-for (const mode of ['stage1-hard', 'stage2-hard']) {
-  await page.goto(`${base}/?seed=${SEED}&game=hidden-object&mode=${mode}`);
-  await page.waitForSelector('[data-ho-frame]');
-  await page.waitForTimeout(300);
-  const items = await page.evaluate(async ({ seed, mode }) => {
-    const { createRng } = await import('/js/core/seed.js');
-    const m = await import('/js/games/hidden-object.js');
-    return m.generateStageLayout(createRng(`${seed}::hidden-object::${mode}`), mode).items.map((i) => ({ x: i.x, y: i.y, spot: i.spotId }));
-  }, { seed: SEED, mode });
-  const fb = await page.locator('[data-ho-transform]').boundingBox();
-  for (const it of items) {
-    await page.mouse.click(fb.x + it.x * fb.width, fb.y + it.y * fb.height);
-    await page.waitForTimeout(470);
-  }
-  await page.waitForSelector('.arcade-modal', { timeout: 4000 }).catch(() => {});
-  out.hidden[mode] = `${items.length} items → ${await resultSubtitle()}`;
-}
-
-/* ---------- Despair fortress: held wrong key, then play all three rounds ---------- */
-await page.goto(`${base}/?seed=${SEED}&game=despair-fortress&mode=wall`);
-const plan = await page.evaluate(async (seed) => {
+/* ---------- 숫자 숨바꼭질: setup screen → custom settings → full play ---------- */
+await page.goto(`${base}/?seed=${SEED}`);
+await page.click('.game-card[data-game-id="despair-fortress"] [data-launch-game]');
+await page.waitForSelector('.df-setup');
+out.hideSeekPresets = await page.$$eval('[data-preset]', (els) => els.map((e) => e.dataset.preset).join(','));
+await page.click('[data-preset="hard"]');
+// One step longer reveal turns the HARD preset into custom settings
+await page.click('[data-field="revealSec"] [data-step="1"]');
+await page.click('[data-start]');
+await page.waitForSelector('[data-df-canvas]');
+const hsMode = new URL(page.url()).searchParams.get('mode');
+out.hideSeekMode = hsMode;
+const plan = await page.evaluate(async ({ seed, mode }) => {
   const { createRng } = await import('/js/core/seed.js');
   const { generateFortressRun } = await import('/js/games/despair-fortress.js');
-  return generateFortressRun(createRng(`${seed}::despair-fortress::wall`)).map((r) => r.targets.map((t) => t.letter));
-}, SEED);
+  const { parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
+  return generateFortressRun(createRng(`${seed}::despair-fortress::${mode}`), parseHideSeekMode(mode)).map((r) => r.targets.map((t) => t.letter));
+}, { seed: SEED, mode: hsMode });
 const hearts = () => page.$eval('[data-df-shields]', (el) => (el.textContent.match(/♥/g) || []).length);
 const overlayGone = () => page.waitForFunction(() => document.querySelector('[data-df-overlay]').hidden, null, { timeout: 8000 });
 await overlayGone();
@@ -108,14 +99,20 @@ for (let r = 0; r < plan.length; r += 1) {
 }
 await page.waitForSelector('.arcade-modal', { timeout: 6000 }).catch(() => {});
 out.fortress = `${await resultSubtitle()} · ${await page.textContent('.result-hero__score').catch(() => '?')}`;
+// The setup screen remembers the last settings
+await page.goto(`${base}/?seed=${SEED}&game=despair-fortress&mode=setup`);
+await page.waitForSelector('.df-setup');
+out.hideSeekRemembersLast = (await page.textContent('[data-field="revealSec"] [data-value]')) === '3초';
 
 /* ---------- Determinism: same seed+mode twice → same layout ---------- */
 out.deterministic = await page.evaluate(async () => {
   const { createRng } = await import('/js/core/seed.js');
   const df = await import('/js/games/despair-fortress.js');
   const sd = await import('/js/games/spot-difference.js');
-  const a = JSON.stringify(df.generateFortressRun(createRng('X::despair-fortress::wall')));
-  const b = JSON.stringify(df.generateFortressRun(createRng('X::despair-fortress::wall')));
+  const { parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
+  const god = parseHideSeekMode('god');
+  const a = JSON.stringify(df.generateFortressRun(createRng('X::despair-fortress::god'), god));
+  const b = JSON.stringify(df.generateFortressRun(createRng('X::despair-fortress::god'), god));
   const cfg = sd.parseModeConfig('city-hard');
   const pick = () => JSON.stringify(sd.selectRoundAnomalies(createRng('X'), sd.getStagePool(cfg.stage), 9, 'hard').map((s) => s.id));
   return a === b && pick() === pick();
@@ -130,11 +127,13 @@ server.close();
 const failures = [];
 const cleared = (v) => typeof v === 'string' && v.includes('MISSION ACCOMPLISHED');
 Object.entries(out.spot).forEach(([k, v]) => cleared(v) || failures.push(`spot ${k}: ${v}`));
-Object.entries(out.hidden).forEach(([k, v]) => cleared(v) || failures.push(`hidden ${k}: ${v}`));
 if (!cleared(out.fortress)) failures.push(`fortress: ${out.fortress}`);
 if (out.fortressShieldsLostToHeldKey !== 1) failures.push('held key drained more than one shield');
 if (out.spotCardHasSelect || out.pickerCards !== 10 || !out.pickerExitNoConfirm) failures.push('spot picker flow');
 if (!out.deterministic) failures.push('determinism');
+if (out.hideSeekPresets !== 'easy,medium,hard,extreme,insane,god') failures.push('hide & seek presets');
+if (!/^custom-60-30-5-6-11-35$/.test(out.hideSeekMode || '')) failures.push(`hide & seek custom mode: ${out.hideSeekMode}`);
+if (!out.hideSeekRemembersLast) failures.push('hide & seek setup does not remember the last settings');
 if (out.consoleErrors.length) failures.push(`console errors: ${out.consoleErrors.length}`);
 if (failures.length) {
   console.error(`\nFAILED:\n- ${failures.join('\n- ')}`);

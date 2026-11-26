@@ -21,7 +21,6 @@ Every programmer works strictly inside their assigned CSS + JS module(s). Modify
 ├── index.html                      # Single-page shell (Lobby view, Game view, HUD, Modals, Toast/Confetti layers)
 ├── styles/
 │   ├── main.css                    # CSS variables (:root tokens), backdrop, lobby, shared HUD, modals, toasts, responsive grid
-│   ├── game-hidden.css             # Scoped under .game-hidden — Hidden Object canvas, loupe, target dock
 │   ├── game-spot.css               # Scoped under .game-spot — Dual canvases, mirror cursor, mobile zoom toggle
 │   ├── game-memory.css             # Scoped under .game-memory — 3D flip cards, combo banner, responsive grid
 │   └── game-fortress.css           # Scoped under .game-fortress — Vault terminal, floating nodes, tactile A-J keypad
@@ -34,7 +33,6 @@ Every programmer works strictly inside their assigned CSS + JS module(s). Modify
 │   │   ├── ui.js                   # Toasts, confetti canvas burst, S/A/B/C grading, Slack/Kakao formatter, modals, share URL + QR matrix
 │   │   └── rules.js                # Cross-game fairness constants (wrong-input cooldown, touch hit slop) — see §5
 │   └── games/
-│       ├── hidden-object.js        # Programmer A — exports mount(container, ctx) -> { unmount() }
 │       ├── spot-difference.js      # Programmer B — exports mount(container, ctx) -> { unmount() }
 │       ├── spot-stages.js          # 틀린그림찾기 picture & difficulty registry (shared with the lobby)
 │       ├── spot-scenes.js          # 8 drawn 틀린그림찾기 scenes + difference engine
@@ -43,21 +41,18 @@ Every programmer works strictly inside their assigned CSS + JS module(s). Modify
 └── assets/
     └── images/                     # [Verified Existing Assets]
         ├── hero-arcade.jpg         # 1376x768 — Lobby hero banner
-        ├── hidden-workshop.jpg     # 1376x768 — Hidden Object Stage 1 (Creative Lounge)
-        ├── hidden-space.jpg        # 1376x768 — Hidden Object Stage 2 (Orbital Observatory)
         ├── spot-cafe.jpg           # 1200x896 — Spot the Difference Stage 1 (Board Game Cafe)
         └── spot-camp.jpg           # 1200x896 — Spot the Difference Stage 2 (Golden Camp)
 ```
 
 ### CSS Isolation Rule (Zero Style Collisions)
-1. `index.html` loads `styles/main.css` plus all 4 game stylesheets (`game-hidden.css`, `game-spot.css`, `game-memory.css`, `game-fortress.css`), OR `app.js` guarantees they are linked in `<head>`.
+1. `index.html` loads `styles/main.css` plus all 3 game stylesheets (`game-spot.css`, `game-memory.css`, `game-fortress.css`), OR `app.js` guarantees they are linked in `<head>`.
 2. Each game programmer MUST wrap their root DOM element in `#game-stage` with a single game-specific root class and scope **100% of their CSS rules and `@keyframes` names**:
-   - `hidden-object.js` → root `<div class="game-root game-hidden">`, keyframes prefixed `ho-`
    - `spot-difference.js` → root `<div class="game-root game-spot">`, keyframes prefixed `sd-`
    - `memory-match.js` → root `<div class="game-root game-memory">`, keyframes prefixed `mm-`
    - `despair-fortress.js` → root `<div class="game-root game-fortress">`, keyframes prefixed `df-`
 3. Game stylesheets MUST NOT style bare tags (`button`, `canvas`, `h2`, `body`) outside their root scope class, and MUST consume tokens from `styles/main.css` (`var(--neon-cyan)`, etc.).
-4. **16:9 Arcade Cabinet (PC first)**: on viewports `>= 900px` every mini-game MUST render inside a fixed 16:9 stage frame. `styles/main.css` owns this rule (`.game-stage > .game-root { aspect-ratio: 16/9; width: min(100%, calc((100dvh - var(--hud-height) - 2 * clamp(8px, 1.6vh, 20px)) * 16 / 9)); }`), so game modules must fill the frame (`width/height: 100%`) and never assume the viewport aspect ratio. Game-specific desktop layouts may switch to a 2-column grid inside the frame (e.g. `hidden-object` stage | target dock; `despair-fortress` uses a console bar over a full-width wall).
+4. **16:9 Arcade Cabinet (PC first)**: on viewports `>= 900px` every mini-game MUST render inside a fixed 16:9 stage frame. `styles/main.css` owns this rule (`.game-stage > .game-root { aspect-ratio: 16/9; width: min(100%, calc((100dvh - var(--hud-height) - 2 * clamp(8px, 1.6vh, 20px)) * 16 / 9)); }`), so game modules must fill the frame (`width/height: 100%`) and never assume the viewport aspect ratio. Game-specific desktop layouts may switch to a 2-column grid inside the frame (e.g. `despair-fortress` uses a console bar over a full-width wall).
 
 ---
 
@@ -67,10 +62,9 @@ All routing (`?game=<id>&mode=<mode>`), dynamic imports (`./games/<id>.js`), sto
 
 | Game ID (`<id>`) | File (`./js/games/<id>.js`) | Korean Title | English Sub-label | Accent Token | Canonical `ctx.mode` Values (Default First) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `hidden-object` | `hidden-object.js` | 숨은그림찾기 | `HIDDEN MISSION` | `--neon-cyan` | `stage1-normal`, `stage1-hard`, `stage2-normal`, `stage2-hard` |
 | `spot-difference` | `spot-difference.js` | 틀린그림찾기 | `SPOT THE DIFFERENCE` | `--neon-magenta` | `pick` (in-game picture → difficulty chooser), then `<picture>-<difficulty>` for the 10 pictures in `js/games/spot-stages.js` (e.g. `beach-normal`; difficulty `easy` / `normal` / `hard`) |
 | `memory-match` | `memory-match.js` | 네온 메모리 매치 | `NEON MEMORY` | `--neon-violet` | `4x3`, `4x4`, `6x4` |
-| `despair-fortress` | `despair-fortress.js` | 절망요새 숨바꼭질 | `DESPAIR FORTRESS` | `--neon-crimson` | `wall` |
+| `despair-fortress` | `despair-fortress.js` | 숫자 숨바꼭질 | `NUMBER HIDE & SEEK` | `--neon-crimson` | `setup` (in-game settings screen), presets `easy` `medium` `hard` `extreme` `insane` `god`, or `custom-<t>-<r>-<b>-<i>-<w>-<s>` (see `js/games/hide-seek-settings.js`) |
 
 ---
 
@@ -97,7 +91,6 @@ All routing (`?game=<id>&mode=<mode>`), dynamic imports (`./games/<id>.js`), sto
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
   />
   <link rel="stylesheet" href="./styles/main.css" />
-  <link rel="stylesheet" href="./styles/game-hidden.css" />
   <link rel="stylesheet" href="./styles/game-spot.css" />
   <link rel="stylesheet" href="./styles/game-memory.css" />
   <link rel="stylesheet" href="./styles/game-fortress.css" />
@@ -126,7 +119,7 @@ All stylesheets MUST reference these exact CSS custom property names:
   --border-strong: rgba(255, 255, 255, 0.34);
 
   /* === Neon Party Accents === */
-  --neon-cyan: #22d3ee;       /* Primary / Hidden Object / Focus */
+  --neon-cyan: #22d3ee;       /* Primary / Focus */
   --neon-magenta: #f43f8e;    /* Party Accent / Spot the Diff / Combo */
   --neon-gold: #fbbf24;       /* Rank S / Seed / Best Score / Bonus */
   --neon-emerald: #34d399;    /* Ready / Success / Connected */
@@ -206,7 +199,7 @@ Games mount inside `#game-stage`. The shared HUD (`#game-hud`) and shared overla
 
   <!-- VIEW 1: LOBBY -->
   <main id="lobby-view" class="lobby-view" data-active="true">
-    <!-- Hero Banner (hero-arcade.jpg), Workshop Bar (Nickname/Team, Seed, Preset Chips, Invite/QR, SFX, Hall of Fame, MC Guide), 4 Game Cards -->
+    <!-- Hero Banner (hero-arcade.jpg), Workshop Bar (Nickname/Team, Seed, Preset Chips, Invite/QR, SFX, Hall of Fame, MC Guide), 3 Game Cards -->
     <section id="hero-banner" class="hero-banner"></section>
     <section id="workshop-bar" class="workshop-bar"></section>
     <section id="game-grid" class="game-grid"></section>
@@ -271,7 +264,7 @@ Games mount inside `#game-stage`. The shared HUD (`#game-hud`) and shared overla
 | :--- | :--- | :--- |
 | `#game-hud` | `app.js` | Sticky top bar (`height: var(--hud-height)`, `z-index: var(--z-hud)`). |
 | `#hud-exit-btn` | `app.js` | Calls `ctx.exitToHub()` (prompts confirm modal only if round is active & uncompleted). |
-| `#hud-game-title` | `app.js` | Korean game title (`숨은그림찾기` etc.). |
+| `#hud-game-title` | `app.js` | Korean game title (`틀린그림찾기` etc.). |
 | `#hud-mode-label` | `app.js` | Active stage/difficulty chip (e.g. `라운지 · NORMAL`, `4×4`). |
 | `#hud-seed-badge` | `app.js` | Displays `#<SEED>` in `--font-mono`. Hidden `< 480px`. |
 | `#hud-timer` | `ctx.updateHud({ timer })` | Displays formatted clock (`01:15` or `4.0s` / `15.0s`). Sets `data-state="normal" | "warn" | "danger"` automatically (`<= 30%` warn, `<= 10s` danger) or accepts explicit `{ text, state }`. |
@@ -334,7 +327,7 @@ export function shuffleSeeded(rng, arr)
 export function pickSeeded(rng, arr, count)
 ```
 
-**Spatial Dispersion Rule (recommended helper or inline in Hidden Object & Spot the Difference)**:
+**Spatial Dispersion Rule (used by Spot the Difference)**:
 When picking `K` items from spatial candidates, shuffle candidates with `shuffleSeeded(rng, pool)`, then greedily accept items whose normalized center distance to already-picked items satisfies $d \ge 0.12$ and prioritizes covering all 4 quadrants before falling back to remaining shuffled candidates if needed. This guarantees 100% determinism and prevents item clustering.
 
 ---
@@ -474,9 +467,8 @@ export function closeModal()
      - Inline Player & Team editor (`nickname`, `team`) persisted via `storage.saveProfile()`.
      - Room Seed input + preset chips (`ROUND 1`, `ROUND 2`, `ROUND 3`, `ROUND 4`, `ROUND 5`, `🎲 랜덤`).
      - Action buttons: `🔗 초대 링크 복사`, `📱 QR 코드`, `🏆 명예의 전당`, `🎙️ MC 가이드`, `🔊/🔇 SFX`.
-   - **4 Game Cards (`#game-grid`)**:
+   - **3 Game Cards (`#game-grid`)**:
      - Each card displays thumbnail, difficulty tag, Personal Best badge for `currentSeed` or overall best, interactive stage/mode selector pills, witty 2-line Korean hook, estimated time, and `출격 (PLAY →)` button.
-     - Cards for `hidden-object` and `spot-difference` swap thumbnail previews live when switching `Stage 1` / `Stage 2` pills before launching.
      - Desktop `@media (hover: hover) and (pointer: fine)` applies lightweight `--rx`/`--ry`/`--mx`/`--my` 3D tilt.
 3. **Game Lifecycle & Dynamic Import**:
    - Dynamically imports `./games/${gameId}.js`.
@@ -490,7 +482,7 @@ export function closeModal()
 ```js
 const ctx = {
   seed,       // string, e.g. "MISSION-1"
-  mode,       // string, e.g. "stage1-normal" | "4x4" | "beach-hard" | "wall"
+  mode,       // string, e.g. "beach-hard" | "4x4" | "hard"
   player,     // { nickname: string, team: string }
   rng,        // () => number (already seeded for `${seed}::${gameId}::${mode}`)
   audio,      // { playClick, playFlip, playMatch, playError, playHint, playTick, playClear, playAlarm, setMuted, isMuted }
@@ -568,7 +560,7 @@ export function mount(container, ctx) {
 
 ## 5. Common Fairness, Input & Anti-Cheat Rules
 
-1. **Normalized Coordinate System**: All hit-testing in canvas-based games (`hidden-object`, `spot-difference`, `despair-fortress`) MUST use normalized `[0.0..1.0, 0.0..1.0]` coordinates relative to the drawn image/board rect, independent of device pixel ratio (`devicePixelRatio`) or CSS scaling.
+1. **Normalized Coordinate System**: All hit-testing in canvas-based games (`spot-difference`, `despair-fortress`) MUST use normalized `[0.0..1.0, 0.0..1.0]` coordinates relative to the drawn image/board rect, independent of device pixel ratio (`devicePixelRatio`) or CSS scaling.
 2. **Mobile Touch Hit Slop**: When `event.pointerType === 'touch'`, automatically add `+0.012` (~10–15px) to the hit radius `r`. Import `TOUCH_HIT_SLOP` from `js/core/rules.js` rather than hard-coding it.
 3. **Spam-Click Cooldown**: On any wrong click/tap, trigger a **450ms input cooldown** (ignoring rapid multi-finger taps or accidental double-taps during penalty feedback). Import `WRONG_INPUT_COOLDOWN_MS` from `js/core/rules.js`. Keyboard handlers must also ignore `event.repeat` (and modifier combos such as Ctrl/Cmd/Alt) so a held key cannot bypass the cooldown or steal browser shortcuts.
 4. **Pause Curtain & Tab Switch**: Whenever `paused` is `true`, `#pause-curtain` covers `#game-stage` with an opaque blur so players cannot memorize or search while the clock is stopped.
@@ -577,82 +569,6 @@ export function mount(container, ctx) {
 ---
 
 ## 6. Mini-Game Detailed Specifications
-
-### 6.1 Game 1: 숨은그림찾기 (`js/games/hidden-object.js`)
-- **CSS Scope**: `.game-hidden` in `styles/game-hidden.css`
-- **Assets**:
-  - `stage1-*`: `./assets/images/hidden-workshop.jpg` (`1376 × 768`, 크리에이티브 라운지)
-  - `stage2-*`: `./assets/images/hidden-space.jpg` (`1376 × 768`, 궤도 관측소)
-- **Modes & Parameters**:
-  - `stage1-normal` / `stage2-normal`: Pick **7 items** from the stage prop list (12 per stage) / **75s** limit / **2 Hints**
-  - `stage1-hard` / `stage2-hard`: Pick **10 items** from the stage prop list (12 per stage) / **90s** limit / **2 Hints**
-- **Selection & Rendering**:
-  - Each stage lists the props that **belong in that room and are not already drawn in the art** (`STAGES[*].props`). A prop that duplicates something painted in the background (mugs, dice, headphones, potions, crystals…) is excluded, because players would tap the painted copy and take a penalty.
-  - Each stage lists **resting spots on real surfaces** (shelves, tables, sofa seats, floor): the point where a prop's bottom edge sits (`spots[*].x/y`) plus a perspective `scale`. Props are placed with their measured art bounds (`PROP_BOX`) so they stand upright on the surface, with a soft contact shadow and a per-stage colour grade (`propFilter`). `pinned` spots (cork board) accept only the props listed in `only`.
-  - Use `ctx.rng` to pick the props, then spatially dispersed spots ($d \ge 0.12$, quadrants first), filling restricted spots first.
-  - Render the bottom/side **Target Dock** using the **exact same vector drawing helper** (rendered into mini `<canvas>` or matching SVG paths) + Korean label so targets match 1:1 visually.
-- **Magnifier Loupe (`2.2x`, `140px` diameter, cyan rim + crosshair)**:
-  - **Desktop**: Tracks pointer hover over canvas (`M` key toggles on/off).
-  - **Mobile (`touch`)**: Tap vs Drag split — short tap (`< 180ms` and `< 8px` move) checks hit immediately; hold/drag (`>= 180ms` or `>= 8px` move) activates the `2.2x` loupe **72px above the finger** (flips below finger when `y < 100px`) and **never triggers a miss penalty on `pointerup`**.
-- **Interactions, Hints & Penalties**:
-  - **Hit**: `audio.playMatch(++streak)`, 12-particle sparkle burst + `+500` popup, green checkmark locked in Target Dock.
-  - **Already Found Re-tap**: Zero penalty, subtle toast `"이미 찾은 아이템!"`.
-  - **Miss**: `audio.playError()`, deduct **3.0s** from remaining timer (`-3.0s` red flash), red `×` shake at tap point, reset `streak = 0`, activate **450ms cooldown**.
-  - **Hint (`H` key or HUD/Dock button, max 2)**: `audio.playHint()`, displays a **4.0s** pulsing cyan/gold radar beacon (`r = 0.08`) around the unfound item farthest from the last tap + highlights its Target Dock card.
-- **Scoring Formula**:
-  - $F$ = found count, $N \in \{7, 10\}$, $T_{\text{rem}}$ = remaining seconds ($\ge 0$), $S_{\max}$ = max streak, $H$ = hints used, $W$ = wrong taps.
-  - $\text{Base} = F \times 500$
-  - $\text{TimeBonus} = (F === N) ? \text{round}(T_{\text{rem}} \times 45) : 0$
-  - $\text{StreakBonus} = S_{\max} \times 100$
-  - $\text{PerfectBonus} = (F === N \land W === 0 \land H === 0) ? 1000 : 0$
-  - $\text{TotalScore} = \max(0,\ \text{Base} + \text{TimeBonus} + \text{StreakBonus} + \text{PerfectBonus} - H \times 300 - W \times 50)$
-  - `accuracy = totalInputs > 0 ? Math.round((F / totalInputs) * 100) : 0`
-
-#### Stage 1 Curated Pool: `./assets/images/hidden-workshop.jpg` (`1376 × 768`)
-| ID | 라벨 | 비주얼 특징 | `(x, y)` | `r` | 회전 |
-| :--- | :--- | :--- | :---: | :---: | :---: |
-| `paper-plane` | 종이비행기 | 하늘색 접이선 있는 흰 종이비행기 | `(0.790, 0.125)` | `0.040` | `-12°` |
-| `golden-key` | 황금 열쇠 | 앤티크 황동 열쇠 | `(0.485, 0.825)` | `0.038` | `25°` |
-| `mini-trophy` | 미니 트로피 | 반짝이는 작은 황금 컵 | `(0.132, 0.315)` | `0.038` | `0°` |
-| `usb-drive` | USB 메모리 | 네온 퍼플 바디 + 실버 단자 | `(0.805, 0.725)` | `0.038` | `-35°` |
-| `croissant` | 크루아상 | 노릇한 초승달 빵 | `(0.265, 0.945)` | `0.040` | `8°` |
-| `dice-d20` | 20면 주사위 | 에메랄드빛 다면체 주사위 | `(0.260, 0.680)` | `0.038` | `15°` |
-| `cassette` | 카세트 테이프 | 레트로 오렌지/크림 테이프 | `(0.115, 0.525)` | `0.040` | `8°` |
-| `glasses` | 둥근 안경 | 금테/호피무늬 둥근 안경 | `(0.395, 0.675)` | `0.040` | `-5°` |
-| `sticky-star` | 별 포스트잇 | 형광 마젠타 별 모양 메모 | `(0.915, 0.255)` | `0.040` | `10°` |
-| `pocket-watch` | 회중시계 | 체인 달린 황동 시계 | `(0.642, 0.695)` | `0.038` | `0°` |
-| `origami-crane` | 종이학 | 코랄 핑크 종이학 | `(0.345, 0.505)` | `0.038` | `0°` |
-| `screwdriver` | 드라이버 | 빨간 손잡이 정밀 드라이버 | `(0.775, 0.605)` | `0.040` | `18°` |
-| `badge-id` | 사원증 | 파란 목걸이 줄 달린 ID 카드 | `(0.742, 0.725)` | `0.042` | `-8°` |
-| `compass` | 나침반 | 민트/황동 원형 나침반 | `(0.585, 0.915)` | `0.038` | `0°` |
-| `paint-tube` | 물감 튜브 | 코발트 블루 아크릴 물감 | `(0.955, 0.810)` | `0.038` | `-20°` |
-| `tiny-crown` | 미니 왕관 | 보석 박힌 작은 금관 | `(0.578, 0.312)` | `0.038` | `-6°` |
-| `cookie` | 초코칩 쿠키 | 진한 초코칩이 박힌 쿠키 | `(0.032, 0.915)` | `0.038` | `0°` |
-| `magnifying-charm` | 미니 돋보기 | 황동 단안경/루페 참 | `(0.252, 0.525)` | `0.038` | `30°` |
-
-#### Stage 2 Curated Pool: `./assets/images/hidden-space.jpg` (`1376 × 768`)
-| ID | 라벨 | 비주얼 특징 | `(x, y)` | `r` | 회전 |
-| :--- | :--- | :--- | :---: | :---: | :---: |
-| `mini-ufo` | 미니 UFO | 시안 돔을 가진 은빛 비행접시 | `(0.295, 0.195)` | `0.040` | `-10°` |
-| `rocket-badge` | 로켓 배지 | 레드/화이트 에나멜 핀 | `(0.032, 0.510)` | `0.038` | `12°` |
-| `star-cookie` | 별 우주쿠키 | 금빛 별 모양 스페이스 비스킷 | `(0.345, 0.665)` | `0.038` | `15°` |
-| `meteor-gem` | 운석 보석 | 마젠타 빛 다면체 크리스탈 | `(0.185, 0.945)` | `0.038` | `0°` |
-| `laser-pointer` | 레이저 포인터 | 크롬/시안 광선 펜라이트 | `(0.305, 0.575)` | `0.040` | `-15°` |
-| `alien-duck` | 우주 오리 | 헬멧 쓴 노란 러버덕 | `(0.688, 0.625)` | `0.040` | `0°` |
-| `crescent-wrench` | 우주 스패너 | 은빛 메탈 스패너 | `(0.382, 0.745)` | `0.040` | `32°` |
-| `flux-battery` | 에너지 셀 | 형광 그린 원통형 배터리 | `(0.872, 0.635)` | `0.038` | `0°` |
-| `data-disk` | 데이터 디스크 | 홀로그램 사각 카트리지 | `(0.735, 0.865)` | `0.038` | `8°` |
-| `saturn-key` | 행성 열쇠 | 토성 고리 손잡이 황동 키 | `(0.455, 0.925)` | `0.040` | `10°` |
-| `space-cat-mug` | 고양이 머그 | 고양이 귀 달린 흰 머그컵 | `(0.695, 0.505)` | `0.038` | `0°` |
-| `mini-satellite` | 초소형 위성 | 금박 큐브 + 태양광 날개 | `(0.795, 0.185)` | `0.040` | `20°` |
-| `astro-boots` | 우주 부츠 | 화이트/오렌지 미니 우주화 | `(0.585, 0.535)` | `0.038` | `-6°` |
-| `gravity-dice` | 무중력 주사위 | 반투명 시안 큐브 주사위 | `(0.662, 0.855)` | `0.038` | `18°` |
-| `nebula-bottle` | 성운 유리병 | 보라 성운이 담긴 코르크 병 | `(0.115, 0.055)` | `0.038` | `0°` |
-| `solar-compass` | 태양 나침반 | 금빛 아스트롤라베 다이얼 | `(0.515, 0.565)` | `0.038` | `0°` |
-| `circuit-chip` | 마이크로 칩 | 금색 핀 달린 에메랄드 칩 | `(0.895, 0.745)` | `0.038` | `-18°` |
-| `comet-feather` | 혜성 깃털펜 | 빛나는 시안/골드 깃털 펜 | `(0.285, 0.765)` | `0.040` | `40°` |
-
----
 
 ### 6.2 Game 2: 틀린그림찾기 (`js/games/spot-difference.js`)
 - **CSS Scope**: `.game-spot` in `styles/game-spot.css`
@@ -730,23 +646,32 @@ export function mount(container, ctx) {
 
 ---
 
-### 6.4 Game 4: 절망요새 숨바꼭질 (`js/games/despair-fortress.js`)
-- **Reference**: the かくれんぼ room of Fuji-Q Highland's 絶望要塞. Numbers hide behind letter tiles on a wall screen and keep peeking out; the player answers with the **letter** of the tile hiding each requested number. Right when numbers first appear, all of them are visible for about a second.
-- **CSS Scope**: `.game-fortress` in `styles/game-fortress.css`. Built for **one screen** (e.g. a venue wall display): the wall canvas always fills the available area. Its long side follows the screen's aspect ratio, and portrait screens swap the tile grid.
-- **Mode**: `wall`: 3 rounds, **3 shared Shields**, 3 target numbers per round.
+### 6.4 Game 4: 숫자 숨바꼭질 (`js/games/despair-fortress.js`)
+- **Reference**: the かくれんぼ room of Fuji-Q Highland's 絶望要塞. Numbers hide behind letter tiles on a wall screen; the player answers with the **letter** of the tile hiding each requested number. The module id stays `despair-fortress` so existing links and records keep working.
+- **CSS Scope**: `.game-fortress` in `styles/game-fortress.css`. Built for **one screen** (e.g. a venue wall display): the dark wall canvas always fills the available area; portrait screens swap the tile grid.
+- **Setup screen (`setup` mode, idle)**: shown on entry. Six presets plus six steppers; the last choice is remembered per device (`storage.getPref('hideSeekLastMode')`). Starting calls `ctx.switchMode(<preset id | custom id>)`, so the room seed + settings reproduce the same wall for everyone.
 
-  | Round | Tiles | Flash (all numbers) | Peek cycle / window | Time | Base Pts |
-  | :---: | :---: | :---: | :---: | :---: | :---: |
-  | `1` | `8×5 = 40` | `1.6s` | `4.2s / 1.1s` | `30s` | `400` |
-  | `2` | `10×6 = 60` | `1.2s` | `5.0s / 0.9s` | `32s` | `550` |
-  | `3` | `12×7 = 84` | `1.0s` | `5.6s / 0.75s` | `35s` | `700` |
+  | Field | Options |
+  | :--- | :--- |
+  | Tiles (grid) | 24 (6×4), 40 (8×5), 60 (10×6), 84 (12×7), 104 (13×8), 126 (14×9) |
+  | Opening reveal (all numbers out) | 0.6 – 5 s |
+  | Numbers hidden at once | 1, 2, 3, 5, 8, 12, all |
+  | Hide interval | 0.3 – 2 s |
+  | Peek time (hidden numbers come back) | 0.5 – 2.5 s, cycle = peek × 3 + 2 s |
+  | Round time limit | 20 – 60 s |
 
-- **Tiles**: seeded letter (`A–Z`, repeats allowed), unique 3-digit number (`000–999`), tilt, size and a peek offset. Every tile peeks once per cycle; its number slides up from behind the tile (drawn before the tile, so the tile covers it) and back down.
-- **Phases per round**: `intro` (`1.6s`, targets shown) → `flash` (all numbers out) → `hunt` (peeking) → `clear` (`1.3s`) or `fail` (`1.1s`). All timing runs on the game clock, so pausing freezes everything.
-- **Input**: tap/click a tile (rotated-square hit test, touch slop from `rules.js`) or type its letter (`A–Z`, no modifiers, no key repeat). Answers are accepted during `flash` and `hunt`. Because the answer is the letter, any tile with the right letter counts.
-- **Hit**: next target, `60 × min(streak, 9)` streak bonus, the true tile flashes green. **Miss**: `-1 ♥`, `450ms` cooldown, red tile flash + shake.
-- **End**: fail when shields reach 0 or a round's time runs out; clear after round 3.
-- **Scoring**: `base per target + streak bonus + round speed bonus (remaining sec × 60) + perfect round +500 + (cleared ? shields × 400 : 0)`.
+  | Preset | Tiles | Reveal | Hide batch / interval | Peek | Time |
+  | :--- | :---: | :---: | :---: | :---: | :---: |
+  | EASY | 24 | 4 s | 2 / 1 s | 2 s | 45 s |
+  | MEDIUM | 40 | 3 s | 3 / 0.8 s | 1.5 s | 40 s |
+  | HARD | 60 | 2 s | 5 / 0.6 s | 1.1 s | 35 s |
+  | EXTREME | 84 | 1.5 s | 8 / 0.5 s | 0.9 s | 30 s |
+  | INSANE | 104 | 1 s | all | 0.7 s | 30 s |
+  | GOD | 126 | 0.6 s | all | 0.5 s | 25 s |
+
+- **Round flow** (3 rounds, 3 targets each, 3 shared shields): `intro` (2.2 s, targets shown) → `play` (all numbers out, then hidden batch by batch in a seeded order; hidden numbers keep peeking) → `clear` / `fail`. All timing runs on the game clock, so pausing freezes everything.
+- **Input**: tap/click a tile (rotated-square hit test, touch slop from `rules.js`) or type its letter (`A–Z`, no modifiers, no key repeat). Any tile with the right letter counts, because the answer is the letter.
+- **Scoring**: per target `basePoints(settings)` (grows with tile count, shorter reveal and bigger hide batches) + streak bonus `60 × min(streak, 9)` + round speed bonus `remaining s × 60` + perfect round `+500`; clearing adds `shields × 400`.
 
 ---
 
@@ -755,7 +680,6 @@ export function mount(container, ctx) {
 | Assignee | Owned Files | Verification Gate |
 | :--- | :--- | :--- |
 | **Core Lead** | `index.html`, `styles/main.css`, `js/core/seed.js`, `js/core/audio.js`, `js/core/storage.js`, `js/core/ui.js`, `js/app.js` | URL `?seed=TEST&game=memory-match&mode=4x4` boots straight in; QR canvas scans; copy-result + paste-aggregator podium works; pause curtain stops game clock. |
-| **Programmer A** | `styles/game-hidden.css`, `js/games/hidden-object.js` | Identical 7/10 subset on same seed; vector props match Target Dock icons 1:1; mobile drag loupe offsets `+72px` and never triggers miss on `pointerup`. |
 | **Programmer B** | `styles/game-spot.css`, `js/games/spot-difference.js`, `js/games/spot-stages.js`, `js/games/spot-scenes.js` | Picker → difficulty → round; every picture clears on `hard` by clicking each computed difference; both canvases sync marks & mirror crosshair. |
 | **Programmer C** | `styles/game-memory.css`, `js/games/memory-match.js` | 2.0s preview freezes timer; matched pairs have `0ms` lock; mismatched pairs lock `600ms`; `4x3`/`4x4`/`6x4` fit `100dvh` without overflow. |
 | **Programmer D** | `styles/game-fortress.css`, `js/games/despair-fortress.js` | Same seed → same tiles/targets; all numbers visible during the flash; tiles never overlap their neighbours; 3 rounds clear by keyboard and by tap; a held key costs at most one shield. |

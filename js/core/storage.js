@@ -267,3 +267,22 @@ export function getMuted() {
 export function setMutedFlag(muted) {
   writeRaw(KEYS.muted, muted ? '1' : '0');
 }
+
+/**
+ * Small per-device preferences (e.g. the last 숫자 숨바꼭질 settings).
+ * @param {string} key
+ * @param {string} [fallback='']
+ * @returns {string}
+ */
+export function getPref(key, fallback = '') {
+  const value = readRaw(`${PREFIX}pref_${key}`);
+  return value === null ? fallback : value;
+}
+
+/**
+ * @param {string} key
+ * @param {string} value
+ */
+export function setPref(key, value) {
+  writeRaw(`${PREFIX}pref_${key}`, String(value));
+}

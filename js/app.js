@@ -6,34 +6,23 @@ import * as audio from './core/audio.js';
 import * as storage from './core/storage.js';
 import * as ui from './core/ui.js';
 import { SPOT_PICK_MODE, spotCatalogModes } from './games/spot-stages.js';
+import {
+  HIDE_SEEK_SETUP_MODE,
+  hideSeekCatalogModes,
+  hideSeekModeLabel,
+  parseHideSeekMode,
+} from './games/hide-seek-settings.js';
 
 const PRESET_SEEDS = ['MISSION-1', 'ROUND-1', 'ROUND-2', 'ROUND-3', 'ROUND-4', 'ROUND-5'];
 
 const GAME_CATALOG = [
-  {
-    id: 'hidden-object',
-    title: '숨은그림찾기',
-    emoji: '🔍',
-    subEn: 'HIDDEN MISSION',
-    accent: 'cyan',
-    tag: '관찰력 · 돋보기',
-    timeHint: '75~90초',
-    hook: '네온 아지트와 우주 관측소에 숨겨진 미션 오브젝트를 루페로 스캔해 찾아내세요!',
-    defaultMode: 'stage1-normal',
-    modes: [
-      { id: 'stage1-normal', label: '라운지 · 노말', thumb: './assets/images/hidden-workshop.jpg' },
-      { id: 'stage1-hard', label: '라운지 · 하드', thumb: './assets/images/hidden-workshop.jpg' },
-      { id: 'stage2-normal', label: '관측소 · 노말', thumb: './assets/images/hidden-space.jpg' },
-      { id: 'stage2-hard', label: '관측소 · 하드', thumb: './assets/images/hidden-space.jpg' },
-    ],
-  },
   {
     id: 'spot-difference',
     title: '틀린그림찾기',
     emoji: '⚡',
     subEn: 'SPOT THE DIFFERENCE',
     accent: 'magenta',
-    tag: '매의 눈 · 그림 10장',
+    tag: '매의 눈',
     timeHint: '75~90초',
     hook: '그림 10장 중 하나를 고르고 난이도를 선택하세요. 좌우 그림에서 달라진 곳을 빠르게 짚어내는 눈썰미 대결!',
     // Picture and difficulty are chosen inside the game, not on the lobby card
@@ -48,7 +37,7 @@ const GAME_CATALOG = [
     subEn: 'NEON MEMORY',
     accent: 'violet',
     art: 'memory',
-    tag: '단기기억 · 콤보',
+    tag: '단기기억',
     timeHint: '45~80초',
     hook: '단 2초의 플래시 암기 후, 0ms 연속 매치 콤보로 덱을 쓸어버리는 두뇌 타임어택!',
     defaultMode: '4x4',
@@ -59,19 +48,21 @@ const GAME_CATALOG = [
     ],
   },
   {
-    id: 'despair-fortress',
-    title: '절망요새 숨바꼭질',
-    emoji: '🏰',
-    subEn: 'DESPAIR FORTRESS',
+    id: 'despair-fortress', // id kept so existing links and records keep working
+    title: '숫자 숨바꼭질',
+    emoji: '🔢',
+    subEn: 'NUMBER HIDE & SEEK',
     accent: 'crimson',
     art: 'tiles',
-    tag: '순간 포착 · 벽 스크린',
+    tag: '순간 포착',
     timeHint: '약 90초',
-    hook: '알파벳 타일 뒤에 숨었다 고개를 내미는 숫자를 찾아, 그 타일의 알파벳을 맞히세요. 시작 순간 1초만 모든 숫자가 보입니다!',
-    defaultMode: 'wall',
-    modes: [
-      { id: 'wall', label: '3라운드 숨바꼭질', thumb: null },
-    ],
+    hook: '알파벳 타일 뒤에 숨었다 고개를 내미는 숫자를 찾아 그 타일의 알파벳을 맞히세요. EASY부터 GOD까지 난이도를 직접 고릅니다!',
+    // Difficulty is chosen on the in-game setup screen
+    pickInGame: true,
+    defaultMode: HIDE_SEEK_SETUP_MODE,
+    modes: hideSeekCatalogModes(),
+    // Custom settings live in the mode id (custom-…), so accept any valid one
+    resolveMode: (id) => (parseHideSeekMode(id) ? { id, label: hideSeekModeLabel(id), thumb: null } : null),
   },
 ];
 
@@ -90,6 +81,11 @@ const CARD_ART = {
 };
 
 const GAME_MAP = new Map(GAME_CATALOG.map((g) => [g.id, g]));
+
+/** A game's mode entry: a catalog mode, or a dynamic one the game knows how to parse. */
+function findMode(game, id) {
+  return game.modes.find((m) => m.id === id) || game.resolveMode?.(id) || null;
+}
 
 const state = {
   seed: 'MISSION-1',
@@ -254,12 +250,6 @@ function renderHeroBanner() {
     />
     <div class="hero-banner__scrim" aria-hidden="true"></div>
     <div class="hero-banner__content">
-      <div class="hero-banner__topline">
-        <span class="hero-live-pill">
-          <span class="hero-live-pill__dot" aria-hidden="true"></span>
-          5–100명 동시 플레이 · 로그인 없음
-        </span>
-      </div>
       <h1 class="hero-banner__title">
         오늘 워크샵, <span class="hero-banner__title-accent">텐션 한계 돌파!</span>
       </h1>
@@ -289,17 +279,10 @@ function renderWorkshopBar() {
   const profile = storage.getProfile();
 
   dom.workshopBar.innerHTML = `
-    <ol class="quick-start" aria-label="시작 방법">
-      <li class="quick-start__step"><b>1</b> 이름 입력 <span>(선택)</span></li>
-      <li class="quick-start__step"><b>2</b> 룸 시드 확인</li>
-      <li class="quick-start__step"><b>3</b> 게임 카드에서 <b>시작하기</b></li>
-    </ol>
-
     <div class="workshop-bar__row">
       <label class="workshop-field workshop-field--nick">
         <span class="workshop-field__label">
           <span>요원 닉네임</span>
-          <span class="workshop-field__sub">MAX 12</span>
         </span>
         <input
           id="player-nick-input"
@@ -314,7 +297,6 @@ function renderWorkshopBar() {
       <label class="workshop-field workshop-field--team">
         <span class="workshop-field__label">
           <span>소속 팀명 (선택)</span>
-          <span class="workshop-field__sub">MAX 10</span>
         </span>
         <input
           id="player-team-input"
@@ -328,8 +310,7 @@ function renderWorkshopBar() {
 
       <div class="workshop-field workshop-field--seed">
         <label class="workshop-field__label" for="seed-input">
-          <span>룸 시드 — 모두 같은 코드를 입력하면 같은 문제!</span>
-          <span class="workshop-field__sub">5–100 SYNC</span>
+          <span>룸 시드 (같은 시드 = 같은 문제)</span>
         </label>
         <div class="seed-input-wrap">
           <input
@@ -604,30 +585,30 @@ function renderHallOfFame() {
   } else if (state.hofTab === 'recent') {
     const runs = storage.getRecentRuns(8);
     if (runs.length === 0) {
-      rowsHtml = `<div class="hof-empty">아직 플레이 기록이 없습니다. 위 4개 미션 중 하나를 골라 출격하세요!</div>`;
+      rowsHtml = `<div class="hof-empty">아직 플레이 기록이 없습니다. 위 게임 중 하나를 골라 시작하세요!</div>`;
     } else {
       rowsHtml = runs.map((run, idx) => formatHofRow(run, idx + 1)).join('');
     }
   } else {
     const allPb = storage.getAllPersonalBests();
     const pbEntries = [];
+    const profile = storage.getProfile();
     for (const game of GAME_CATALOG) {
-      const modes = allPb[game.id] || {};
-      for (const mode of game.modes) {
-        const rec = modes[mode.id];
-        if (rec) {
-          pbEntries.push({
-            gameId: game.id,
-            modeLabel: mode.label,
-            nickname: storage.getProfile().nickname,
-            team: storage.getProfile().team,
-            score: rec.score,
-            timeMs: rec.timeMs,
-            accuracy: rec.accuracy,
-            grade: rec.grade,
-            seed: rec.seed,
-          });
-        }
+      // Every stored record, including dynamic modes such as custom 숫자 숨바꼭질 settings
+      for (const [modeId, rec] of Object.entries(allPb[game.id] || {})) {
+        const mode = findMode(game, modeId);
+        if (!mode) continue;
+        pbEntries.push({
+          gameId: game.id,
+          modeLabel: mode.label,
+          nickname: profile.nickname,
+          team: profile.team,
+          score: rec.score,
+          timeMs: rec.timeMs,
+          accuracy: rec.accuracy,
+          grade: rec.grade,
+          seed: rec.seed,
+        });
       }
     }
     pbEntries.sort((a, b) => b.score - a.score);
@@ -789,7 +770,7 @@ function openAggregatorModal() {
     <textarea
       id="agg-input"
       class="aggregator-textarea"
-      placeholder="[POSSIBLE MISSION] 🔍 숨은그림찾기 (라운지 · 노말) | 김철수(A조) | S랭크 7,450점 (34.2초) | 정확도 92% | 시드: ROUND-1"
+      placeholder="[POSSIBLE MISSION] ⚡ 틀린그림찾기 (해변 · 보통) | 김철수(A조) | S랭크 7,450점 (34.2초) | 정확도 92% | 시드: ROUND-1"
     ></textarea>
     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
       <button type="button" id="agg-parse-btn" class="btn-neon-primary" style="flex: 1;">
@@ -855,7 +836,7 @@ function openAggregatorModal() {
     audio.playClick();
     if (!inputEl) return;
     inputEl.value = [
-      `[POSSIBLE MISSION] 🔍 숨은그림찾기 (라운지 · 노말) | 김하늘(A조) | S랭크 7,420점 (31.4초) | 정확도 100% | 시드: ${state.seed}`,
+      `[POSSIBLE MISSION] 🔢 숫자 숨바꼭질 (HARD) | 김하늘(A조) | S랭크 7,420점 (31.4초) | 정확도 100% | 시드: ${state.seed}`,
       `[POSSIBLE MISSION] ⚡ 틀린그림찾기 (카페 · 노말) | 박준영(B조) | A랭크 6,150점 (28.9초) | 정확도 88% | 시드: ${state.seed}`,
       `[POSSIBLE MISSION] 🧠 네온 메모리 매치 (4×4 스탠다드) | 이서연(디자인) | S랭크 7,890점 (24.1초) | 정확도 94% | 시드: ${state.seed}`,
     ].join('\n');
@@ -1067,7 +1048,7 @@ async function launchGame(gameId, requestedMode) {
     return;
   }
 
-  const validMode = gameMeta.modes.find((m) => m.id === requestedMode) || gameMeta.modes[0];
+  const validMode = findMode(gameMeta, requestedMode) || gameMeta.modes[0];
   const mode = validMode.id;
   state.selectedModes[gameId] = mode;
 
@@ -1247,7 +1228,7 @@ async function launchGame(gameId, requestedMode) {
     /** Relaunches this game in another of its modes (used by in-game pickers). */
     switchMode(nextMode) {
       if (!state.activeGame || state.activeGame.runToken !== runToken) return;
-      if (!gameMeta.modes.some((m) => m.id === nextMode)) return;
+      if (!findMode(gameMeta, nextMode)) return;
       launchGame(gameId, nextMode);
     },
   };
@@ -1404,7 +1385,7 @@ function init() {
 
   if (urlGame && GAME_MAP.has(urlGame) && urlMode) {
     const gm = GAME_MAP.get(urlGame);
-    if (gm.modes.some((m) => m.id === urlMode)) {
+    if (findMode(gm, urlMode)) {
       state.selectedModes[urlGame] = urlMode;
     }
   }
