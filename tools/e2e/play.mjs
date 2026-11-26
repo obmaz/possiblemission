@@ -26,7 +26,7 @@ page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 const out = {};
 const SEED = 'E2E-42';
-const resultSubtitle = () => page.textContent('.arcade-modal__subtitle').catch(() => null);
+const resultStatus = () => page.textContent('.result-hero__status').catch(() => null);
 
 /* ---------- Spot difference: picker → every picture on hard, clicked to completion ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
@@ -42,8 +42,9 @@ out.spot = {};
 for (const stageId of stages) {
   await page.goto(`${base}/?seed=${SEED}`);
   await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
+  await page.click('[data-browse]');
   await page.click(`.sd-pick-card[data-stage="${stageId}"]`);
-  await page.click('[data-level="hard"]');
+  await page.click('[data-view="levels"] [data-level="hard"]');
   await page.waitForFunction(() => !document.querySelector('[data-sd-loading]') && document.querySelector('[data-sd-canvas="orig"]'));
   const mode = new URL(page.url()).searchParams.get('mode');
   const targets = await page.evaluate(async ({ seed, mode }) => {
@@ -59,8 +60,29 @@ for (const stageId of stages) {
     await page.waitForTimeout(40);
   }
   await page.waitForSelector('.arcade-modal', { timeout: 4000 }).catch(() => {});
-  out.spot[stageId] = `${mode} · ${targets.length} diffs → ${await resultSubtitle()}`;
+  out.spot[stageId] = `${mode} · ${targets.length} diffs → ${await resultStatus()}`;
 }
+
+/* ---------- 틀린그림찾기 quick start: difficulty only, picture from the room seed ---------- */
+await page.goto(`${base}/?seed=${SEED}`);
+await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
+await page.click('[data-view="start"] [data-level="easy"]');
+await page.waitForSelector('[data-sd-canvas="orig"]');
+const quickMode1 = new URL(page.url()).searchParams.get('mode');
+await page.goto(`${base}/?seed=${SEED}`);
+await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
+await page.click('[data-view="start"] [data-level="easy"]');
+await page.waitForSelector('[data-sd-canvas="orig"]');
+out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode') && /-easy$/.test(quickMode1) ? quickMode1 : `mismatch ${quickMode1}`;
+
+/* ---------- 메모리 매치: lobby → in-game difficulty ---------- */
+await page.goto(`${base}/?seed=${SEED}`);
+out.lobbyHasSelect = await page.evaluate(() => Boolean(document.querySelector('.game-card select, #hall-of-fame, .game-card__pb-pill')));
+await page.click('.game-card[data-game-id="memory-match"] [data-launch-game]');
+await page.waitForSelector('.mm-setup');
+await page.click('[data-level="4x3"]');
+await page.waitForSelector('.mm-grid');
+out.memoryMode = new URL(page.url()).searchParams.get('mode');
 
 /* ---------- 숫자 숨바꼭질: setup screen → custom settings → full play ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
@@ -80,28 +102,54 @@ const plan = await page.evaluate(async ({ seed, mode }) => {
   const { parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
   return generateFortressRun(createRng(`${seed}::despair-fortress::${mode}`), parseHideSeekMode(mode)).map((r) => r.targets.map((t) => t.letter));
 }, { seed: SEED, mode: hsMode });
-const hearts = () => page.$eval('[data-df-shields]', (el) => (el.textContent.match(/♥/g) || []).length);
 const overlayGone = () => page.waitForFunction(() => document.querySelector('[data-df-overlay]').hidden, null, { timeout: 8000 });
+const timerText = () => page.textContent('#hud-timer');
+const toSec = (t) => (t.includes(':') ? Number(t.split(':')[0]) * 60 + Number(t.split(':')[1]) : parseFloat(t));
 await overlayGone();
+// A wrong answer typed into the answer box costs WRONG_PENALTY_SEC (3 s)
 const wrong = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').find((l) => l !== plan[0][0]);
-const before = await hearts();
-await page.keyboard.down(wrong);
-await page.waitForTimeout(600);
-for (let i = 0; i < 4; i += 1) { await page.keyboard.down(wrong); await page.waitForTimeout(500); }
-await page.keyboard.up(wrong);
-out.fortressShieldsLostToHeldKey = before - (await hearts());
+const before = toSec(await timerText());
+await page.fill('[data-df-input]', wrong);
+await page.waitForTimeout(150);
+out.hideSeekWrongPenaltySec = Math.round(before - toSec(await timerText()));
+await page.waitForTimeout(500); // wrong-answer cooldown
 for (let r = 0; r < plan.length; r += 1) {
   if (r > 0) {
     await page.waitForFunction(() => !document.querySelector('[data-df-overlay]').hidden);
     await overlayGone();
   }
-  for (const letter of plan[r]) { await page.keyboard.press(letter); await page.waitForTimeout(60); }
+  for (const letter of plan[r]) {
+    await page.fill('[data-df-input]', letter);
+    await page.waitForTimeout(80);
+  }
 }
 await page.waitForSelector('.arcade-modal', { timeout: 6000 }).catch(() => {});
-out.fortress = `${await resultSubtitle()} · ${await page.textContent('.result-hero__score').catch(() => '?')}`;
-// The setup screen remembers the last settings
-await page.goto(`${base}/?seed=${SEED}&game=despair-fortress&mode=setup`);
-await page.waitForSelector('.df-setup');
+out.fortress = `${await page.textContent('.result-hero__status').catch(() => '?')} · ${await page.textContent('.result-hero__score').catch(() => '?')}`;
+out.resultHasCopyButton = await page.evaluate(() => Boolean(document.querySelector('#result-copy-btn, .result-preview-line, .result-stat-box__label')));
+out.resultStats = await page.$$eval('.result-stat-box', (els) => els.map((e) => e.textContent.trim()));
+// "난이도 바꾸기" goes back to the setup screen
+await page.click('#result-change-btn');
+out.hideSeekChangeDifficulty = Boolean(await page.waitForSelector('.df-setup', { timeout: 4000 }).catch(() => null));
+// Same symbol → same number on every tile; GOD mixes Hangul
+out.hideSeekRules = await page.evaluate(async () => {
+  const { createRng } = await import('/js/core/seed.js');
+  const { generateFortressRun } = await import('/js/games/despair-fortress.js');
+  const { parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
+  const run = generateFortressRun(createRng('X::despair-fortress::god'), parseHideSeekMode('god'));
+  const consistent = run.every((r) => {
+    const map = new Map();
+    return r.tiles.every((t) => (map.has(t.letter) ? map.get(t.letter) === t.number : (map.set(t.letter, t.number), true)));
+  });
+  const hangul = run.some((r) => r.tiles.some((t) => /[가-힣]/.test(t.letter)));
+  const easy = generateFortressRun(createRng('X::despair-fortress::easy'), parseHideSeekMode('easy'));
+  const noHangulOnEasy = easy.every((r) => r.tiles.every((t) => /[A-Z]/.test(t.letter)));
+  return consistent && hangul && noHangulOnEasy;
+});
+// Starting again from the lobby shows the setup screen again (it used to skip it)
+await page.goto(`${base}/?seed=${SEED}`);
+await page.click('.game-card[data-game-id="despair-fortress"] [data-launch-game]');
+out.hideSeekSetupAgain = Boolean(await page.waitForSelector('.df-setup', { timeout: 4000 }).catch(() => null));
+// …and remembers the last settings
 out.hideSeekRemembersLast = (await page.textContent('[data-field="revealSec"] [data-value]')) === '3초';
 
 /* ---------- Determinism: same seed+mode twice → same layout ---------- */
@@ -125,14 +173,21 @@ server.close();
 
 // Fail the run on any regression
 const failures = [];
-const cleared = (v) => typeof v === 'string' && v.includes('MISSION ACCOMPLISHED');
+const cleared = (v) => typeof v === 'string' && v.includes('성공');
 Object.entries(out.spot).forEach(([k, v]) => cleared(v) || failures.push(`spot ${k}: ${v}`));
 if (!cleared(out.fortress)) failures.push(`fortress: ${out.fortress}`);
-if (out.fortressShieldsLostToHeldKey !== 1) failures.push('held key drained more than one shield');
+if (out.hideSeekWrongPenaltySec !== 3) failures.push(`wrong answer penalty: ${out.hideSeekWrongPenaltySec}s`);
+if (out.resultHasCopyButton) failures.push('result modal still shows copy / labels');
+if (!out.hideSeekRules) failures.push('hide & seek symbol/number rules');
+if (!/-easy$/.test(out.spotQuickStart)) failures.push(`spot quick start: ${out.spotQuickStart}`);
+if (out.lobbyHasSelect) failures.push('lobby still shows a select / hall of fame / record pill');
+if (out.memoryMode !== '4x3') failures.push(`memory in-game difficulty: ${out.memoryMode}`);
+if (!out.hideSeekChangeDifficulty) failures.push('result "난이도 바꾸기" did not open setup');
+if (!out.hideSeekSetupAgain) failures.push('lobby start skipped the hide & seek setup');
 if (out.spotCardHasSelect || out.pickerCards !== 10 || !out.pickerExitNoConfirm) failures.push('spot picker flow');
 if (!out.deterministic) failures.push('determinism');
 if (out.hideSeekPresets !== 'easy,medium,hard,extreme,insane,god') failures.push('hide & seek presets');
-if (!/^custom-60-30-5-6-11-35$/.test(out.hideSeekMode || '')) failures.push(`hide & seek custom mode: ${out.hideSeekMode}`);
+if (!/^custom-60-30-5-6-11-35-0$/.test(out.hideSeekMode || '')) failures.push(`hide & seek custom mode: ${out.hideSeekMode}`);
 if (!out.hideSeekRemembersLast) failures.push('hide & seek setup does not remember the last settings');
 if (out.consoleErrors.length) failures.push(`console errors: ${out.consoleErrors.length}`);
 if (failures.length) {

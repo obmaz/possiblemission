@@ -507,7 +507,7 @@
 
 /* === Picture → difficulty picker (mode `pick`) ============================= */
 .game-spot.sd-picker {
-  justify-content: flex-start;
+  justify-content: center;
   gap: 14px;
   padding: 14px 18px;
   overflow-y: auto;
@@ -539,8 +539,35 @@
 }
 
 .game-spot .sd-picker__grid[hidden],
-.game-spot .sd-picker__levels[hidden] {
+.game-spot .sd-picker__levels[hidden],
+.game-spot .sd-picker__start[hidden] {
   display: none;
+}
+
+.game-spot .sd-picker__start {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  width: min(100%, 460px);
+}
+
+.game-spot .sd-picker__browse {
+  padding: 14px 18px;
+  border: 1px dashed var(--border-specular);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-spot .sd-picker__browse:hover,
+.game-spot .sd-picker__browse:focus-visible {
+  border-color: var(--sd-accent);
+  color: var(--text-primary);
+  outline: none;
 }
 
 .game-spot .sd-pick-card {

@@ -63,8 +63,8 @@ All routing (`?game=<id>&mode=<mode>`), dynamic imports (`./games/<id>.js`), sto
 | Game ID (`<id>`) | File (`./js/games/<id>.js`) | Korean Title | English Sub-label | Accent Token | Canonical `ctx.mode` Values (Default First) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `spot-difference` | `spot-difference.js` | 틀린그림찾기 | `SPOT THE DIFFERENCE` | `--neon-magenta` | `pick` (in-game picture → difficulty chooser), then `<picture>-<difficulty>` for the 10 pictures in `js/games/spot-stages.js` (e.g. `beach-normal`; difficulty `easy` / `normal` / `hard`) |
-| `memory-match` | `memory-match.js` | 네온 메모리 매치 | `NEON MEMORY` | `--neon-violet` | `4x3`, `4x4`, `6x4` |
-| `despair-fortress` | `despair-fortress.js` | 숫자 숨바꼭질 | `NUMBER HIDE & SEEK` | `--neon-crimson` | `setup` (in-game settings screen), presets `easy` `medium` `hard` `extreme` `insane` `god`, or `custom-<t>-<r>-<b>-<i>-<w>-<s>` (see `js/games/hide-seek-settings.js`) |
+| `memory-match` | `memory-match.js` | 메모리 매치 | `MEMORY MATCH` | `--neon-violet` | `setup` (in-game difficulty chooser), then `4x3`, `4x4`, `6x4` |
+| `despair-fortress` | `despair-fortress.js` | 숫자 숨바꼭질 | `NUMBER HIDE & SEEK` | `--neon-crimson` | `setup` (in-game settings screen), presets `easy` `medium` `hard` `extreme` `insane` `god`, or `custom-<t>-<r>-<b>-<i>-<w>-<s>-<h>` (see `js/games/hide-seek-settings.js`) |
 
 ---
 
@@ -476,7 +476,7 @@ export function closeModal()
    - Calls `activeInstance = mod.mount(stageEl, ctx)`.
    - Handles `visibilitychange` (auto-shows `#pause-curtain` and dispatches `pm:pausechange` `{ paused: true }`).
    - On `exitToHub()` or switching games: calls `activeInstance?.unmount()`, clears `#game-stage`, resets HUD state, restores `#lobby-view`.
-   - On `completeGame(payload)`: records run via `storage.recordRun(...)`, computes rank via `ui.calculateGrade(...)`, triggers `audio.playClear()` (or `playAlarm()` if `cleared === false`), launches `ui.launchConfetti(...)` for `S`/`A`, and opens the **Result Modal** (`S/A/B/C` crest, 2×2 score breakdown, `NEW RECORD!` pill, `📋 결과 복사 (Slack/카톡용)`, `🔄 같은 시드로 재도전`, `🕹️ 아케이드 로비`).
+   - On `completeGame(payload)`: records run via `storage.recordRun(...)`, computes rank via `ui.calculateGrade(...)`, triggers `audio.playClear()` (or `playAlarm()` if `cleared === false`), launches `ui.launchConfetti(...)` for `S`/`A`, and opens the **Result Modal**: `성공`/`실패` status, the score, an optional `최고 기록!` pill, up to 4 value-only stat boxes (`details[].value`, e.g. `⏱ 12.3초` — no labels), and `다시 하기` / `다른 게임`. The grade is still stored for the Hall of Fame but not shown in the modal.
 
 #### Exact `ctx` Contract Passed to `mount(container, ctx)`
 ```js
@@ -509,9 +509,9 @@ const ctx = {
    * @param {number} result.score       - Final non-negative integer score
    * @param {number} result.timeMs      - Exact elapsed active play time in milliseconds (via performance.now())
    * @param {number} result.accuracy    - 0..100 integer percentage
-   * @param {boolean} [result.cleared=true] - False if time over / shields depleted
+   * @param {boolean} [result.cleared=true] - False if the run ended without clearing (e.g. time over)
    * @param {string} result.modeLabel   - Human-readable Korean mode label (e.g. "라운지 · 노말", "4×4 스탠다드", "3구역 탈출")
-   * @param {Array<{ label: string, value: string }>} [result.details] - Exactly 2–4 breakdown rows for the 2x2 Result Modal grid
+   * @param {Array<{ value: string }>} [result.details] - Up to 4 self-explanatory values (icon + number + unit, no labels) for the 2x2 Result Modal grid
    */
   completeGame({ score, timeMs, accuracy, cleared = true, modeLabel, details }) {},
 
@@ -575,7 +575,7 @@ export function mount(container, ctx) {
 - **Pictures (10)**, registry in `js/games/spot-stages.js`:
   - 2 photos with hand-placed, pixel-verified anomalies: `cafe` (`spot-cafe.jpg`), `camp` (`spot-camp.jpg`).
   - 8 drawn scenes in `js/games/spot-scenes.js`: `beach`, `city`, `farm`, `sea`, `snow`, `space`, `kitchen`, `park`. A scene is data (background painter + objects made of shapes) and each difference is a declarative edit of one object (`recolor`, `remove`, `add`, `move`, `scale`, `flip`, `replace`). Hitboxes are computed from the shapes that actually changed, and a difference that changes nothing is rejected when the pool is built.
-- **Flow**: the lobby launches mode `pick` → choose a picture → choose a difficulty → `ctx.switchMode('<picture>-<difficulty>')`.
+- **Flow**: the lobby launches mode `pick`. The entry screen offers the three difficulties directly (the picture is then chosen from the room seed: `createRng(seed + '::spot-difference::picture')`, so a room shares the picture) or **그림 골라서 하기** → picture grid → difficulty. Either way it ends in `ctx.switchMode('<picture>-<difficulty>')`.
 - **Difficulties**: `easy` **5** differences / **90s** (skips `subtle` ones), `normal` **7** / **80s**, `hard` **9** / **75s**; **2 Hints** each.
 - **Photo pipeline**: render the JPG on both buffers, then apply ONLY the seeded anomalies to `Modified` (`color-swap` preserving dark outlines, `patch-remove`, `cel-prop`).
 - **Vector pipeline**: render the scene twice from the same data, the second time with the seeded differences applied.
@@ -621,7 +621,8 @@ export function mount(container, ctx) {
 
 ---
 
-### 6.3 Game 3: 네온 메모리 매치 (`js/games/memory-match.js`)
+### 6.3 Game 3: 메모리 매치 (`js/games/memory-match.js`)
+- **Symbols**: 18 (12 arcade/workshop items + 6 railway icons for the KRRI workshop: 고속열차, 트램, 철로, 철도 신호기, 자기부상열차, 열차 바퀴). Generic drawings only — no organisation logos or trademarks.
 - **CSS Scope**: `.game-memory` in `styles/game-memory.css`
 - **Modes & Parameters**:
   - `4x3`: `3×4` portrait / `4×3` landscape — **6 pairs (12 cards)** / **2.0s preview** / **45s** limit
@@ -659,6 +660,7 @@ export function mount(container, ctx) {
   | Hide interval | 0.3 – 2 s |
   | Peek time (hidden numbers come back) | 0.5 – 2.5 s, cycle = peek × 3 + 2 s |
   | Round time limit | 20 – 60 s |
+  | Mix Hangul 가–하 | off / on |
 
   | Preset | Tiles | Reveal | Hide batch / interval | Peek | Time |
   | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -669,9 +671,11 @@ export function mount(container, ctx) {
   | INSANE | 104 | 1 s | all | 0.7 s | 30 s |
   | GOD | 126 | 0.6 s | all | 0.5 s | 25 s |
 
-- **Round flow** (3 rounds, 3 targets each, 3 shared shields): `intro` (2.2 s, targets shown) → `play` (all numbers out, then hidden batch by batch in a seeded order; hidden numbers keep peeking) → `clear` / `fail`. All timing runs on the game clock, so pausing freezes everything.
-- **Input**: tap/click a tile (rotated-square hit test, touch slop from `rules.js`) or type its letter (`A–Z`, no modifiers, no key repeat). Any tile with the right letter counts, because the answer is the letter.
-- **Scoring**: per target `basePoints(settings)` (grows with tile count, shorter reveal and bigger hide batches) + streak bonus `60 × min(streak, 9)` + round speed bonus `remaining s × 60` + perfect round `+500`; clearing adds `shields × 400`.
+- **Round flow** (3 rounds, 3 targets each, no shields): `intro` (2.2 s, targets shown) → `play` (all numbers out, then hidden batch by batch in a seeded order; hidden numbers keep peeking) → `clear` / `fail`. All timing runs on the game clock, so pausing freezes everything.
+- **Symbols**: `A–Z`, plus `가나다라마바사아자차카타파하` when `hangul` is on (INSANE and GOD presets, or the custom toggle). Every symbol owns exactly one number per round, so duplicate symbols always hide the same number; the 3 targets are 3 different symbols.
+- **Input**: the console's answer box (one character answers immediately; Hangul answers on IME composition end; Enter also submits) or a tile tap/click (rotated-square hit test, touch slop from `rules.js`). There are no global letter hotkeys.
+- **Wrong answer**: `-3 s` from the round clock (`WRONG_PENALTY_SEC`) + the shared input cooldown. The round fails when time runs out.
+- **Scoring**: per target `basePoints(settings)` (grows with tile count, shorter reveal and bigger hide batches) + streak bonus `60 × min(streak, 9)` + round speed bonus `remaining s × 60` + perfect round `+500`.
 
 ---
 
@@ -682,4 +686,4 @@ export function mount(container, ctx) {
 | **Core Lead** | `index.html`, `styles/main.css`, `js/core/seed.js`, `js/core/audio.js`, `js/core/storage.js`, `js/core/ui.js`, `js/app.js` | URL `?seed=TEST&game=memory-match&mode=4x4` boots straight in; QR canvas scans; copy-result + paste-aggregator podium works; pause curtain stops game clock. |
 | **Programmer B** | `styles/game-spot.css`, `js/games/spot-difference.js`, `js/games/spot-stages.js`, `js/games/spot-scenes.js` | Picker → difficulty → round; every picture clears on `hard` by clicking each computed difference; both canvases sync marks & mirror crosshair. |
 | **Programmer C** | `styles/game-memory.css`, `js/games/memory-match.js` | 2.0s preview freezes timer; matched pairs have `0ms` lock; mismatched pairs lock `600ms`; `4x3`/`4x4`/`6x4` fit `100dvh` without overflow. |
-| **Programmer D** | `styles/game-fortress.css`, `js/games/despair-fortress.js` | Same seed → same tiles/targets; all numbers visible during the flash; tiles never overlap their neighbours; 3 rounds clear by keyboard and by tap; a held key costs at most one shield. |
+| **Programmer D** | `styles/game-fortress.css`, `js/games/despair-fortress.js` | Same seed → same tiles/targets; all numbers visible during the flash; tiles never overlap their neighbours; 3 rounds clear via the answer box and by tap; same symbol → same number; Hangul only when enabled; a wrong answer costs 3 s. |

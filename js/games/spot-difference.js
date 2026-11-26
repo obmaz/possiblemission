@@ -6,7 +6,7 @@
  * procedural ImageData hue swaps (preserving #1E1824 outlines), seamless patch
  * removals, cel-shaded vector props, mirror crosshair, 2.0x loupe, and hint radar.
  */
-import { pickDispersed } from '../core/seed.js';
+import { createRng, pickDispersed } from '../core/seed.js';
 import { SPOT_DIFFICULTIES, SPOT_STAGES, parseSpotMode, spotModeId } from './spot-stages.js';
 import { SCENE_H, SCENE_W, VECTOR_SCENES, buildScenePool, renderScene } from './spot-scenes.js';
 import { TOUCH_HIT_SLOP, WRONG_INPUT_COOLDOWN_MS } from '../core/rules.js';
@@ -1364,10 +1364,10 @@ export function mount(container, ctx) {
       cleared,
       modeLabel,
       details: [
-        { label: '발견한 차이점', value: `${foundCount} / ${targetCount}` },
-        { label: '실제 플레이', value: `${(activePlayMs / 1000).toFixed(1)}초` },
-        { label: '최대 콤보 / 실수', value: `${maxStreak}콤보 · ${wrongTaps}회` },
-        { label: '사용한 힌트', value: `${hintsUsed} / ${MAX_HINTS}회` },
+        { value: `🔍 ${foundCount}/${targetCount} 차이` },
+        { value: `⏱ ${(activePlayMs / 1000).toFixed(1)}초` },
+        { value: `❌ 오답 ${wrongTaps}회` },
+        { value: `💡 힌트 ${hintsUsed}회` },
       ],
     });
   }
@@ -1944,21 +1944,39 @@ export function mount(container, ctx) {
 }
 
 /**
- * Picture → difficulty chooser shown for the `pick` mode. It never scores anything:
- * choosing calls ctx.switchMode(), which relaunches the game in the chosen mode so the
- * URL, room seed sync and per-mode records all keep working.
+ * Entry screen for the `pick` mode:
+ * - "바로 하기": choose a difficulty and play the picture the room seed picks, so
+ *   everyone in the same room gets the same picture without coordinating.
+ * - "그림 골라서 하기": choose a picture, then a difficulty.
+ * It never scores anything: choosing calls ctx.switchMode(), which relaunches the
+ * game in the chosen mode so the URL, room seed sync and records keep working.
  * @param {HTMLElement} container
  * @param {object} ctx
  */
 function mountPicker(container, ctx) {
+  const levelButtons = SPOT_DIFFICULTIES.map(
+    (d) => `
+      <button type="button" class="sd-level-btn sd-level-btn--${d.id}" data-level="${d.id}">
+        <span class="sd-level-btn__label">${d.label}</span>
+        <span class="sd-level-btn__meta">차이 ${d.count}곳 · ${d.timeSec}초</span>
+        <span class="sd-level-btn__note">${d.note}</span>
+      </button>`
+  ).join('');
+
   const root = document.createElement('div');
   root.className = 'game-root game-spot sd-picker';
   root.innerHTML = `
     <div class="sd-picker__head">
-      <h2 class="sd-picker__title" data-sd-pick-title>그림을 고르세요</h2>
-      <p class="sd-picker__sub" data-sd-pick-sub>같은 룸 시드라면 모두에게 같은 차이점이 나옵니다.</p>
+      <h2 class="sd-picker__title" data-sd-pick-title>난이도를 고르세요</h2>
+      <p class="sd-picker__sub" data-sd-pick-sub>같은 룸 시드라면 모두에게 같은 그림과 차이점이 나옵니다.</p>
     </div>
-    <div class="sd-picker__grid" data-sd-pick-grid>
+
+    <div class="sd-picker__start" data-view="start">
+      <div class="sd-picker__level-list">${levelButtons}</div>
+      <button type="button" class="sd-picker__browse" data-browse>🖼️ 그림 골라서 하기</button>
+    </div>
+
+    <div class="sd-picker__grid" data-view="grid" hidden>
       ${SPOT_STAGES.map(
         (stage) => `
         <button type="button" class="sd-pick-card" data-stage="${stage.id}">
@@ -1968,20 +1986,13 @@ function mountPicker(container, ctx) {
           <span class="sd-pick-card__title">${stage.titleKo}</span>
         </button>`
       ).join('')}
+      <button type="button" class="sd-picker__back" data-back="start">← 난이도로 돌아가기</button>
     </div>
-    <div class="sd-picker__levels" data-sd-pick-levels hidden>
+
+    <div class="sd-picker__levels" data-view="levels" hidden>
       <div class="sd-picker__chosen" data-sd-pick-chosen></div>
-      <div class="sd-picker__level-list">
-        ${SPOT_DIFFICULTIES.map(
-          (d) => `
-          <button type="button" class="sd-level-btn sd-level-btn--${d.id}" data-level="${d.id}">
-            <span class="sd-level-btn__label">${d.label}</span>
-            <span class="sd-level-btn__meta">차이 ${d.count}곳 · ${d.timeSec}초</span>
-            <span class="sd-level-btn__note">${d.note}</span>
-          </button>`
-        ).join('')}
-      </div>
-      <button type="button" class="sd-picker__back" data-sd-pick-back>← 다른 그림 고르기</button>
+      <div class="sd-picker__level-list">${levelButtons}</div>
+      <button type="button" class="sd-picker__back" data-back="grid">← 다른 그림 고르기</button>
     </div>
   `;
   container.appendChild(root);
@@ -1999,47 +2010,53 @@ function mountPicker(container, ctx) {
     slot.appendChild(canvas);
   }
 
-  const gridEl = root.querySelector('[data-sd-pick-grid]');
-  const levelsEl = root.querySelector('[data-sd-pick-levels]');
-  const chosenEl = root.querySelector('[data-sd-pick-chosen]');
   const titleEl = root.querySelector('[data-sd-pick-title]');
-  let chosen = null;
+  const chosenEl = root.querySelector('[data-sd-pick-chosen]');
+  const TITLES = { start: '난이도를 고르세요', grid: '그림을 고르세요' };
+  let chosen = null; // picture picked in the grid; null = let the room seed pick
 
-  const showGrid = () => {
-    chosen = null;
-    levelsEl.hidden = true;
-    gridEl.hidden = false;
-    titleEl.textContent = '그림을 고르세요';
-    gridEl.querySelector('.sd-pick-card')?.focus({ preventScroll: true });
+  const show = (view) => {
+    root.querySelectorAll('[data-view]').forEach((el) => {
+      el.hidden = el.dataset.view !== view;
+    });
+    if (view !== 'levels') chosen = null;
+    titleEl.textContent = TITLES[view] || `${chosen.titleKo} · 난이도를 고르세요`;
+    root.querySelector(`[data-view="${view}"] button`)?.focus({ preventScroll: true });
+  };
+
+  /** Same room seed → same picture for everyone. */
+  const seededStage = () => {
+    const rng = createRng(`${ctx.seed}::spot-difference::picture`);
+    return SPOT_STAGES[Math.floor(rng() * SPOT_STAGES.length)];
   };
 
   const onClick = (e) => {
     const card = e.target.closest('[data-stage]');
     const level = e.target.closest('[data-level]');
+    const back = e.target.closest('[data-back]');
     if (card) {
       ctx.audio.playClick();
-      chosen = SPOT_STAGES.find((s) => s.id === card.dataset.stage);
+      chosen = SPOT_STAGES.find((st) => st.id === card.dataset.stage);
       chosenEl.replaceChildren(card.querySelector('.sd-pick-card__thumb').cloneNode(true));
       if (!chosen.thumb) {
         // cloneNode does not copy canvas pixels
-        const src = card.querySelector('canvas');
-        const copy = chosenEl.querySelector('canvas');
-        copy.getContext('2d').drawImage(src, 0, 0);
+        chosenEl.querySelector('canvas').getContext('2d').drawImage(card.querySelector('canvas'), 0, 0);
       }
-      titleEl.textContent = `${chosen.titleKo} · 난이도를 고르세요`;
-      gridEl.hidden = true;
-      levelsEl.hidden = false;
-      levelsEl.querySelector('[data-level="normal"]')?.focus({ preventScroll: true });
-    } else if (level && chosen) {
+      show('levels');
+    } else if (level) {
       ctx.audio.playClick();
-      ctx.switchMode(spotModeId(chosen.id, level.dataset.level));
-    } else if (e.target.closest('[data-sd-pick-back]')) {
+      ctx.switchMode(spotModeId((chosen || seededStage()).id, level.dataset.level));
+    } else if (e.target.closest('[data-browse]')) {
       ctx.audio.playClick();
-      showGrid();
+      show('grid');
+    } else if (back) {
+      ctx.audio.playClick();
+      show(back.dataset.back);
     }
   };
   root.addEventListener('click', onClick);
-  ctx.updateHud({ timer: { text: '--:--', state: 'normal' }, score: 0, progress: '그림 선택', progressRatio: 1 });
+  ctx.updateHud({ timer: { text: '--:--', state: 'normal' }, score: 0, progress: '난이도 선택', progressRatio: 1 });
+  root.querySelector('[data-view="start"] [data-level="normal"]')?.focus({ preventScroll: true });
 
   return {
     idle: true,

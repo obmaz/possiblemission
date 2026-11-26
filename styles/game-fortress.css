@@ -20,10 +20,10 @@
   font-family: var(--font-sans);
 }
 
-/* --- Console: round · target numbers · shields + time ------------------- */
+/* --- Console: round · target numbers · answer box · time ------------------ */
 .game-fortress .df-console {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 14px;
   padding: 8px 14px;
@@ -106,18 +106,7 @@
   color: var(--text-dim);
 }
 
-.game-fortress .df-status {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
 
-.game-fortress .df-shields {
-  color: var(--neon-crimson);
-  font-size: 1.1rem;
-  letter-spacing: 0.12em;
-}
 
 .game-fortress .df-timebar {
   width: 140px;
@@ -137,6 +126,48 @@
 
 .game-fortress .df-timebar span[data-state='danger'] {
   background: var(--neon-crimson);
+}
+
+/* --- Answer box ------------------------------------------------------------ */
+.game-fortress .df-answer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.game-fortress .df-answer__input {
+  width: 74px;
+  height: 42px;
+  padding: 0 8px;
+  border: 2px solid var(--df-neon);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-deep);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.game-fortress .df-answer__input:focus {
+  outline: 3px solid rgba(22, 147, 106, 0.25);
+}
+
+.game-fortress .df-answer__btn {
+  height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--btn-primary);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.game-fortress .df-answer__btn:hover {
+  background: var(--btn-primary-hover);
 }
 
 /* --- Wall screen ----------------------------------------------------------- */
@@ -228,21 +259,21 @@
   }
 
   .game-fortress .df-console {
-    grid-template-columns: auto auto;
+    grid-template-columns: auto 1fr auto;
     grid-template-areas:
-      'round status'
-      'targets targets';
+      'round timebar answer'
+      'targets targets targets';
     gap: 8px;
     padding: 8px 10px;
   }
 
   .game-fortress .df-round { grid-area: round; justify-self: start; }
-  .game-fortress .df-status { grid-area: status; }
+  .game-fortress .df-answer { grid-area: answer; }
+  .game-fortress .df-timebar { grid-area: timebar; justify-self: stretch; width: auto; }
   .game-fortress .df-targets { grid-area: targets; }
   .game-fortress .df-targets__label { display: none; }
   .game-fortress .df-slot { padding: 3px 8px; font-size: 0.95rem; }
   .game-fortress .df-slot.is-active { font-size: 1.15rem; }
-  .game-fortress .df-timebar { width: 96px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

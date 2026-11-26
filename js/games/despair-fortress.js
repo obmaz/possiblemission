@@ -26,12 +26,13 @@ import {
   parseHideSeekMode,
 } from './hide-seek-settings.js';
 
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const HANGUL = '가나다라마바사아자차카타파하'.split('');
 const ROUND_COUNT = 3;
-const MAX_SHIELDS = 3;
 const TARGETS_PER_ROUND = 3;
-const SURVIVAL_BONUS_PER_SHIELD = 400;
 const PERFECT_ROUND_BONUS = 500;
+// A wrong answer costs time (there are no shields), so guessing is never free
+const WRONG_PENALTY_SEC = 3;
 const LAST_MODE_PREF = 'hideSeekLastMode';
 
 // Phase timings (seconds, game clock — everything stops while paused)
@@ -74,14 +75,18 @@ export function generateFortressRun(rng, settings) {
   const count = cols * rows;
   const cycleSec = peekCycleSec(settings);
   return Array.from({ length: ROUND_COUNT }, (_round, r) => {
+    const symbols = settings.hangul ? [...LETTERS, ...HANGUL] : LETTERS;
+    // Every symbol owns exactly one number, so duplicate letters hide the same number
     const numberPool = shuffleSeeded(
       rng,
       Array.from({ length: 1000 }, (_, n) => String(n).padStart(3, '0'))
     );
-    const tiles = Array.from({ length: count }, (_, index) => ({
-      index,
-      letter: LETTERS[Math.floor(rng() * LETTERS.length)],
-      number: numberPool[index],
+    const numberOf = Object.fromEntries(symbols.map((sym, i) => [sym, numberPool[i]]));
+    const tiles = Array.from({ length: count }, (_, index) => {
+      const letter = symbols[Math.floor(rng() * symbols.length)];
+      return { index, letter, number: numberOf[letter] };
+    }).map((tile) => ({
+      ...tile,
       angle: TILE_ANGLES[Math.floor(rng() * TILE_ANGLES.length)],
       size: 0.74 + rng() * 0.26, // fraction of the cell
       jx: (rng() - 0.5) * 0.14, // jitter inside the cell
@@ -95,9 +100,12 @@ export function generateFortressRun(rng, settings) {
         tile.hideAt = settings.revealSec + Math.floor(rank / settings.hideBatch) * settings.hideIntervalSec;
       });
     }
+    // Three different symbols per round
+    const seen = new Set();
     const targets = shuffleSeeded(rng, tiles)
+      .filter((tile) => !seen.has(tile.letter) && seen.add(tile.letter))
       .slice(0, TARGETS_PER_ROUND)
-      .map((tile) => ({ tileIndex: tile.index, number: tile.number, letter: tile.letter, solved: false }));
+      .map((tile) => ({ number: tile.number, letter: tile.letter, solved: false }));
     return { round: r + 1, cols, rows, cycleSec, tiles, targets };
   });
 }
@@ -127,8 +135,10 @@ function roundedRect(g, x, y, w, h, r) {
   else g.rect(x, y, w, h);
 }
 
-const formatValue = (field, value) =>
-  value === 0 && field.allLabel ? field.allLabel : `${value}${field.unit}`;
+const formatValue = (field, value) => {
+  if (field.valueLabels) return field.valueLabels[value];
+  return value === 0 && field.allLabel ? field.allLabel : `${value}${field.unit}`;
+};
 
 /** One-line plain-language summary of a set of values. */
 function describe(s) {
@@ -136,7 +146,8 @@ function describe(s) {
     s.hideBatch === 0
       ? `${s.revealSec}초 뒤 한꺼번에 사라지고`
       : `${s.revealSec}초 뒤 ${s.hideBatch}개씩 ${s.hideIntervalSec}초마다 사라지고`;
-  return `타일 ${s.tiles}개 · 처음 ${hide}, 이후 ${s.peekSec}초씩 다시 보입니다.`;
+  const hangul = s.hangul ? ' 한글 포함.' : '';
+  return `타일 ${s.tiles}개 · 처음 ${hide}, 이후 ${s.peekSec}초씩 다시 보입니다.${hangul}`;
 }
 
 /**
@@ -164,7 +175,7 @@ function mountSetup(container, ctx) {
   root.innerHTML = `
     <div class="df-setup__head">
       <h2 class="df-setup__title">숫자 숨바꼭질 · 난이도</h2>
-      <p class="df-setup__sub">타일 뒤에 숨은 숫자를 찾아 그 타일의 <b>알파벳</b>을 맞히세요. 같은 룸 시드와 같은 설정이면 모두 같은 벽이 나옵니다.</p>
+      <p class="df-setup__sub">타일 뒤에 숨은 숫자를 찾아 그 타일의 <b>글자</b>를 맞히세요. 같은 룸 시드와 같은 설정이면 모두 같은 벽이 나옵니다.</p>
     </div>
     <div class="df-setup__body">
       <div class="df-presets" role="radiogroup" aria-label="난이도 프리셋">
@@ -270,10 +281,11 @@ function mountGame(container, ctx, settings) {
         <span class="df-targets__label">찾을 숫자</span>
         <div class="df-targets__slots" data-df-slots></div>
       </div>
-      <div class="df-status">
-        <span class="df-shields" data-df-shields aria-label="남은 쉴드"></span>
-        <div class="df-timebar" aria-hidden="true"><span data-df-timebar></span></div>
-      </div>
+      <form class="df-answer" data-df-answer autocomplete="off">
+        <input class="df-answer__input" data-df-input maxlength="2" placeholder="정답" aria-label="정답 글자 입력" spellcheck="false" />
+        <button type="submit" class="df-answer__btn">확인</button>
+      </form>
+      <div class="df-timebar" aria-hidden="true"><span data-df-timebar></span></div>
     </header>
     <div class="df-wall-wrap" data-df-wrap>
       <canvas class="df-wall" data-df-canvas aria-label="알파벳 타일 벽. 숫자를 숨긴 타일을 누르세요."></canvas>
@@ -283,13 +295,15 @@ function mountGame(container, ctx, settings) {
         <p class="df-overlay__body" data-df-overlay-body></p>
       </div>
     </div>
-    <p class="df-help" data-df-help>숫자를 숨기고 있는 타일을 누르거나, 그 타일의 알파벳을 키보드로 입력하세요.</p>
+    <p class="df-help" data-df-help>숫자를 숨기고 있는 타일의 글자를 정답 칸에 입력하세요. 타일을 눌러도 됩니다.</p>
   `;
   container.appendChild(root);
 
   const roundEl = root.querySelector('[data-df-round]');
   const slotsEl = root.querySelector('[data-df-slots]');
-  const shieldsEl = root.querySelector('[data-df-shields]');
+  const answerForm = root.querySelector('[data-df-answer]');
+  const answerInput = root.querySelector('[data-df-input]');
+  const finePointer = !window.matchMedia?.('(pointer: coarse)').matches;
   const timebarEl = root.querySelector('[data-df-timebar]');
   const wrapEl = root.querySelector('[data-df-wrap]');
   const canvas = root.querySelector('[data-df-canvas]');
@@ -307,7 +321,8 @@ function mountGame(container, ctx, settings) {
   let phaseClock = 0; // seconds in the current phase (play: time since numbers appeared)
   let activeMs = 0;
   let activeTarget = 0;
-  let shields = MAX_SHIELDS;
+  let penaltySec = 0; // added to the round clock by wrong answers
+  let roundsCleared = 0;
   let score = 0;
   let streak = 0;
   let maxStreak = 0;
@@ -383,7 +398,6 @@ function mountGame(container, ctx, settings) {
 
   // --- DOM sync --------------------------------------------------------------------
   const round = () => rounds[roundIdx];
-  const heartsText = () => `${'♥'.repeat(shields)}${'♡'.repeat(MAX_SHIELDS - shields)}`;
 
   function renderSlots() {
     slotsEl.innerHTML = round()
@@ -395,9 +409,7 @@ function mountGame(container, ctx, settings) {
       .join('<span class="df-slot__arrow" aria-hidden="true">→</span>');
   }
 
-  function renderShields() {
-    shieldsEl.textContent = heartsText();
-  }
+  const timeUsed = () => (phase === 'play' ? phaseClock + penaltySec : 0);
 
   function showOverlay(sub, title, body, tone) {
     overlaySubEl.textContent = sub;
@@ -413,7 +425,7 @@ function mountGame(container, ctx, settings) {
 
   function syncHud() {
     const limit = settings.timeSec;
-    const remaining = Math.max(0, limit - (phase === 'play' ? phaseClock : 0));
+    const remaining = Math.max(0, limit - timeUsed());
     const counting = phase === 'play';
     timebarEl.style.setProperty('--df-time', (remaining / limit).toFixed(4));
     timebarEl.dataset.state = counting && remaining <= DANGER_TIME_SEC ? 'danger' : 'normal';
@@ -432,6 +444,7 @@ function mountGame(container, ctx, settings) {
     if (next === 'intro') {
       activeTarget = 0;
       roundMistakes = 0;
+      penaltySec = 0;
       tileFlash.clear();
       roundEl.textContent = `ROUND ${roundIdx + 1}/${totalRounds}`;
       renderSlots();
@@ -439,6 +452,7 @@ function mountGame(container, ctx, settings) {
     } else if (next === 'play') {
       overlayEl.hidden = true;
       ctx.audio.playHint();
+      if (finePointer) answerInput.focus({ preventScroll: true });
     }
     syncHud();
   }
@@ -447,7 +461,6 @@ function mountGame(container, ctx, settings) {
     if (finished) return;
     finished = true;
     phase = 'ended';
-    if (cleared) score += shields * SURVIVAL_BONUS_PER_SHIELD;
     const accuracy = inputs > 0 ? Math.round((correct / inputs) * 100) : 0;
     ctx.completeGame({
       score,
@@ -455,10 +468,10 @@ function mountGame(container, ctx, settings) {
       accuracy,
       cleared,
       details: [
-        { label: '돌파 라운드', value: `${cleared ? totalRounds : roundIdx} / ${totalRounds}` },
-        { label: '찾은 숫자', value: `${solvedTotal} / ${totalTargets} (${accuracy}%)` },
-        { label: '최고 콤보', value: `${maxStreak} COMBO` },
-        { label: '남은 쉴드', value: heartsText() },
+        { value: `🏁 ${roundsCleared}/${totalRounds} 라운드` },
+        { value: `🔢 ${solvedTotal}/${totalTargets} 숫자` },
+        { value: `⏱ ${(activeMs / 1000).toFixed(1)}초` },
+        { value: `❌ 오답 ${inputs - correct}회` },
       ],
     });
   }
@@ -466,20 +479,20 @@ function mountGame(container, ctx, settings) {
   function failRun(title) {
     if (phase === 'fail' || finished) return;
     ctx.audio.playAlarm();
-    showOverlay('GAME OVER', title, `최종 점수 ${score.toLocaleString('en-US')} PTS`, 'danger');
+    showOverlay('GAME OVER', title, `${score.toLocaleString('en-US')}점`, 'danger');
     enterPhase('fail');
   }
 
   function roundCleared() {
-    const remaining = Math.max(0, settings.timeSec - phaseClock);
+    const remaining = Math.max(0, settings.timeSec - timeUsed());
     const speedBonus = Math.round(remaining * 60);
+    roundsCleared += 1;
     const perfect = roundMistakes === 0 ? PERFECT_ROUND_BONUS : 0;
     score += speedBonus + perfect;
     const isFinal = roundIdx >= totalRounds - 1;
     ctx.audio.playMatch(6);
     const parts = [`스피드 +${speedBonus}`];
     if (perfect) parts.push(`PERFECT +${PERFECT_ROUND_BONUS}`);
-    if (isFinal) parts.push(`생존 +${shields * SURVIVAL_BONUS_PER_SHIELD}`);
     showOverlay(`ROUND ${roundIdx + 1} CLEAR`, isFinal ? '숨바꼭질 완전 정복!' : '라운드 돌파!', parts.join(' · '), 'success');
     enterPhase('clear');
   }
@@ -500,27 +513,29 @@ function mountGame(container, ctx, settings) {
       maxStreak = Math.max(maxStreak, streak);
       score += roundPts + (streak >= 2 ? 60 * Math.min(streak, 9) : 0);
       ctx.audio.playMatch(streak);
-      // Always reveal where the number really was
-      tileFlash.set(target.tileIndex, { color: color.neon, until: activeMs + TILE_FLASH_SEC * 2000 });
+      // Reveal every tile that hides this number
+      for (const tile of round().tiles) {
+        if (tile.letter === target.letter) {
+          tileFlash.set(tile.index, { color: color.neon, until: activeMs + TILE_FLASH_SEC * 2000 });
+        }
+      }
       flashMessage(`${target.number} = ${target.letter} 정답!`, 'success');
       activeTarget += 1;
       renderSlots();
       if (activeTarget >= round().targets.length) roundCleared();
     } else {
       cooldownUntil = activeMs + WRONG_INPUT_COOLDOWN_MS;
-      shields -= 1;
+      penaltySec += WRONG_PENALTY_SEC;
       streak = 0;
       roundMistakes += 1;
       ctx.audio.playError();
       if (tileIndex >= 0) {
         tileFlash.set(tileIndex, { color: color.danger, until: activeMs + TILE_FLASH_SEC * 1000 });
       }
-      renderShields();
       wrapEl.classList.remove('is-shake');
       void wrapEl.offsetWidth;
       wrapEl.classList.add('is-shake');
-      flashMessage(`${letter} 아님! 쉴드 -1`, 'danger');
-      if (shields <= 0) failRun('쉴드 소진!');
+      flashMessage(`${letter} 아님! -${WRONG_PENALTY_SEC}초`, 'danger');
     }
     syncHud();
   }
@@ -589,7 +604,7 @@ function mountGame(container, ctx, settings) {
     g.restore();
 
     g.fillStyle = color.letter;
-    g.font = `800 ${Math.round(s * 1.05)}px Outfit, sans-serif`;
+    g.font = `800 ${Math.round(s * 1.05)}px Outfit, "Pretendard Variable", "Noto Sans KR", sans-serif`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText(tile.letter, p.x, p.y + s * 0.05);
@@ -642,7 +657,7 @@ function mountGame(container, ctx, settings) {
       if (phase === 'intro') {
         if (phaseClock >= INTRO_SEC) enterPhase('play');
       } else if (phase === 'play') {
-        const remaining = settings.timeSec - phaseClock;
+        const remaining = settings.timeSec - timeUsed();
         if (remaining <= 5 && Math.ceil(remaining) !== Math.ceil(remaining + dt)) ctx.audio.playTick();
         if (remaining <= 0) failRun('시간 초과!');
         else syncHud();
@@ -688,15 +703,35 @@ function mountGame(container, ctx, settings) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const idx = tileAt(e.clientX, e.clientY, e.pointerType === 'touch');
     if (idx >= 0) answer(round().tiles[idx].letter, idx);
+    if (finePointer) answerInput.focus({ preventScroll: true });
   };
 
-  const onKeyDown = (e) => {
-    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
-    if (phase !== 'play') return;
-    const key = String(e.key || '').toUpperCase();
-    if (key.length !== 1 || !LETTERS.includes(key)) return;
+  /** Validates one typed symbol and answers with it. */
+  function submitTyped() {
+    const value = answerInput.value.trim().toUpperCase();
+    answerInput.value = '';
+    if (!value) return;
+    const symbol = [...value].pop();
+    if (!LETTERS.includes(symbol) && !HANGUL.includes(symbol)) {
+      flashMessage('알파벳이나 가~하 한 글자를 입력하세요', 'danger');
+      return;
+    }
+    answer(symbol);
+  }
+
+  const onAnswerSubmit = (e) => {
     e.preventDefault();
-    answer(key);
+    submitTyped();
+  };
+
+  // A single finished character answers immediately (Hangul waits for IME composition)
+  const onAnswerInput = (e) => {
+    if (e.isComposing) return;
+    const value = answerInput.value.trim();
+    if (value && /^[A-Za-z]$/.test(value)) submitTyped();
+  };
+  const onCompositionEnd = () => {
+    if (/^[가-힣]$/.test(answerInput.value.trim())) submitTyped();
   };
 
   const onPause = (e) => {
@@ -707,15 +742,16 @@ function mountGame(container, ctx, settings) {
   const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : null;
   resizeObserver?.observe(wrapEl);
   window.addEventListener('resize', resize);
-  window.addEventListener('keydown', onKeyDown);
+  answerForm.addEventListener('submit', onAnswerSubmit);
+  answerInput.addEventListener('input', onAnswerInput);
+  answerInput.addEventListener('compositionend', onCompositionEnd);
   window.addEventListener('pm:pausechange', onPause);
   canvas.addEventListener('pointerdown', onPointerDown);
 
   if (window.matchMedia?.('(pointer: coarse)').matches) {
-    helpEl.textContent = '숫자를 숨기고 있는 타일을 터치하세요. 라운드 시작 때 모든 숫자가 잠깐 보입니다!';
+    helpEl.textContent = '숫자를 숨긴 타일을 터치하거나, 그 글자를 정답 칸에 입력하세요.';
   }
   resize();
-  renderShields();
   enterPhase('intro');
   rafId = requestAnimationFrame(step);
 
@@ -725,7 +761,9 @@ function mountGame(container, ctx, settings) {
       cancelAnimationFrame(rafId);
       resizeObserver?.disconnect();
       window.removeEventListener('resize', resize);
-      window.removeEventListener('keydown', onKeyDown);
+      answerForm.removeEventListener('submit', onAnswerSubmit);
+      answerInput.removeEventListener('input', onAnswerInput);
+      answerInput.removeEventListener('compositionend', onCompositionEnd);
       window.removeEventListener('pm:pausechange', onPause);
       canvas.removeEventListener('pointerdown', onPointerDown);
       container.innerHTML = '';

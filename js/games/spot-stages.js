@@ -43,7 +43,7 @@ export function parseSpotMode(mode) {
 /** Catalog modes for the lobby: the picker first, then every picture × difficulty. */
 export function spotCatalogModes() {
   return [
-    { id: SPOT_PICK_MODE, label: '그림 고르기', thumb: SPOT_STAGES[0].thumb },
+    { id: SPOT_PICK_MODE, label: '난이도 선택', thumb: SPOT_STAGES[0].thumb },
     ...SPOT_STAGES.flatMap((stage) =>
       SPOT_DIFFICULTIES.map((d) => ({
         id: spotModeId(stage.id, d.id),

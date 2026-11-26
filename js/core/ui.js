@@ -1,6 +1,5 @@
 /**
- * Shared UI helpers: grading, toasts, confetti burst, Slack/KakaoTalk result formatter & parser,
- * clipboard copy, shareable URL builder, pure-JS scannable QR code generator, and modal lifecycle.
+ * Shared UI helpers: grading, toasts, confetti burst, clipboard copy, shareable URL builder, pure-JS scannable QR code generator, and modal lifecycle.
  */
 
 /**
@@ -183,75 +182,6 @@ export function launchConfetti(tier = 'S') {
   };
 
   confettiRafId = requestAnimationFrame(frame);
-}
-
-/**
- * Formats a single-line Slack / KakaoTalk workshop scorecard string.
- * `emoji` comes from the game catalog in app.js (single source of game metadata).
- * `[POSSIBLE MISSION] <emoji> <gameTitle> (<modeLabel>) | <nickname>(<team>) | <grade>랭크 <score>점 (<timeSec>초) | 정확도 <accuracy>% | 시드: <seed>`
- */
-export function formatResultText({
-  emoji = '🎮',
-  gameTitle,
-  modeLabel,
-  player,
-  grade,
-  score,
-  timeMs,
-  accuracy,
-  seed,
-}) {
-  const nick = (player?.nickname || '익명요원').trim() || '익명요원';
-  const team = (player?.team || '').trim();
-  const playerStr = team ? `${nick}(${team})` : nick;
-  const formattedScore = Math.max(0, Math.round(Number(score) || 0)).toLocaleString('en-US');
-  const timeSec = (Math.max(0, Number(timeMs) || 0) / 1000).toFixed(1);
-  const acc = Math.max(0, Math.min(100, Math.round(Number(accuracy) || 0)));
-
-  return `[POSSIBLE MISSION] ${emoji} ${gameTitle} (${modeLabel}) | ${playerStr} | ${grade}랭크 ${formattedScore}점 (${timeSec}초) | 정확도 ${acc}% | 시드: ${seed}`;
-}
-
-/**
- * Parses pasted Slack/KakaoTalk result lines for the Hall of Fame projector importer.
- * @param {string} rawText
- * @returns {Array<{ gameTitle: string, modeLabel: string, nickname: string, team: string, grade: string, score: number, timeSec: number, accuracy: number, seed: string }>}
- */
-export function parseResultLines(rawText) {
-  const lines = String(rawText ?? '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const parsed = [];
-  const lineRegex =
-    /\[POSSIBLE MISSION\]\s*\S*\s*(.+?)\s+\(([^)]+)\)\s*\|\s*([^|]+?)\s*\|\s*([SABC])랭크\s+([\d,]+)점\s+\(([\d.]+)초\)\s*\|\s*정확도\s+(\d+)%\s*\|\s*시드:\s*([A-Z0-9-_]+)/i;
-
-  for (const line of lines) {
-    const match = line.match(lineRegex);
-    if (!match) continue;
-
-    const rawPlayer = match[3].trim();
-    const playerMatch = rawPlayer.match(/^(.+?)\(([^)]+)\)$/);
-    const nickname = (playerMatch ? playerMatch[1] : rawPlayer).trim();
-    const team = (playerMatch ? playerMatch[2] : '').trim();
-
-    parsed.push({
-      gameTitle: match[1].trim(),
-      modeLabel: match[2].trim(),
-      nickname,
-      team,
-      grade: match[4].toUpperCase(),
-      score: parseInt(match[5].replace(/,/g, ''), 10) || 0,
-      timeSec: parseFloat(match[6]) || 0,
-      accuracy: parseInt(match[7], 10) || 0,
-      seed: match[8].toUpperCase(),
-    });
-  }
-
-  return parsed.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score;
-    return a.timeSec - b.timeSec;
-  });
 }
 
 /**

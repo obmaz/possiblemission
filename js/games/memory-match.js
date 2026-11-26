@@ -1,5 +1,5 @@
 /**
- * Game 3: 네온 메모리 매치 (NEON MEMORY)
+ * Game 3: 메모리 매치 (MEMORY MATCH)
  * Pure static ES module exporting mount(container, ctx) -> { unmount() }.
  */
 import { pickSeeded, shuffleSeeded } from '../core/seed.js';
@@ -45,7 +45,7 @@ const FINISH_DELAY_MS = 560;
 const FLOAT_BADGE_MS = 940;
 
 /**
- * 12 ultra-crisp custom vector SVG arcade & workshop symbols with unique gradients.
+ * 18 vector symbols: 12 arcade/workshop items + 6 railway icons.
  */
 export const SYMBOLS = [
   {
@@ -375,6 +375,151 @@ export const SYMBOLS = [
       </svg>
     `,
   },
+  // --- Railway set (한국철도연구원 워크숍용 철도 테마 아이콘, generic shapes, no logos) ---
+  {
+    id: 'bullet-train',
+    label: '고속열차',
+    shortLabel: '고속열차',
+    accent: '#2563eb',
+    bgA: 'rgba(37, 99, 235, 0.22)',
+    bgB: '#0c1a3b',
+    renderSvg: (uid) => `
+      <svg class="mm-card__svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="mm-bt-${uid}" x1="6" y1="22" x2="6" y2="42" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="100%" stop-color="#cbd5e1"/>
+          </linearGradient>
+        </defs>
+        <path d="M2 47H62" stroke="#64748b" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M5 41V29C5 24 8 22 12 22H38C50 22 57 29 61 38V41Z" fill="url(#mm-bt-${uid})" stroke="#090d20" stroke-width="2.4" stroke-linejoin="round"/>
+        <path d="M5 34H59" stroke="#1d4ed8" stroke-width="3.5"/>
+        <path d="M43 24C50 24 55 28 58 32H45Z" fill="#1e293b" stroke="#090d20" stroke-width="1.6" stroke-linejoin="round"/>
+        <rect x="10" y="25.5" width="6" height="4.5" rx="1" fill="#1e3a8a"/>
+        <rect x="19" y="25.5" width="6" height="4.5" rx="1" fill="#1e3a8a"/>
+        <rect x="28" y="25.5" width="6" height="4.5" rx="1" fill="#1e3a8a"/>
+        <circle cx="13" cy="43" r="3.2" fill="#334155" stroke="#090d20" stroke-width="1.5"/>
+        <circle cx="23" cy="43" r="3.2" fill="#334155" stroke="#090d20" stroke-width="1.5"/>
+        <circle cx="42" cy="43" r="3.2" fill="#334155" stroke="#090d20" stroke-width="1.5"/>
+        <circle cx="52" cy="43" r="3.2" fill="#334155" stroke="#090d20" stroke-width="1.5"/>
+      </svg>
+    `,
+  },
+  {
+    id: 'tram',
+    label: '트램',
+    shortLabel: '트램',
+    accent: '#059669',
+    bgA: 'rgba(5, 150, 105, 0.22)',
+    bgB: '#082a1f',
+    renderSvg: (uid) => `
+      <svg class="mm-card__svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="mm-tr-${uid}" x1="16" y1="14" x2="48" y2="50" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#6ee7b7"/>
+            <stop offset="100%" stop-color="#059669"/>
+          </linearGradient>
+        </defs>
+        <path d="M6 6H58" stroke="#64748b" stroke-width="2"/>
+        <path d="M26 15L32 6L38 15" stroke="#090d20" stroke-width="2.2" stroke-linejoin="round"/>
+        <rect x="16" y="15" width="32" height="34" rx="7" fill="url(#mm-tr-${uid})" stroke="#090d20" stroke-width="2.4"/>
+        <rect x="20" y="20" width="24" height="13" rx="3" fill="#e0f2fe" stroke="#090d20" stroke-width="1.8"/>
+        <circle cx="22.5" cy="41" r="2.6" fill="#fef08a" stroke="#090d20" stroke-width="1.2"/>
+        <circle cx="41.5" cy="41" r="2.6" fill="#fef08a" stroke="#090d20" stroke-width="1.2"/>
+        <rect x="27" y="38" width="10" height="5" rx="1.5" fill="#064e3b"/>
+        <path d="M14 57L22 49M50 57L42 49" stroke="#64748b" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    `,
+  },
+  {
+    id: 'rail-track',
+    label: '철로',
+    shortLabel: '철로',
+    accent: '#b45309',
+    bgA: 'rgba(180, 83, 9, 0.2)',
+    bgB: '#2a1708',
+    renderSvg: () => `
+      <svg class="mm-card__svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path d="M12 52H52M15.5 43H48.5M19 34H45M21.5 26H42.5M24 19H40M26 13H38" stroke="#92400e" stroke-width="4" stroke-linecap="round"/>
+        <path d="M14 58L28 10M50 58L36 10" stroke="#475569" stroke-width="3.6" stroke-linecap="round"/>
+        <path d="M14 58L28 10M50 58L36 10" stroke="#cbd5e1" stroke-width="1.2" stroke-linecap="round"/>
+        <circle cx="32" cy="7" r="3" fill="#fbbf24"/>
+      </svg>
+    `,
+  },
+  {
+    id: 'rail-signal',
+    label: '철도 신호기',
+    shortLabel: '신호기',
+    accent: '#dc2626',
+    bgA: 'rgba(220, 38, 38, 0.18)',
+    bgB: '#2a0d0d',
+    renderSvg: () => `
+      <svg class="mm-card__svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <rect x="29.5" y="36" width="5" height="22" fill="#64748b" stroke="#090d20" stroke-width="1.8"/>
+        <rect x="22" y="56" width="20" height="4" rx="1.5" fill="#475569" stroke="#090d20" stroke-width="1.6"/>
+        <rect x="21" y="5" width="22" height="33" rx="7" fill="#1e293b" stroke="#090d20" stroke-width="2.4"/>
+        <circle cx="32" cy="13" r="4.2" fill="#ef4444" stroke="#090d20" stroke-width="1.4"/>
+        <circle cx="32" cy="22" r="4.2" fill="#fbbf24" stroke="#090d20" stroke-width="1.4"/>
+        <circle cx="32" cy="31" r="4.2" fill="#22c55e" stroke="#090d20" stroke-width="1.4"/>
+        <circle cx="30.6" cy="11.6" r="1.3" fill="#fecaca"/>
+      </svg>
+    `,
+  },
+  {
+    id: 'maglev',
+    label: '자기부상열차',
+    shortLabel: '자기부상',
+    accent: '#7c3aed',
+    bgA: 'rgba(124, 58, 237, 0.2)',
+    bgB: '#1d1038',
+    renderSvg: (uid) => `
+      <svg class="mm-card__svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="mm-mg-${uid}" x1="8" y1="20" x2="60" y2="36" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#eef2ff"/>
+            <stop offset="100%" stop-color="#a5b4fc"/>
+          </linearGradient>
+        </defs>
+        <rect x="27" y="50" width="10" height="10" fill="#94a3b8" stroke="#090d20" stroke-width="1.8"/>
+        <rect x="4" y="44" width="56" height="7" rx="2" fill="#cbd5e1" stroke="#090d20" stroke-width="2"/>
+        <path d="M14 37.5q3 2.5 0 5M26 37.5q3 2.5 0 5M38 37.5q3 2.5 0 5M50 37.5q3 2.5 0 5" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/>
+        <path d="M7 34V26C7 22 10 19 14 19H42C53 19 58 26 61 33V34Z" fill="url(#mm-mg-${uid})" stroke="#090d20" stroke-width="2.4" stroke-linejoin="round"/>
+        <rect x="9" y="34" width="50" height="3.5" rx="1.5" fill="#475569" stroke="#090d20" stroke-width="1.4"/>
+        <path d="M45 21C52 21 56 25 58 29H47Z" fill="#312e81"/>
+        <rect x="12" y="23" width="6" height="4.5" rx="1" fill="#4338ca"/>
+        <rect x="21" y="23" width="6" height="4.5" rx="1" fill="#4338ca"/>
+        <rect x="30" y="23" width="6" height="4.5" rx="1" fill="#4338ca"/>
+      </svg>
+    `,
+  },
+  {
+    id: 'rail-wheel',
+    label: '열차 바퀴',
+    shortLabel: '열차 바퀴',
+    accent: '#475569',
+    bgA: 'rgba(71, 85, 105, 0.2)',
+    bgB: '#1b2230',
+    renderSvg: (uid) => `
+      <svg class="mm-card__svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <defs>
+          <radialGradient id="mm-wh-${uid}" cx="32" cy="32" r="22" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#f1f5f9"/>
+            <stop offset="100%" stop-color="#94a3b8"/>
+          </radialGradient>
+        </defs>
+        <circle cx="32" cy="32" r="25" stroke="#475569" stroke-width="3.5"/>
+        <circle cx="32" cy="32" r="21" fill="url(#mm-wh-${uid})" stroke="#090d20" stroke-width="2.4"/>
+        <circle cx="32" cy="19" r="3.2" fill="#64748b"/>
+        <circle cx="44.4" cy="28" r="3.2" fill="#64748b"/>
+        <circle cx="39.6" cy="42.5" r="3.2" fill="#64748b"/>
+        <circle cx="24.4" cy="42.5" r="3.2" fill="#64748b"/>
+        <circle cx="19.6" cy="28" r="3.2" fill="#64748b"/>
+        <circle cx="32" cy="32" r="7" fill="#475569" stroke="#090d20" stroke-width="2"/>
+        <circle cx="32" cy="32" r="2.6" fill="#0f172a"/>
+      </svg>
+    `,
+  },
 ];
 
 /**
@@ -421,12 +566,14 @@ function renderCardBackHtml() {
 }
 
 /**
- * Mounts Neon Memory Match inside #game-stage.
+ * Mounts Memory Match inside #game-stage.
  * @param {HTMLElement} container
  * @param {object} ctx
  * @returns {{ unmount: () => void }}
  */
 export function mount(container, ctx) {
+  // `setup` (or any unknown mode) shows the in-game difficulty chooser first
+  if (!MODE_CONFIG[ctx.mode]) return mountSetup(container, ctx);
   const cfg = resolveModeConfig(ctx.mode);
   const deck = buildSeededDeck(ctx.rng, cfg.id);
   const totalPairs = cfg.pairs;
@@ -495,7 +642,7 @@ export function mount(container, ctx) {
       <div class="mm-preview-meter__fill"></div>
     </div>
     <div class="mm-board-wrap">
-      <div class="mm-grid" role="grid" aria-label="네온 메모리 매치 카드 보드"></div>
+      <div class="mm-grid" role="grid" aria-label="메모리 매치 카드 보드"></div>
       <div class="mm-fx-layer" aria-hidden="true"></div>
     </div>
   `;
@@ -786,13 +933,10 @@ export function mount(container, ctx) {
         cleared,
         modeLabel: cfg.modeLabel,
         details: [
-          { label: '매칭 진행', value: `${matchedPairs} / ${totalPairs}쌍` },
-          { label: '시도 / 정확도', value: `${moves}회 · ${accuracy}%` },
-          { label: '최대 콤보', value: `×${Math.max(1, maxCombo)} COMBO` },
-          {
-            label: '남은 시간 보너스',
-            value: cleared ? `${remainingSec.toFixed(1)}초 (+${timeBonus.toLocaleString('en-US')})` : '시간 종료',
-          },
+          { value: `🃏 ${matchedPairs}/${totalPairs}쌍` },
+          { value: `⏱ ${(finalTimeMs / 1000).toFixed(1)}초` },
+          { value: `🔁 ${moves}번 뒤집기` },
+          { value: `🔥 최대 ${Math.max(1, maxCombo)}연속` },
         ],
       });
     };
@@ -1052,6 +1196,51 @@ export function mount(container, ctx) {
         resizeObserver = null;
       }
 
+      container.innerHTML = '';
+    },
+  };
+}
+
+const LEVEL_NOTES = { '4x3': '처음 해보는 분', '4x4': '기본', '6x4': '기억력 자신 있는 분' };
+
+/**
+ * Difficulty chooser shown for mode `setup`. Choosing relaunches via ctx.switchMode()
+ * so the URL, room seed and per-mode records stay in sync.
+ */
+function mountSetup(container, ctx) {
+  const root = document.createElement('div');
+  root.className = 'game-root game-memory mm-setup';
+  root.innerHTML = `
+    <h2 class="mm-setup__title">난이도를 고르세요</h2>
+    <div class="mm-setup__levels">
+      ${Object.values(MODE_CONFIG)
+        .map(
+          (cfg) => `
+        <button type="button" class="mm-level" data-level="${cfg.id}">
+          <span class="mm-level__name">${cfg.modeLabel}</span>
+          <span class="mm-level__meta">${cfg.pairs}쌍 · ${cfg.timeLimitSec}초</span>
+          <span class="mm-level__note">${LEVEL_NOTES[cfg.id]}</span>
+        </button>`
+        )
+        .join('')}
+    </div>
+  `;
+  container.appendChild(root);
+
+  const onClick = (e) => {
+    const btn = e.target.closest('[data-level]');
+    if (!btn) return;
+    ctx.audio.playClick();
+    ctx.switchMode(btn.dataset.level);
+  };
+  root.addEventListener('click', onClick);
+  ctx.updateHud({ timer: { text: '--:--', state: 'normal' }, score: 0, progress: '난이도 선택', progressRatio: 1 });
+  root.querySelector('[data-level="4x4"]')?.focus({ preventScroll: true });
+
+  return {
+    idle: true,
+    unmount() {
+      root.removeEventListener('click', onClick);
       container.innerHTML = '';
     },
   };

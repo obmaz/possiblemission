@@ -19,29 +19,26 @@ const GAME_CATALOG = [
   {
     id: 'spot-difference',
     title: '틀린그림찾기',
-    emoji: '⚡',
     subEn: 'SPOT THE DIFFERENCE',
     accent: 'magenta',
     tag: '매의 눈',
     timeHint: '75~90초',
     hook: '그림 10장 중 하나를 고르고 난이도를 선택하세요. 좌우 그림에서 달라진 곳을 빠르게 짚어내는 눈썰미 대결!',
-    // Picture and difficulty are chosen inside the game, not on the lobby card
-    pickInGame: true,
     defaultMode: SPOT_PICK_MODE,
     modes: spotCatalogModes(),
   },
   {
     id: 'memory-match',
-    title: '네온 메모리 매치',
-    emoji: '🧠',
-    subEn: 'NEON MEMORY',
+    title: '메모리 매치',
+    subEn: 'MEMORY MATCH',
     accent: 'violet',
     art: 'memory',
     tag: '단기기억',
     timeHint: '45~80초',
-    hook: '단 2초의 플래시 암기 후, 0ms 연속 매치 콤보로 덱을 쓸어버리는 두뇌 타임어택!',
-    defaultMode: '4x4',
+    hook: '2초 동안 카드를 외운 뒤 같은 그림 짝을 찾으세요. 고속열차·트램·자기부상열차 등 철도 카드도 섞여 나옵니다!',
+    defaultMode: 'setup',
     modes: [
+      { id: 'setup', label: '난이도 선택', thumb: null },
       { id: '4x3', label: '4×3 웜업', thumb: null },
       { id: '4x4', label: '4×4 스탠다드', thumb: null },
       { id: '6x4', label: '6×4 마스터', thumb: null },
@@ -50,15 +47,12 @@ const GAME_CATALOG = [
   {
     id: 'despair-fortress', // id kept so existing links and records keep working
     title: '숫자 숨바꼭질',
-    emoji: '🔢',
     subEn: 'NUMBER HIDE & SEEK',
     accent: 'crimson',
     art: 'tiles',
     tag: '순간 포착',
     timeHint: '약 90초',
-    hook: '알파벳 타일 뒤에 숨었다 고개를 내미는 숫자를 찾아 그 타일의 알파벳을 맞히세요. EASY부터 GOD까지 난이도를 직접 고릅니다!',
-    // Difficulty is chosen on the in-game setup screen
-    pickInGame: true,
+    hook: '글자 타일 뒤에 숨었다 고개를 내미는 숫자를 찾아 그 타일의 글자를 맞히세요. EASY부터 GOD까지 난이도를 직접 고릅니다!',
     defaultMode: HIDE_SEEK_SETUP_MODE,
     modes: hideSeekCatalogModes(),
     // Custom settings live in the mode id (custom-…), so accept any valid one
@@ -69,7 +63,7 @@ const GAME_CATALOG = [
 /** Hand-made lobby card artwork for games whose look isn't a stage photo. */
 const CARD_ART = {
   memory: `<div class="game-card__memory-art" aria-hidden="true">
-      <div class="memory-preview-tile">🚀</div>
+      <div class="memory-preview-tile">🚄</div>
       <div class="memory-preview-tile">⚡</div>
       <div class="memory-preview-tile">💎</div>
     </div>`,
@@ -89,8 +83,6 @@ function findMode(game, id) {
 
 const state = {
   seed: 'MISSION-1',
-  selectedModes: Object.fromEntries(GAME_CATALOG.map((g) => [g.id, g.defaultMode])),
-  hofTab: 'seed', // 'seed' | 'recent' | 'pb'
   activeGame: null, // { id, mode, instance, finished, paused, runToken, idle }
   runCounter: 0,
 };
@@ -103,7 +95,6 @@ function cacheDom() {
   dom.heroBanner = document.getElementById('hero-banner');
   dom.workshopBar = document.getElementById('workshop-bar');
   dom.gameGrid = document.getElementById('game-grid');
-  dom.hallOfFame = document.getElementById('hall-of-fame');
 
   dom.gameView = document.getElementById('game-view');
   dom.hudExitBtn = document.getElementById('hud-exit-btn');
@@ -139,7 +130,7 @@ function syncUrlState({ seed, game, mode, historyMode = 'replace' } = {}) {
     url.searchParams.set('seed', seed || state.seed);
     if (game) {
       url.searchParams.set('game', game);
-      url.searchParams.set('mode', mode || state.selectedModes[game] || '');
+      url.searchParams.set('mode', mode || GAME_MAP.get(game)?.defaultMode || '');
     } else {
       url.searchParams.delete('game');
       url.searchParams.delete('mode');
@@ -150,7 +141,7 @@ function syncUrlState({ seed, game, mode, historyMode = 'replace' } = {}) {
       pushedByApp: historyMode === 'push',
       seed: seed || state.seed,
       game: game || null,
-      mode: game ? mode || state.selectedModes[game] || '' : null,
+      mode: game ? mode || GAME_MAP.get(game)?.defaultMode || '' : null,
     };
     if (historyMode === 'push') {
       window.history.pushState(payload, '', nextUrl);
@@ -186,7 +177,6 @@ function setRoomSeed(nextSeed, { announce = false } = {}) {
 
   renderSeedChips();
   renderGameGrid();
-  renderHallOfFame();
 
   if (announce) {
     ui.showToast(`룸 시드가 #${normalized} 로 동기화되었습니다!`, 'success');
@@ -269,8 +259,7 @@ function renderHeroBanner() {
     audio.playClick();
     syncSeedFromInput({ rerender: false });
     const game = GAME_CATALOG[Math.floor(Math.random() * GAME_CATALOG.length)];
-    const mode = state.selectedModes[game.id] || game.defaultMode;
-    launchGame(game.id, mode);
+    launchGame(game.id, game.defaultMode);
   });
 }
 
@@ -340,7 +329,6 @@ function renderWorkshopBar() {
           <div class="workshop-more__panel">
             <div class="workshop-more__tools">
               <button id="open-qr-btn" class="workshop-tool-btn" type="button">📱 QR 코드</button>
-              <button id="open-hof-btn" class="workshop-tool-btn" type="button">📋 결과 취합기</button>
               <button id="open-mc-guide-btn" class="workshop-tool-btn workshop-tool-btn--mc" type="button">
                 🎙️ MC 가이드
               </button>
@@ -382,7 +370,6 @@ function renderWorkshopBar() {
         if (!state.activeGame) {
           renderSeedChips();
           renderGameGrid();
-          renderHallOfFame();
         }
       }, 0);
     }
@@ -412,12 +399,6 @@ function renderWorkshopBar() {
     audio.playClick();
     syncSeedFromInput();
     openQrModal();
-  });
-
-  document.getElementById('open-hof-btn')?.addEventListener('click', () => {
-    audio.playClick();
-    syncSeedFromInput();
-    openAggregatorModal();
   });
 
   document.getElementById('open-mc-guide-btn')?.addEventListener('click', () => {
@@ -479,19 +460,14 @@ function renderGameGrid() {
   dom.gameGrid.innerHTML = '';
 
   GAME_CATALOG.forEach((game) => {
-    const selectedModeId = state.selectedModes[game.id] || game.defaultMode;
-    const modeObj = game.modes.find((m) => m.id === selectedModeId) || game.modes[0];
-    const pb = game.pickInGame ? bestAcrossModes(game) : storage.getPersonalBest(game.id, modeObj.id);
-
     const card = document.createElement('article');
     card.className = `game-card game-card--${game.accent}`;
     card.dataset.gameId = game.id;
 
-    const mediaHtml = CARD_ART[game.art] || `<img class="game-card__img" src="${modeObj.thumb}" alt="${escapeHtml(game.title)} 스테이지 미리보기" loading="lazy" />`;
-
-    const pbHtml = pb
-      ? `<span class="game-card__pb-pill">BEST ${pb.score.toLocaleString('en-US')} (${pb.grade})</span>`
-      : `<span class="game-card__pb-pill is-empty">첫 도전 대기</span>`;
+    const thumb = game.modes.find((m) => m.thumb)?.thumb;
+    const mediaHtml =
+      CARD_ART[game.art] ||
+      `<img class="game-card__img" src="${thumb}" alt="${escapeHtml(game.title)} 미리보기" loading="lazy" />`;
 
     card.innerHTML = `
       <div class="game-card__media">
@@ -503,32 +479,12 @@ function renderGameGrid() {
         </div>
         <div class="game-card__pb-bar">
           <span class="game-card__sub-en">${game.subEn}</span>
-          ${pbHtml}
         </div>
       </div>
 
       <div class="game-card__body">
         <h2 class="game-card__title">${game.title}</h2>
         <p class="game-card__hook">${game.hook}</p>
-
-        ${
-          game.modes.length > 1 && !game.pickInGame
-            ? `<label class="game-card__mode-select">
-                 <span class="game-card__mode-label">난이도</span>
-                 <select data-mode-select aria-label="${escapeHtml(game.title)} 난이도 선택">
-                   ${game.modes
-                     .map(
-                       (m) =>
-                         `<option value="${escapeHtml(m.id)}" ${
-                           m.id === modeObj.id ? 'selected' : ''
-                         }>${escapeHtml(m.label)}</option>`
-                     )
-                     .join('')}
-                 </select>
-               </label>`
-            : ''
-        }
-
         <button type="button" class="game-card__play" data-launch-game>
           <span>시작하기</span>
           <span aria-hidden="true">→</span>
@@ -536,144 +492,17 @@ function renderGameGrid() {
       </div>
     `;
 
-    card.querySelector('[data-mode-select]')?.addEventListener('change', (e) => {
-      const nextId = e.target.value;
-      if (!game.modes.some((m) => m.id === nextId)) return;
-      audio.playClick();
-      state.selectedModes[game.id] = nextId;
-      renderGameGrid();
-      // The grid is rebuilt, so restore focus to the same select for keyboard users
-      dom.gameGrid
-        ?.querySelector(`.game-card[data-game-id="${game.id}"] [data-mode-select]`)
-        ?.focus({ preventScroll: true });
-    });
-
+    // Every game opens its own difficulty / picture chooser first
     card.querySelector('[data-launch-game]')?.addEventListener('click', () => {
       audio.playClick();
       syncSeedFromInput({ rerender: false });
-      launchGame(game.id, state.selectedModes[game.id] || game.defaultMode);
+      launchGame(game.id, game.defaultMode);
     });
 
     dom.gameGrid.appendChild(card);
   });
 }
 
-/** Highest cleared record over every mode of a game (for games that pick modes in-game). */
-function bestAcrossModes(game) {
-  const records = Object.values(storage.getAllPersonalBests()[game.id] || {});
-  return records.reduce((best, rec) => (!best || rec.score > best.score ? rec : best), null);
-}
-
-function renderHallOfFame() {
-  if (!dom.hallOfFame) return;
-
-  const tabs = [
-    { id: 'seed', label: `현재 시드 (#${state.seed})` },
-    { id: 'recent', label: '최근 플레이' },
-    { id: 'pb', label: '종목별 최고' },
-  ];
-
-  let rowsHtml = '';
-
-  if (state.hofTab === 'seed') {
-    const runs = storage.getRuns({ seed: state.seed }).slice(0, 8);
-    if (runs.length === 0) {
-      rowsHtml = `<div class="hof-empty">아직 <strong>#${escapeHtml(state.seed)}</strong> 시드 기록이 없습니다. 첫 번째 S랭크 주인공이 되어보세요!</div>`;
-    } else {
-      rowsHtml = runs.map((run, idx) => formatHofRow(run, idx + 1)).join('');
-    }
-  } else if (state.hofTab === 'recent') {
-    const runs = storage.getRecentRuns(8);
-    if (runs.length === 0) {
-      rowsHtml = `<div class="hof-empty">아직 플레이 기록이 없습니다. 위 게임 중 하나를 골라 시작하세요!</div>`;
-    } else {
-      rowsHtml = runs.map((run, idx) => formatHofRow(run, idx + 1)).join('');
-    }
-  } else {
-    const allPb = storage.getAllPersonalBests();
-    const pbEntries = [];
-    const profile = storage.getProfile();
-    for (const game of GAME_CATALOG) {
-      // Every stored record, including dynamic modes such as custom 숫자 숨바꼭질 settings
-      for (const [modeId, rec] of Object.entries(allPb[game.id] || {})) {
-        const mode = findMode(game, modeId);
-        if (!mode) continue;
-        pbEntries.push({
-          gameId: game.id,
-          modeLabel: mode.label,
-          nickname: profile.nickname,
-          team: profile.team,
-          score: rec.score,
-          timeMs: rec.timeMs,
-          accuracy: rec.accuracy,
-          grade: rec.grade,
-          seed: rec.seed,
-        });
-      }
-    }
-    pbEntries.sort((a, b) => b.score - a.score);
-    if (pbEntries.length === 0) {
-      rowsHtml = `<div class="hof-empty">달성한 최고 기록(Personal Best)이 아직 없습니다.</div>`;
-    } else {
-      rowsHtml = pbEntries.slice(0, 8).map((run, idx) => formatHofRow(run, idx + 1)).join('');
-    }
-  }
-
-  dom.hallOfFame.innerHTML = `
-    <div class="hof-header">
-      <div class="hof-header__title-group">
-        <span class="hof-header__eyebrow">이 기기에 저장된 기록</span>
-        <h2 class="hof-header__title">명예의 전당</h2>
-      </div>
-      <div class="hof-controls">
-        <div class="hof-tabs" role="tablist">
-          ${tabs
-            .map(
-              (t) => `
-              <button
-                type="button"
-                role="tab"
-                aria-selected="${state.hofTab === t.id}"
-                class="hof-tab ${state.hofTab === t.id ? 'is-active' : ''}"
-                data-hof-tab="${t.id}"
-              >${escapeHtml(t.label)}</button>`
-            )
-            .join('')}
-        </div>
-      </div>
-    </div>
-    <div class="hof-list">${rowsHtml}</div>
-  `;
-
-  dom.hallOfFame.querySelectorAll('[data-hof-tab]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      audio.playClick();
-      state.hofTab = btn.dataset.hofTab;
-      renderHallOfFame();
-    });
-  });
-}
-
-function formatHofRow(run, rank) {
-  const game = GAME_MAP.get(run.gameId);
-  const title = game ? game.title : run.gameId;
-  const timeSec = ((Number(run.timeMs) || 0) / 1000).toFixed(1);
-  const teamLabel = run.team ? ` (${escapeHtml(run.team)})` : '';
-  const rankClass = rank <= 3 ? `hof-rank--${rank}` : '';
-
-  return `
-    <div class="hof-row">
-      <div class="hof-rank ${rankClass}">${rank}</div>
-      <div class="hof-player">
-        <span class="hof-player__name">${escapeHtml(run.nickname || '익명요원')}${teamLabel}</span>
-        <span class="hof-player__meta">#${escapeHtml(run.seed)} · ${timeSec}초 · 정확도 ${run.accuracy ?? 0}%</span>
-      </div>
-      <div class="hof-game">${escapeHtml(title)} · ${escapeHtml(run.modeLabel || '')}</div>
-      <span class="hof-grade hof-grade--${escapeHtml(run.grade)}">${escapeHtml(run.grade)}</span>
-      <div class="hof-score">${Number(run.score || 0).toLocaleString('en-US')} PTS</div>
-    </div>
-  `;
-}
 
 /* === Shared Modals (QR, MC Guide, Hall of Fame Aggregator, Result) === */
 function openQrModal() {
@@ -733,7 +562,7 @@ function openMcGuideModal() {
       <div>
         <div class="mc-step__title">MC의 "3, 2, 1, 출격!" 카운트다운에 맞춰 동시 플레이</div>
         <div class="mc-step__desc">
-          참가자들은 닉네임과 팀명을 입력한 뒤 지정된 종목/난이도 카드의 <strong>시작하기</strong>를 누릅니다.
+          참가자들은 닉네임과 팀명을 입력한 뒤 지정된 게임의 <strong>시작하기</strong>를 누르고, 게임 안에서 같은 난이도를 고릅니다.
           탭 전환 시 공정 플레이 커튼이 작동해 반칙을 방지합니다.
         </div>
       </div>
@@ -741,10 +570,9 @@ function openMcGuideModal() {
     <div class="mc-step">
       <div class="mc-step__num">3</div>
       <div>
-        <div class="mc-step__title">결과 복사로 단톡방 인증 → MC 결과 취합기로 포디움 공개!</div>
+        <div class="mc-step__title">결과 화면의 점수로 순위 발표!</div>
         <div class="mc-step__desc">
-          게임 종료 후 <strong>결과 복사 (Slack/카톡)</strong> 버튼으로 1줄 스코어카드를 채팅방에 붙여넣습니다.
-          MC는 채팅 내역을 통째로 복사해 <strong>🎛️ 진행자 도구 → 결과 취합기</strong>에 붙여넣으면 실시간 순위가 자동 정렬됩니다!
+          게임이 끝나면 각자 화면에 <strong>점수</strong>가 크게 표시됩니다. MC가 점수를 확인해 순위를 발표하세요.
         </div>
       </div>
     </div>
@@ -754,93 +582,6 @@ function openMcGuideModal() {
     title: 'MC 워크샵 진행 가이드',
     subtitle: 'ZERO-BACKEND 100-PLAYER SYNC',
     contentEl: wrap,
-  });
-}
-
-function openAggregatorModal() {
-  const wrap = document.createElement('div');
-  wrap.style.display = 'flex';
-  wrap.style.flexDirection = 'column';
-  wrap.style.gap = '12px';
-
-  wrap.innerHTML = `
-    <p style="color: var(--text-secondary); font-size: 0.88rem;">
-      Slack이나 카카오톡 방에 올라온 <code>[POSSIBLE MISSION]</code> 결과 메시지들을 여러 줄 통째로 붙여넣으면 자동으로 점수·시간순 포디움을 만들어줍니다!
-    </p>
-    <textarea
-      id="agg-input"
-      class="aggregator-textarea"
-      placeholder="[POSSIBLE MISSION] ⚡ 틀린그림찾기 (해변 · 보통) | 김철수(A조) | S랭크 7,450점 (34.2초) | 정확도 92% | 시드: ROUND-1"
-    ></textarea>
-    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-      <button type="button" id="agg-parse-btn" class="btn-neon-primary" style="flex: 1;">
-        🏆 순위표 생성하기
-      </button>
-      <button type="button" id="agg-sample-btn" class="btn-neon-ghost">
-        샘플 채우기
-      </button>
-    </div>
-    <div id="agg-output" class="hof-list"></div>
-  `;
-
-  ui.openModal({
-    title: '명예의 전당 & 결과 취합기',
-    subtitle: 'PROJECTOR LEADERBOARD IMPORTER',
-    contentEl: wrap,
-    className: 'arcade-modal--wide',
-  });
-
-  const inputEl = document.getElementById('agg-input');
-  const outputEl = document.getElementById('agg-output');
-
-  const renderParsed = (raw) => {
-    const list = ui.parseResultLines(raw);
-    if (!outputEl) return;
-    if (list.length === 0) {
-      outputEl.innerHTML = `<div class="hof-empty">인식된 <code>[POSSIBLE MISSION]</code> 결과 줄이 없습니다.</div>`;
-      return;
-    }
-    outputEl.innerHTML = list
-      .map((item, idx) => {
-        const rank = idx + 1;
-        const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}`;
-        const teamStr = item.team ? ` (${escapeHtml(item.team)})` : '';
-        return `
-          <div class="hof-row">
-            <div class="hof-rank ${rank <= 3 ? `hof-rank--${rank}` : ''}">${medal}</div>
-            <div class="hof-player">
-              <span class="hof-player__name">${escapeHtml(item.nickname)}${teamStr}</span>
-              <span class="hof-player__meta">#${escapeHtml(item.seed)} · ${item.timeSec}초 · 정확도 ${item.accuracy}%</span>
-            </div>
-            <div class="hof-game">${escapeHtml(item.gameTitle)} · ${escapeHtml(item.modeLabel)}</div>
-            <span class="hof-grade hof-grade--${escapeHtml(item.grade)}">${escapeHtml(item.grade)}</span>
-            <div class="hof-score">${item.score.toLocaleString('en-US')} PTS</div>
-          </div>
-        `;
-      })
-      .join('');
-  };
-
-  // Pre-populate with local runs for current seed if available
-  const localSeedRuns = storage.getRuns({ seed: state.seed });
-  if (localSeedRuns.length > 0 && outputEl) {
-    outputEl.innerHTML = localSeedRuns.slice(0, 6).map((r, i) => formatHofRow(r, i + 1)).join('');
-  }
-
-  document.getElementById('agg-parse-btn')?.addEventListener('click', () => {
-    audio.playClick();
-    renderParsed(inputEl?.value || '');
-  });
-
-  document.getElementById('agg-sample-btn')?.addEventListener('click', () => {
-    audio.playClick();
-    if (!inputEl) return;
-    inputEl.value = [
-      `[POSSIBLE MISSION] 🔢 숫자 숨바꼭질 (HARD) | 김하늘(A조) | S랭크 7,420점 (31.4초) | 정확도 100% | 시드: ${state.seed}`,
-      `[POSSIBLE MISSION] ⚡ 틀린그림찾기 (카페 · 노말) | 박준영(B조) | A랭크 6,150점 (28.9초) | 정확도 88% | 시드: ${state.seed}`,
-      `[POSSIBLE MISSION] 🧠 네온 메모리 매치 (4×4 스탠다드) | 이서연(디자인) | S랭크 7,890점 (24.1초) | 정확도 94% | 시드: ${state.seed}`,
-    ].join('\n');
-    renderParsed(inputEl.value);
   });
 }
 
@@ -1006,7 +747,6 @@ function exitToHub({ force = false, fromHistory = false } = {}) {
   }
 
   renderGameGrid();
-  renderHallOfFame();
 }
 
 function handlePopState() {
@@ -1037,7 +777,6 @@ function handlePopState() {
     if (seedInput) seedInput.value = nextSeed;
     renderSeedChips();
     renderGameGrid();
-    renderHallOfFame();
   }
 }
 
@@ -1050,7 +789,6 @@ async function launchGame(gameId, requestedMode) {
 
   const validMode = findMode(gameMeta, requestedMode) || gameMeta.modes[0];
   const mode = validMode.id;
-  state.selectedModes[gameId] = mode;
 
   // Restarting/retrying reuses the current history entry; entering from the lobby pushes one
   const wasGameActive = Boolean(state.activeGame);
@@ -1212,12 +950,9 @@ async function launchGame(gameId, requestedMode) {
         gameMeta,
         mode,
         modeLabel: finalModeLabel,
-        player,
         score: safeScore,
         timeMs: safeTimeMs,
-        accuracy: safeAccuracy,
         cleared,
-        gradeInfo,
         isNewRecord,
         details,
       });
@@ -1251,108 +986,49 @@ async function launchGame(gameId, requestedMode) {
   }
 }
 
-function openResultModal({
-  gameMeta,
-  mode,
-  modeLabel,
-  player,
-  score,
-  timeMs,
-  accuracy,
-  cleared,
-  gradeInfo,
-  isNewRecord,
-  details,
-}) {
-  const timeSec = (timeMs / 1000).toFixed(1);
-  const summaryLine = ui.formatResultText({
-    gameId: gameMeta.id,
-    emoji: gameMeta.emoji,
-    gameTitle: gameMeta.title,
-    modeLabel,
-    player,
-    grade: gradeInfo.grade,
-    score,
-    timeMs,
-    accuracy,
-    seed: state.seed,
-  });
-
+function openResultModal({ gameMeta, mode, modeLabel, score, timeMs, cleared, isNewRecord, details }) {
+  // Each detail is a self-explanatory value (icon + number + unit), no labels
   const statRows =
-    Array.isArray(details) && details.length >= 2
-      ? details.slice(0, 4)
-      : [
-          { label: '플레이 시간', value: `${timeSec}초` },
-          { label: '정확도', value: `${accuracy}%` },
-          { label: '미션 상태', value: cleared ? 'CLEAR' : 'TIME / SHIELD OUT' },
-          { label: '룸 시드', value: `#${state.seed}` },
-        ];
+    Array.isArray(details) && details.length > 0
+      ? details.slice(0, 4).map((row) => row.value)
+      : [`⏱ ${(timeMs / 1000).toFixed(1)}초`];
 
   const wrap = document.createElement('div');
-  wrap.style.display = 'flex';
-  wrap.style.flexDirection = 'column';
-  wrap.style.gap = '14px';
-
+  wrap.className = 'result-body';
   wrap.innerHTML = `
-    <div class="result-hero">
-      <div class="rank-crest rank-crest--${gradeInfo.grade}">${gradeInfo.grade}</div>
-      <div class="result-hero__info">
-        <div class="result-hero__badges">
-          <span class="game-card__tag">${escapeHtml(gradeInfo.badgeEn)} · ${escapeHtml(gradeInfo.titleKo)}</span>
-          ${isNewRecord ? '<span class="new-record-pill">NEW RECORD!</span>' : ''}
-        </div>
-        <div class="result-hero__score">${score.toLocaleString('en-US')} PTS</div>
-        <p class="result-hero__copy">${escapeHtml(gradeInfo.copy)}</p>
-      </div>
+    <div class="result-hero ${cleared ? 'is-clear' : 'is-fail'}">
+      <span class="result-hero__status">${cleared ? '성공' : '실패'}</span>
+      <div class="result-hero__score">${score.toLocaleString('en-US')}점</div>
+      ${isNewRecord ? '<span class="new-record-pill">최고 기록!</span>' : ''}
     </div>
 
     <div class="result-stats">
-      ${statRows
-        .map(
-          (row) => `
-          <div class="result-stat-box">
-            <span class="result-stat-box__label">${escapeHtml(row.label)}</span>
-            <span class="result-stat-box__val">${escapeHtml(row.value)}</span>
-          </div>`
-        )
-        .join('')}
+      ${statRows.map((value) => `<div class="result-stat-box">${escapeHtml(value)}</div>`).join('')}
     </div>
 
-    <div class="result-preview-line">${escapeHtml(summaryLine)}</div>
-
     <div class="result-actions">
-      <button type="button" id="result-copy-btn" class="btn-neon-primary">
-        📋 결과 복사 (Slack/카톡)
-      </button>
-      <button type="button" id="result-retry-btn" class="btn-neon-secondary">
-        🔄 다시 하기
-      </button>
-      <button type="button" id="result-lobby-btn" class="btn-neon-ghost">
-        🕹️ 다른 게임 고르기
-      </button>
+      <button type="button" id="result-retry-btn" class="btn-neon-primary">다시 하기</button>
+      <button type="button" id="result-change-btn" class="btn-neon-secondary">난이도 바꾸기</button>
+      <button type="button" id="result-lobby-btn" class="btn-neon-ghost">다른 게임</button>
     </div>
   `;
 
   ui.openModal({
     title: `${gameMeta.title} (${modeLabel})`,
-    subtitle: cleared ? 'MISSION ACCOMPLISHED' : 'MISSION ENDED',
     contentEl: wrap,
     lockBackdrop: false,
-  });
-
-  document.getElementById('result-copy-btn')?.addEventListener('click', async () => {
-    audio.playClick();
-    const ok = await ui.copyToClipboard(summaryLine);
-    ui.showToast(
-      ok ? 'Slack / 카카오톡용 결과 1줄이 복사되었습니다!' : '복사에 실패했습니다.',
-      ok ? 'success' : 'warn'
-    );
   });
 
   document.getElementById('result-retry-btn')?.addEventListener('click', () => {
     audio.playClick();
     ui.closeModal(true);
     launchGame(gameMeta.id, mode);
+  });
+
+  document.getElementById('result-change-btn')?.addEventListener('click', () => {
+    audio.playClick();
+    ui.closeModal(true);
+    launchGame(gameMeta.id, gameMeta.defaultMode);
   });
 
   document.getElementById('result-lobby-btn')?.addEventListener('click', () => {
@@ -1383,17 +1059,9 @@ function init() {
   state.seed = storage.normalizeSeed(urlSeed || 'MISSION-1');
   storage.addSeedHistory(state.seed);
 
-  if (urlGame && GAME_MAP.has(urlGame) && urlMode) {
-    const gm = GAME_MAP.get(urlGame);
-    if (findMode(gm, urlMode)) {
-      state.selectedModes[urlGame] = urlMode;
-    }
-  }
-
   renderHeroBanner();
   renderWorkshopBar();
   renderGameGrid();
-  renderHallOfFame();
 
   // HUD Controls
   dom.hudExitBtn?.addEventListener('click', () => {
@@ -1472,8 +1140,7 @@ function init() {
   if (urlGame && GAME_MAP.has(urlGame)) {
     // Replace the landing entry with the lobby, then push the game on top of it
     syncUrlState({ seed: state.seed, historyMode: 'replace' });
-    const modeToStart = state.selectedModes[urlGame] || GAME_MAP.get(urlGame).defaultMode;
-    launchGame(urlGame, modeToStart);
+    launchGame(urlGame, urlMode || GAME_MAP.get(urlGame).defaultMode);
   } else {
     syncUrlState({ seed: state.seed, historyMode: 'replace' });
   }

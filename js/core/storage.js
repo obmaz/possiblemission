@@ -105,19 +105,9 @@ export function saveProfile({ nickname, team } = {}) {
 /**
  * @returns {Record<string, Record<string, object>>}
  */
-export function getAllPersonalBests() {
+function getAllPersonalBests() {
   const data = readJson(KEYS.pb, {});
   return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
-}
-
-/**
- * @param {string} gameId
- * @param {string} mode
- * @returns {object | null}
- */
-export function getPersonalBest(gameId, mode) {
-  const all = getAllPersonalBests();
-  return all?.[gameId]?.[mode] ?? null;
 }
 
 /**
@@ -183,44 +173,6 @@ export function recordRun(runEntry) {
   }
 
   return { isNewRecord, personalBest, entry };
-}
-
-/**
- * Returns runs filtered by optional seed and gameId, sorted by score desc, timeMs asc, accuracy desc.
- * @param {{ seed?: string, gameId?: string }} [filter]
- * @returns {Array<object>}
- */
-export function getRuns({ seed, gameId } = {}) {
-  const raw = readJson(KEYS.runs, []);
-  const list = Array.isArray(raw) ? raw : [];
-  const normSeed = seed ? normalizeSeed(seed) : null;
-
-  return list
-    .filter((item) => {
-      if (normSeed && item.seed !== normSeed) return false;
-      if (gameId && item.gameId !== gameId) return false;
-      return true;
-    })
-    .slice()
-    .sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      if (a.timeMs !== b.timeMs) return a.timeMs - b.timeMs;
-      return b.accuracy - a.accuracy;
-    });
-}
-
-/**
- * Returns recent runs sorted chronologically (newest first).
- * @param {number} [limit=20]
- * @returns {Array<object>}
- */
-export function getRecentRuns(limit = 20) {
-  const raw = readJson(KEYS.runs, []);
-  const list = Array.isArray(raw) ? raw : [];
-  return list
-    .slice()
-    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-    .slice(0, Math.max(0, limit));
 }
 
 /**

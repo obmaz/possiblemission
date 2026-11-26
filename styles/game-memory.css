@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Game 3: Neon Memory Match (.game-memory)
+   Game 3: Memory Match (.game-memory)
    Strictly scoped under .game-memory; keyframes prefixed mm-
    ========================================================================== */
 
@@ -587,5 +587,75 @@
   .game-memory .mm-card.is-mismatch .mm-card__motion,
   .game-memory .mm-float-badge {
     animation: none !important;
+  }
+}
+
+/* === Difficulty chooser (mode `setup`) =================================== */
+.game-memory.mm-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 24px;
+}
+
+.game-memory .mm-setup__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 2.4vw, 1.8rem);
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.game-memory .mm-setup__levels {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 220px));
+  gap: 14px;
+}
+
+.game-memory .mm-level {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 22px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface-deep);
+  color: var(--text-primary);
+  font: inherit;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.game-memory .mm-level:hover,
+.game-memory .mm-level:focus-visible {
+  border-color: var(--neon-violet);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.game-memory .mm-level__name {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--neon-violet);
+}
+
+.game-memory .mm-level__meta {
+  font-weight: 700;
+}
+
+.game-memory .mm-level__note {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 720px) {
+  .game-memory .mm-setup__levels {
+    grid-template-columns: 1fr;
+    width: min(100%, 320px);
   }
 }
