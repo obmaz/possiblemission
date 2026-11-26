@@ -139,8 +139,9 @@ out.heroToolsInBanner = await page.evaluate(() => Boolean(
 ));
 out.compactCards = await page.evaluate(() => {
   const noOldText = !document.querySelector('.game-card__sub-en, .game-card__hook');
-  const titlesInOverlay = document.querySelectorAll('.game-card__pb-bar .game-card__title').length === 8;
-  return noOldText && titlesInOverlay;
+  const titlesInBody = document.querySelectorAll('.game-card__body .game-card__pb-bar .game-card__title').length === 8;
+  const summaries = document.querySelectorAll('.game-card__pb-bar .game-card__summary').length === 8;
+  return noOldText && titlesInBody && summaries;
 });
 await page.click('.game-card[data-game-id="dobble"] [data-launch-game]');
 await page.waitForSelector('.db-setup');
@@ -405,12 +406,34 @@ await page.click('[data-start]');
 await page.waitForSelector('.ct-party-controls');
 await afterCountdown();
 await page.click('[data-mc-reveal]');
-out.colorTrapParty = await page.evaluate(() => Boolean(document.querySelector('.ct-reveal-pill') && document.querySelectorAll('.party-team-btn').length === 4));
+out.colorTrapParty = await page.evaluate(() => Boolean(document.querySelector('.ct-reveal-pill') && !document.querySelector('.party-team-btn')));
 
-/* ---------- 모자이크 줌아웃: setup → solo full play + party freeze/reveal ---------- */
+/* ---------- 플래시 암산 다같이(한 화면) 모드 ---------- */
+await page.goto(`${base}/?seed=${SEED}&game=flash-anzan&mode=easy-party`);
+await page.waitForSelector('.fa-stage');
+out.anzanParty = await page.evaluate(() => Boolean(document.querySelector('.game-anzan.is-party') && document.querySelector('.fa-party-panel')));
+
+/* ---------- 모자이크 줌아웃: setup → solo full play + party no-overlap layout check ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="pixel-reveal"] [data-launch-game]');
 await page.waitForSelector('.pr-setup');
+await page.click('[data-playmode="1"]');
+await page.click('[data-preset="easy"]');
+await page.click('[data-start]');
+await page.waitForSelector('.pr-canvas');
+await afterCountdown();
+out.pixelRevealNoOverlap = await page.evaluate(() => {
+  const c = document.querySelector('[data-pr-canvas]').getBoundingClientRect();
+  const m = document.querySelector('.pr-meter').getBoundingClientRect();
+  const b = document.querySelector('.pr-bottom').getBoundingClientRect();
+  const h = document.querySelector('.pr-header').getBoundingClientRect();
+  return c.top >= h.bottom - 1 && c.bottom <= m.top + 1 && m.bottom <= b.top + 1 && !document.querySelector('.party-team-btn');
+});
+
+await page.goto(`${base}/?seed=${SEED}`);
+await page.click('.game-card[data-game-id="pixel-reveal"] [data-launch-game]');
+await page.waitForSelector('.pr-setup');
+await page.click('[data-playmode="0"]');
 await page.click('[data-preset="easy"]');
 await page.click('[data-start]');
 await page.waitForSelector('.pr-canvas');
@@ -488,7 +511,8 @@ if (!/^custom-60-40-30-20-11-60-0-0$/.test(out.hideSeekMode || '')) failures.pus
 if (out.hideSeekWaveInvariant !== 'ok') failures.push(`hide & seek wave invariant: ${out.hideSeekWaveInvariant}`);
 if (!out.hideSeekRemembersLast) failures.push('hide & seek setup does not remember the last settings');
 if (!cleared(out.colorTrapSolo) || !out.colorTrapParty) failures.push(`color-trap: ${out.colorTrapSolo} / party=${out.colorTrapParty}`);
-if (!cleared(out.pixelRevealSolo)) failures.push(`pixel-reveal: ${out.pixelRevealSolo}`);
+if (!out.anzanParty) failures.push('flash-anzan party mode');
+if (!out.pixelRevealNoOverlap || !cleared(out.pixelRevealSolo)) failures.push(`pixel-reveal: overlapOk=${out.pixelRevealNoOverlap} / ${out.pixelRevealSolo}`);
 if (!cleared(out.flashCountSolo)) failures.push(`flash-count: ${out.flashCountSolo}`);
 if (out.consoleErrors.length) failures.push(`console errors: ${out.consoleErrors.length}`);
 if (failures.length) {

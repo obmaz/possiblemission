@@ -4,12 +4,12 @@
  * Crisp generated 4:3 illustrations start heavily pixelated and sharpen smoothly over
  * `revealSec` seconds. Faster guesses earn higher speed bonuses.
  * - Solo (`play: 0`): 4 choices (+ keys 1-4), speed bonus, instant full-picture reveal on solve.
- * - Party (`play: 1`): Shared-screen projector mode with Freeze (`Space`), Reveal (`Enter`),
- *   Next (`→`), and quick MC team scoreboard.
+ * - Party (`play: 1`): Shared-screen projector mode with Freeze (`F`), Reveal (`Space`),
+ *   Next (`Enter`/`→`).
  */
 import { pickSeeded, shuffleSeeded } from '../core/seed.js';
 import { WRONG_INPUT_COOLDOWN_MS } from '../core/rules.js';
-import { createPartyScoreboard, renderPlayModeSwitch } from './party-kit.js';
+import { renderPlayModeSwitch } from './party-kit.js';
 import {
   PIXEL_REVEAL_DEFAULT_PRESET,
   PIXEL_REVEAL_FIELDS,
@@ -234,7 +234,7 @@ function mountGame(container, ctx, settings) {
   let maxStreak = 0;
   let cooldownUntilMs = 0;
   let roundState = 'revealing'; // revealing | feedback | ended
-  let feedbackTimerId = 0;
+  let feedbackElapsedMs = 0;
   let shakeTimerId = 0;
   let partyFrozen = false;
   let partyRevealed = false;
@@ -286,19 +286,6 @@ function mountGame(container, ctx, settings) {
   const meterEl = root.querySelector('[data-pr-meter]');
   const bottomEl = root.querySelector('[data-pr-bottom]');
 
-  const partyBoard = isParty
-    ? createPartyScoreboard({
-        onAward: () => {
-          ctx.audio.playMatch(1);
-          partyRevealed = true;
-          partyFrozen = true;
-          drawCurrentFrame();
-          renderBottom();
-          syncHud();
-        },
-      })
-    : null;
-
   function currentSpeedBonus() {
     const ratio = Math.max(0, 1 - roundElapsedSec / settings.revealSec);
     return Math.round(120 + ratio * 280);
@@ -306,7 +293,7 @@ function mountGame(container, ctx, settings) {
 
   function computeTotalScore() {
     if (isParty) {
-      return (partyBoard?.getTotalAwarded() || 0) * 200 + roundIndex * 100;
+      return roundIndex * 200;
     }
     return score;
   }
@@ -332,7 +319,7 @@ function mountGame(container, ctx, settings) {
       return;
     }
 
-    const full = roundState === 'feedback' || partyRevealed || roundElapsedSec >= settings.revealSec;
+    const full = roundState === 'feedback' || partyRevealed || (!isParty && roundElapsedSec >= settings.revealSec);
     if (full) {
       ctx2d.imageSmoothingEnabled = true;
       ctx2d.clearRect(0, 0, CANVAS_W, CANVAS_H);
@@ -393,22 +380,22 @@ function mountGame(container, ctx, settings) {
         </div>
         <div class="pr-party-actions">
           <button type="button" class="pr-mc-btn" data-mc-freeze ${partyRevealed ? 'disabled' : ''}>
-            ${partyFrozen ? '▶ 재개 (Space)' : '⏸ 멈춤 (Space)'}
+            ${partyFrozen ? '▶ 재개 (F)' : '⏸ 멈춤 (F)'}
           </button>
           <button type="button" class="pr-mc-btn pr-mc-btn--reveal" data-mc-reveal ${partyRevealed ? 'disabled' : ''}>
-            👁️ 정답 공개 (Enter)
+            ${partyRevealed ? '정답 공개됨' : '👁️ 정답 공개 (Space)'}
           </button>
           <button type="button" class="pr-mc-btn pr-mc-btn--next" data-mc-next>
-            ${roundIndex + 1 >= totalRounds ? '🏁 결과 (→)' : '다음 →'}
+            ${roundIndex + 1 >= totalRounds ? '🏁 결과 (Enter)' : '다음 → (Enter)'}
           </button>
         </div>
       </div>
     `;
-    if (partyBoard) bottomEl.appendChild(partyBoard.el);
   }
 
   function startRound() {
     roundElapsedSec = 0;
+    feedbackElapsedMs = 0;
     roundState = 'revealing';
     partyFrozen = false;
     partyRevealed = false;
@@ -434,7 +421,6 @@ function mountGame(container, ctx, settings) {
     const details = isParty
       ? [
           { value: `🖼️ ${totalRounds}문제 진행` },
-          { value: partyBoard.getWinnerSummary() },
           { value: `⏱ ${(activePlayMs / 1000).toFixed(1)}초` },
         ]
       : [
@@ -456,6 +442,7 @@ function mountGame(container, ctx, settings) {
   function enterFeedback(correct, customLabel = '') {
     const r = rounds[roundIndex];
     roundState = 'feedback';
+    feedbackElapsedMs = 0;
     drawCurrentFrame();
     if (bannerEl) {
       bannerEl.hidden = false;
@@ -464,14 +451,6 @@ function mountGame(container, ctx, settings) {
     }
     renderBottom();
     syncHud();
-
-    clearTimeout(feedbackTimerId);
-    feedbackTimerId = window.setTimeout(() => {
-      if (unmounted || finished) return;
-      roundIndex += 1;
-      if (roundIndex >= totalRounds) finishGame();
-      else startRound();
-    }, FEEDBACK_MS);
   }
 
   function handleSoloPick(label) {
@@ -505,6 +484,30 @@ function mountGame(container, ctx, settings) {
     if (statusEl) statusEl.textContent = '❌ 아쉬워요! 다시 골라보세요 (+1.5초 진행)';
   }
 
+  function togglePartyFreeze() {
+    if (!isParty || partyRevealed) return;
+    partyFrozen = !partyFrozen;
+    ctx.audio.playClick();
+    renderBottom();
+  }
+
+  function revealPartyAnswer() {
+    if (!isParty || partyRevealed) return;
+    partyRevealed = true;
+    partyFrozen = true;
+    ctx.audio.playHint();
+    drawCurrentFrame();
+    renderBottom();
+  }
+
+  function advancePartyRound() {
+    if (!isParty) return;
+    ctx.audio.playClick();
+    roundIndex += 1;
+    if (roundIndex >= totalRounds) finishGame();
+    else startRound();
+  }
+
   const onClick = (e) => {
     if (isPaused || finished) return;
     const choiceBtn = e.target.closest('[data-choice]');
@@ -513,45 +516,23 @@ function mountGame(container, ctx, settings) {
       return;
     }
     if (!isParty) return;
-    if (e.target.closest('[data-mc-freeze]')) {
-      partyFrozen = !partyFrozen;
-      ctx.audio.playClick();
-      renderBottom();
-    } else if (e.target.closest('[data-mc-reveal]')) {
-      partyRevealed = true;
-      partyFrozen = true;
-      ctx.audio.playHint();
-      drawCurrentFrame();
-      renderBottom();
-    } else if (e.target.closest('[data-mc-next]')) {
-      ctx.audio.playClick();
-      roundIndex += 1;
-      if (roundIndex >= totalRounds) finishGame();
-      else startRound();
-    }
+    if (e.target.closest('[data-mc-freeze]')) togglePartyFreeze();
+    else if (e.target.closest('[data-mc-reveal]')) revealPartyAnswer();
+    else if (e.target.closest('[data-mc-next]')) advancePartyRound();
   };
 
   const onKeyDown = (e) => {
     if (isPaused || finished) return;
     if (isParty) {
-      if (e.code === 'Space' && !partyRevealed) {
+      if (e.code === 'Space') {
         e.preventDefault();
-        partyFrozen = !partyFrozen;
-        ctx.audio.playClick();
-        renderBottom();
-      } else if (e.key === 'Enter' && !partyRevealed) {
+        revealPartyAnswer();
+      } else if (e.key === 'Enter' || e.key === 'ArrowRight') {
         e.preventDefault();
-        partyRevealed = true;
-        partyFrozen = true;
-        ctx.audio.playHint();
-        drawCurrentFrame();
-        renderBottom();
-      } else if (e.key === 'ArrowRight' || (e.key === 'Enter' && partyRevealed)) {
+        advancePartyRound();
+      } else if (e.code === 'KeyF' || e.key === 'f' || e.key === 'F') {
         e.preventDefault();
-        ctx.audio.playClick();
-        roundIndex += 1;
-        if (roundIndex >= totalRounds) finishGame();
-        else startRound();
+        togglePartyFreeze();
       }
       return;
     }
@@ -597,6 +578,13 @@ function mountGame(container, ctx, settings) {
           ctx.audio.playError();
           enterFeedback(false);
         }
+      } else if (roundState === 'feedback') {
+        feedbackElapsedMs += dtMs;
+        if (feedbackElapsedMs >= FEEDBACK_MS) {
+          roundIndex += 1;
+          if (roundIndex >= totalRounds) finishGame();
+          else startRound();
+        }
       } else {
         drawCurrentFrame();
       }
@@ -611,12 +599,10 @@ function mountGame(container, ctx, settings) {
     unmount() {
       unmounted = true;
       if (rafId) cancelAnimationFrame(rafId);
-      if (feedbackTimerId) clearTimeout(feedbackTimerId);
       if (shakeTimerId) clearTimeout(shakeTimerId);
       root.removeEventListener('click', onClick);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('pm:pausechange', onPauseChange);
-      partyBoard?.destroy();
       container.innerHTML = '';
     },
   };

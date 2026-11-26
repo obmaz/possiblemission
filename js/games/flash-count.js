@@ -9,7 +9,7 @@
  */
 import { pickSeeded, shuffleSeeded } from '../core/seed.js';
 import { WRONG_INPUT_COOLDOWN_MS } from '../core/rules.js';
-import { createPartyScoreboard, renderPlayModeSwitch } from './party-kit.js';
+import { renderPlayModeSwitch } from './party-kit.js';
 import {
   FLASH_COUNT_DEFAULT_PRESET,
   FLASH_COUNT_FIELDS,
@@ -21,7 +21,7 @@ import {
 
 const LAST_MODE_PREF = 'flashCountLastMode';
 const READY_SEC = 0.85;
-const FEEDBACK_MS = 1250;
+const FEEDBACK_SEC = 1.25;
 
 export const COUNT_SYMBOLS = [
   {
@@ -299,7 +299,6 @@ function mountGame(container, ctx, settings) {
   let maxStreak = 0;
   let cooldownUntilMs = 0;
   let partyRevealed = false;
-  let feedbackTimerId = 0;
   let lastFrameMs = performance.now();
   let rafId = 0;
 
@@ -331,20 +330,8 @@ function mountGame(container, ctx, settings) {
   const meterEl = root.querySelector('[data-fc-meter]');
   const bottomEl = root.querySelector('[data-fc-bottom]');
 
-  const partyBoard = isParty
-    ? createPartyScoreboard({
-        onAward: () => {
-          ctx.audio.playMatch(1);
-          partyRevealed = true;
-          renderArena();
-          renderBottom();
-          syncHud();
-        },
-      })
-    : null;
-
   function computeTotalScore() {
-    if (isParty) return (partyBoard?.getTotalAwarded() || 0) * 200 + roundIndex * 100;
+    if (isParty) return roundIndex * 200;
     return score;
   }
 
@@ -455,7 +442,6 @@ function mountGame(container, ctx, settings) {
         </div>
       </div>
     `;
-    if (partyBoard) bottomEl.appendChild(partyBoard.el);
   }
 
   function enterPhase(next) {
@@ -490,7 +476,6 @@ function mountGame(container, ctx, settings) {
     const details = isParty
       ? [
           { value: `⭐ ${totalRounds}문제 진행` },
-          { value: partyBoard.getWinnerSummary() },
           { value: `⏱ ${(activePlayMs / 1000).toFixed(1)}초` },
         ]
       : [
@@ -532,13 +517,22 @@ function mountGame(container, ctx, settings) {
     }
 
     enterPhase('feedback');
-    clearTimeout(feedbackTimerId);
-    feedbackTimerId = window.setTimeout(() => {
-      if (unmounted || finished) return;
-      roundIndex += 1;
-      if (roundIndex >= totalRounds) finishGame();
-      else enterPhase('ready');
-    }, FEEDBACK_MS);
+  }
+
+  function revealPartyAnswer() {
+    if (!isParty || phase !== 'ask' || partyRevealed) return;
+    partyRevealed = true;
+    ctx.audio.playHint();
+    renderArena();
+    renderBottom();
+  }
+
+  function advancePartyRound() {
+    if (!isParty) return;
+    ctx.audio.playClick();
+    roundIndex += 1;
+    if (roundIndex >= totalRounds) finishGame();
+    else enterPhase('ready');
   }
 
   const onClick = (e) => {
@@ -549,34 +543,19 @@ function mountGame(container, ctx, settings) {
       return;
     }
     if (!isParty) return;
-    if (e.target.closest('[data-mc-reveal]') && phase === 'ask') {
-      partyRevealed = true;
-      ctx.audio.playHint();
-      renderArena();
-      renderBottom();
-    } else if (e.target.closest('[data-mc-next]')) {
-      ctx.audio.playClick();
-      roundIndex += 1;
-      if (roundIndex >= totalRounds) finishGame();
-      else enterPhase('ready');
-    }
+    if (e.target.closest('[data-mc-reveal]')) revealPartyAnswer();
+    else if (e.target.closest('[data-mc-next]')) advancePartyRound();
   };
 
   const onKeyDown = (e) => {
     if (isPaused || finished) return;
     if (isParty) {
-      if (e.code === 'Space' && phase === 'ask' && !partyRevealed) {
+      if (e.code === 'Space') {
         e.preventDefault();
-        partyRevealed = true;
-        ctx.audio.playHint();
-        renderArena();
-        renderBottom();
+        revealPartyAnswer();
       } else if (e.key === 'Enter' || e.key === 'ArrowRight') {
         e.preventDefault();
-        ctx.audio.playClick();
-        roundIndex += 1;
-        if (roundIndex >= totalRounds) finishGame();
-        else enterPhase('ready');
+        advancePartyRound();
       }
       return;
     }
@@ -615,6 +594,10 @@ function mountGame(container, ctx, settings) {
         if (phaseClock >= settings.flashSec) {
           enterPhase('ask');
         }
+      } else if (phase === 'feedback' && phaseClock >= FEEDBACK_SEC) {
+        roundIndex += 1;
+        if (roundIndex >= totalRounds) finishGame();
+        else enterPhase('ready');
       }
     }
     rafId = requestAnimationFrame(frame);
@@ -627,11 +610,9 @@ function mountGame(container, ctx, settings) {
     unmount() {
       unmounted = true;
       if (rafId) cancelAnimationFrame(rafId);
-      if (feedbackTimerId) clearTimeout(feedbackTimerId);
       root.removeEventListener('click', onClick);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('pm:pausechange', onPauseChange);
-      partyBoard?.destroy();
       container.innerHTML = '';
     },
   };

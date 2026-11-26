@@ -8,7 +8,7 @@
  */
 import { pickSeeded, shuffleSeeded } from '../core/seed.js';
 import { WRONG_INPUT_COOLDOWN_MS } from '../core/rules.js';
-import { createPartyScoreboard, renderPlayModeSwitch } from './party-kit.js';
+import { renderPlayModeSwitch } from './party-kit.js';
 import {
   COLOR_TRAP_DEFAULT_PRESET,
   COLOR_TRAP_FIELDS,
@@ -193,9 +193,11 @@ function mountSetup(container, ctx) {
     for (const f of COLOR_TRAP_FIELDS) {
       const row = root.querySelector(`[data-field="${f.key}"]`);
       const idx = f.options.indexOf(values[f.key]);
-      row.querySelector('[data-value]').textContent = formatValue(f, values[f.key]);
-      row.querySelector('[data-step="-1"]').disabled = idx <= 0;
-      row.querySelector('[data-step="1"]').disabled = idx >= f.options.length - 1;
+      const disabled = f.key === 'timeSec' && values.play === 1;
+      row.classList.toggle('is-disabled', disabled);
+      row.querySelector('[data-value]').textContent = disabled ? '사용 안 함' : formatValue(f, values[f.key]);
+      row.querySelector('[data-step="-1"]').disabled = disabled || idx <= 0;
+      row.querySelector('[data-step="1"]').disabled = disabled || idx >= f.options.length - 1;
     }
     root.querySelector('[data-summary]').textContent = `${match ? `${match.label} · ` : '커스텀 · '}${describe(values)}`;
   }
@@ -215,6 +217,7 @@ function mountSetup(container, ctx) {
       render();
     } else if (stepBtn) {
       const key = stepBtn.closest('[data-field]').dataset.field;
+      if (key === 'timeSec' && values.play === 1) return;
       const field = COLOR_TRAP_FIELDS.find((f) => f.key === key);
       const idx = field.options.indexOf(values[key]) + Number(stepBtn.dataset.step);
       if (idx < 0 || idx >= field.options.length) return;
@@ -292,20 +295,9 @@ function mountGame(container, ctx, settings) {
   const stageEl = root.querySelector('[data-ct-stage]');
   const bottomEl = root.querySelector('[data-ct-bottom]');
 
-  const partyBoard = isParty
-    ? createPartyScoreboard({
-        onAward: () => {
-          ctx.audio.playMatch(1);
-          partyRevealed = true;
-          renderBottom();
-        },
-      })
-    : null;
-
   function computeScore() {
     if (isParty) {
-      const totalAwarded = partyBoard?.getTotalAwarded() || 0;
-      return totalAwarded * 200 + roundIndex * 100;
+      return roundIndex * 200;
     }
     const base = correctCount * 160;
     const streakBonus = maxStreak * 70;
@@ -419,7 +411,6 @@ function mountGame(container, ctx, settings) {
         </div>
       </div>
     `;
-    if (partyBoard) bottomEl.appendChild(partyBoard.el);
   }
 
   function renderAll() {
@@ -436,7 +427,6 @@ function mountGame(container, ctx, settings) {
     const details = isParty
       ? [
           { value: `🎙️ ${roundIndex}/${totalRounds} 진행` },
-          { value: partyBoard.getWinnerSummary() },
           { value: `⏱ ${(activePlayMs / 1000).toFixed(1)}초` },
         ]
       : [
@@ -489,6 +479,22 @@ function mountGame(container, ctx, settings) {
     }
   }
 
+  function revealPartyAnswer() {
+    if (!isParty || partyRevealed) return;
+    partyRevealed = true;
+    ctx.audio.playHint();
+    renderBottom();
+  }
+
+  function advancePartyRound() {
+    if (!isParty) return;
+    ctx.audio.playClick();
+    roundIndex += 1;
+    partyRevealed = false;
+    if (roundIndex >= totalRounds) finishGame(true);
+    else renderAll();
+  }
+
   const onClick = (e) => {
     if (isPaused || finished) return;
     const choiceBtn = e.target.closest('[data-choice]');
@@ -496,39 +502,20 @@ function mountGame(container, ctx, settings) {
       handleSoloPick(choiceBtn.dataset.choice);
       return;
     }
-    if (isParty && e.target.closest('[data-mc-reveal]')) {
-      partyRevealed = true;
-      ctx.audio.playHint();
-      renderBottom();
-      return;
-    }
-    if (isParty && e.target.closest('[data-mc-next]')) {
-      ctx.audio.playClick();
-      roundIndex += 1;
-      partyRevealed = false;
-      if (roundIndex >= totalRounds) {
-        finishGame(true);
-      } else {
-        renderAll();
-      }
-    }
+    if (!isParty) return;
+    if (e.target.closest('[data-mc-reveal]')) revealPartyAnswer();
+    else if (e.target.closest('[data-mc-next]')) advancePartyRound();
   };
 
   const onKeyDown = (e) => {
     if (isPaused || finished) return;
     if (isParty) {
-      if (e.code === 'Space' && !partyRevealed) {
+      if (e.code === 'Space') {
         e.preventDefault();
-        partyRevealed = true;
-        ctx.audio.playHint();
-        renderBottom();
+        revealPartyAnswer();
       } else if (e.key === 'Enter' || e.key === 'ArrowRight') {
         e.preventDefault();
-        ctx.audio.playClick();
-        roundIndex += 1;
-        partyRevealed = false;
-        if (roundIndex >= totalRounds) finishGame(true);
-        else renderAll();
+        advancePartyRound();
       }
       return;
     }
@@ -586,7 +573,6 @@ function mountGame(container, ctx, settings) {
       root.removeEventListener('click', onClick);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('pm:pausechange', onPauseChange);
-      partyBoard?.destroy();
       container.innerHTML = '';
     },
   };

@@ -237,8 +237,8 @@
 
 .game-flash-count .fc-arena {
   position: relative;
-  flex: 1 1 auto;
-  min-height: 220px;
+  flex: 1 1 0;
+  min-height: 0;
   width: min(100%, 760px);
   border-radius: var(--radius-xl);
   background: var(--bg-surface-soft);
@@ -425,6 +425,7 @@
 
 @media (max-width: 899px) {
   .game-flash-count { height: auto; min-height: 100%; }
+  .game-flash-count .fc-arena { min-height: 220px; }
   .game-flash-count .fc-setup__body { grid-template-columns: 1fr; }
   .game-flash-count .fc-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .game-flash-count .fc-playmode { grid-template-columns: 1fr; }

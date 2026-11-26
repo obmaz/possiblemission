@@ -151,6 +151,10 @@
   gap: 12px;
 }
 
+.game-color-trap .ct-field.is-disabled {
+  opacity: 0.45;
+}
+
 .game-color-trap .ct-field__label {
   color: var(--text-secondary);
   font-size: 0.9rem;
@@ -278,11 +282,12 @@
 }
 
 .game-color-trap .ct-stage {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   width: 100%;
   min-height: 0;
   display: grid;
   place-items: center;
+  overflow: hidden;
 }
 
 .game-color-trap .ct-stage.is-shaking {
