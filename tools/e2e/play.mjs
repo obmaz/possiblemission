@@ -87,8 +87,9 @@ await page.waitForSelector('.db-setup');
 out.dobbleMathValid = await page.evaluate(async () => {
   const { buildProjectiveDeck, generateDobbleRun } = await import('/js/games/dobble.js');
   const { DOBBLE_SYMBOLS } = await import('/js/games/dobble-symbols.js');
-  const { parseDobbleMode } = await import('/js/games/dobble-settings.js');
+  const { DOBBLE_PRESETS, parseDobbleMode } = await import('/js/games/dobble-settings.js');
   const { createRng } = await import('/js/core/seed.js');
+  const uniformRounds = new Set(DOBBLE_PRESETS.map((p) => p.rounds)).size === 1;
   const hasKrriKtx = DOBBLE_SYMBOLS.some((s) => s.id === 'krri') && DOBBLE_SYMBOLS.some((s) => s.id === 'ktx');
   const decksOk = [5, 7, 9, 11, 13, 16].every((q) => {
     const deck = buildProjectiveDeck(q);
@@ -105,7 +106,7 @@ out.dobbleMathValid = await page.evaluate(async () => {
   });
   const godRun = generateDobbleRun(createRng('X::dobble::god'), parseDobbleMode('god'));
   const godIds = new Set(godRun.flatMap((r) => [...r.left, ...r.right].map((x) => x.symbol.id)));
-  return hasKrriKtx && decksOk && godRun[0].left.length === 17 && godIds.has('krri') && godIds.has('ktx');
+  return uniformRounds && hasKrriKtx && decksOk && godRun[0].left.length === 17 && godIds.has('krri') && godIds.has('ktx');
 });
 await page.click('[data-preset="easy"]');
 await page.click('[data-start]');

@@ -20,12 +20,12 @@ export const DOBBLE_FIELDS = [
 ];
 
 export const DOBBLE_PRESETS = [
-  { id: 'easy', label: 'EASY', ko: '쉬움', symbolsPerCard: 6, rounds: 10, timeSec: 75, rotate: 1 },
+  { id: 'easy', label: 'EASY', ko: '쉬움', symbolsPerCard: 6, rounds: 15, timeSec: 75, rotate: 1 },
   { id: 'medium', label: 'MEDIUM', ko: '보통', symbolsPerCard: 8, rounds: 15, timeSec: 75, rotate: 1 },
-  { id: 'hard', label: 'HARD', ko: '어려움', symbolsPerCard: 10, rounds: 18, timeSec: 75, rotate: 1 },
-  { id: 'extreme', label: 'EXTREME', ko: '극한', symbolsPerCard: 12, rounds: 20, timeSec: 70, rotate: 1 },
-  { id: 'insane', label: 'INSANE', ko: '광기', symbolsPerCard: 14, rounds: 22, timeSec: 70, rotate: 1 },
-  { id: 'god', label: 'GOD', ko: '신', symbolsPerCard: 17, rounds: 25, timeSec: 65, rotate: 1 },
+  { id: 'hard', label: 'HARD', ko: '어려움', symbolsPerCard: 10, rounds: 15, timeSec: 75, rotate: 1 },
+  { id: 'extreme', label: 'EXTREME', ko: '극한', symbolsPerCard: 12, rounds: 15, timeSec: 70, rotate: 1 },
+  { id: 'insane', label: 'INSANE', ko: '광기', symbolsPerCard: 14, rounds: 15, timeSec: 70, rotate: 1 },
+  { id: 'god', label: 'GOD', ko: '신', symbolsPerCard: 17, rounds: 15, timeSec: 65, rotate: 1 },
 ];
 
 export const DOBBLE_DEFAULT_PRESET = 'medium';
