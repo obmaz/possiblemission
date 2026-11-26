@@ -139,7 +139,7 @@ out.heroToolsInBanner = await page.evaluate(() => Boolean(
 ));
 out.compactCards = await page.evaluate(() => {
   const noOldText = !document.querySelector('.game-card__sub-en, .game-card__hook');
-  const titlesInOverlay = document.querySelectorAll('.game-card__pb-bar .game-card__title').length === 5;
+  const titlesInOverlay = document.querySelectorAll('.game-card__pb-bar .game-card__title').length === 8;
   return noOldText && titlesInOverlay;
 });
 await page.click('.game-card[data-game-id="dobble"] [data-launch-game]');
@@ -374,6 +374,84 @@ out.hideSeekWaveInvariant = await page.evaluate(async () => {
   await page.setViewportSize({ width: 1440, height: 900 });
 }
 
+/* ---------- 컬러 트랩: setup → solo full play + party mode check ---------- */
+await page.goto(`${base}/?seed=${SEED}`);
+await page.click('.game-card[data-game-id="color-trap"] [data-launch-game]');
+await page.waitForSelector('.ct-setup');
+await page.click('[data-preset="easy"]');
+await page.click('[data-start]');
+await page.waitForSelector('.ct-stage');
+await afterCountdown();
+const ctMode = new URL(page.url()).searchParams.get('mode');
+const ctAnswers = await page.evaluate(async ({ seed, mode }) => {
+  const { createRng } = await import('/js/core/seed.js');
+  const { generateColorTrapRun } = await import('/js/games/color-trap.js');
+  const { parseColorTrapMode } = await import('/js/games/color-trap-settings.js');
+  return generateColorTrapRun(createRng(`${seed}::color-trap::${mode}`), parseColorTrapMode(mode)).map((q) => q.answerId);
+}, { seed: SEED, mode: ctMode });
+for (const ans of ctAnswers) {
+  await page.click(`[data-choice="${ans}"]`);
+  await page.waitForTimeout(30);
+}
+await page.waitForSelector('.arcade-modal', { timeout: 4000 }).catch(() => {});
+out.colorTrapSolo = `${await resultStatus()} · ${ctAnswers.length}q`;
+
+await page.goto(`${base}/?seed=${SEED}`);
+await page.click('.game-card[data-game-id="color-trap"] [data-launch-game]');
+await page.waitForSelector('.ct-setup');
+await page.click('[data-playmode="1"]');
+await page.click('[data-preset="easy"]');
+await page.click('[data-start]');
+await page.waitForSelector('.ct-party-controls');
+await afterCountdown();
+await page.click('[data-mc-reveal]');
+out.colorTrapParty = await page.evaluate(() => Boolean(document.querySelector('.ct-reveal-pill') && document.querySelectorAll('.party-team-btn').length === 4));
+
+/* ---------- 모자이크 줌아웃: setup → solo full play + party freeze/reveal ---------- */
+await page.goto(`${base}/?seed=${SEED}`);
+await page.click('.game-card[data-game-id="pixel-reveal"] [data-launch-game]');
+await page.waitForSelector('.pr-setup');
+await page.click('[data-preset="easy"]');
+await page.click('[data-start]');
+await page.waitForSelector('.pr-canvas');
+await afterCountdown();
+const prMode = new URL(page.url()).searchParams.get('mode');
+const prAnswers = await page.evaluate(async ({ seed, mode }) => {
+  const { createRng } = await import('/js/core/seed.js');
+  const { generatePixelRevealRun } = await import('/js/games/pixel-reveal.js');
+  const { parsePixelRevealMode } = await import('/js/games/pixel-reveal-settings.js');
+  return generatePixelRevealRun(createRng(`${seed}::pixel-reveal::${mode}`), parsePixelRevealMode(mode)).map((r) => r.item.label);
+}, { seed: SEED, mode: prMode });
+for (const label of prAnswers) {
+  await page.waitForSelector(`[data-choice="${label}"]:not([disabled])`, { timeout: 5000 });
+  await page.click(`[data-choice="${label}"]`);
+}
+await page.waitForSelector('.arcade-modal', { timeout: 5000 }).catch(() => {});
+out.pixelRevealSolo = `${await resultStatus()} · ${prAnswers.length}q`;
+
+/* ---------- 찰나의 카운팅: setup → solo full play + party mode check ---------- */
+await page.goto(`${base}/?seed=${SEED}`);
+await page.click('.game-card[data-game-id="flash-count"] [data-launch-game]');
+await page.waitForSelector('.fc-setup');
+await page.click('[data-preset="easy"]');
+await page.click('[data-field="flashSec"] [data-step="1"]');
+await page.click('[data-start]');
+await page.waitForSelector('.fc-arena');
+await afterCountdown();
+const fcMode = new URL(page.url()).searchParams.get('mode');
+const fcAnswers = await page.evaluate(async ({ seed, mode }) => {
+  const { createRng } = await import('/js/core/seed.js');
+  const { generateFlashCountRun } = await import('/js/games/flash-count.js');
+  const { parseFlashCountMode } = await import('/js/games/flash-count-settings.js');
+  return generateFlashCountRun(createRng(`${seed}::flash-count::${mode}`), parseFlashCountMode(mode)).map((p) => p.targetCount);
+}, { seed: SEED, mode: fcMode });
+for (const cnt of fcAnswers) {
+  await page.waitForSelector(`[data-count="${cnt}"]`, { timeout: 8000 });
+  await page.click(`[data-count="${cnt}"]`);
+}
+await page.waitForSelector('.arcade-modal', { timeout: 5000 }).catch(() => {});
+out.flashCountSolo = `${await resultStatus()} · ${fcAnswers.length}q`;
+
 out.consoleErrors = errors;
 console.log(JSON.stringify(out, null, 2));
 await browser.close();
@@ -409,6 +487,9 @@ if (out.hideSeekPresets !== 'easy,medium,hard,extreme,insane,god') failures.push
 if (!/^custom-60-40-30-20-11-60-0-0$/.test(out.hideSeekMode || '')) failures.push(`hide & seek custom mode: ${out.hideSeekMode}`);
 if (out.hideSeekWaveInvariant !== 'ok') failures.push(`hide & seek wave invariant: ${out.hideSeekWaveInvariant}`);
 if (!out.hideSeekRemembersLast) failures.push('hide & seek setup does not remember the last settings');
+if (!cleared(out.colorTrapSolo) || !out.colorTrapParty) failures.push(`color-trap: ${out.colorTrapSolo} / party=${out.colorTrapParty}`);
+if (!cleared(out.pixelRevealSolo)) failures.push(`pixel-reveal: ${out.pixelRevealSolo}`);
+if (!cleared(out.flashCountSolo)) failures.push(`flash-count: ${out.flashCountSolo}`);
 if (out.consoleErrors.length) failures.push(`console errors: ${out.consoleErrors.length}`);
 if (failures.length) {
   console.error(`\nFAILED:\n- ${failures.join('\n- ')}`);

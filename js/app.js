@@ -14,6 +14,24 @@ import {
   parseHideSeekMode,
 } from './games/hide-seek-settings.js';
 import { DOBBLE_SETUP_MODE, dobbleCatalogModes, dobbleModeLabel, parseDobbleMode } from './games/dobble-settings.js';
+import {
+  COLOR_TRAP_SETUP_MODE,
+  colorTrapCatalogModes,
+  colorTrapModeLabel,
+  parseColorTrapMode,
+} from './games/color-trap-settings.js';
+import {
+  PIXEL_REVEAL_SETUP_MODE,
+  pixelRevealCatalogModes,
+  pixelRevealModeLabel,
+  parsePixelRevealMode,
+} from './games/pixel-reveal-settings.js';
+import {
+  FLASH_COUNT_SETUP_MODE,
+  flashCountCatalogModes,
+  flashCountModeLabel,
+  parseFlashCountMode,
+} from './games/flash-count-settings.js';
 
 const PRESET_SEEDS = ['MISSION-1', 'ROUND-1', 'ROUND-2', 'ROUND-3', 'ROUND-4', 'ROUND-5'];
 
@@ -86,6 +104,45 @@ const GAME_CATALOG = [
     // Custom settings live in the mode id (custom-…), so accept any valid one
     resolveMode: (id) => (parseHideSeekMode(id) ? { id, label: hideSeekModeLabel(id), thumb: null } : null),
   },
+  {
+    id: 'color-trap',
+    title: '컬러 트랩',
+    subEn: 'COLOR TRAP',
+    accent: 'emerald',
+    art: 'colortrap',
+    tag: '순발력·파티',
+    timeHint: '45~60초',
+    hook: '· 글자 색깔과 뜻 함정\n· 혼자·다같이 선택 지원',
+    defaultMode: COLOR_TRAP_SETUP_MODE,
+    modes: colorTrapCatalogModes(),
+    resolveMode: (id) => (parseColorTrapMode(id) ? { id, label: colorTrapModeLabel(id), thumb: null } : null),
+  },
+  {
+    id: 'pixel-reveal',
+    title: '모자이크 줌아웃',
+    subEn: 'PIXEL REVEAL',
+    accent: 'violet',
+    art: 'pixel',
+    tag: '눈치·스피드',
+    timeHint: '60초',
+    hook: '· 모자이크 그림 정체 맞히기\n· 혼자·다같이 선택 지원',
+    defaultMode: PIXEL_REVEAL_SETUP_MODE,
+    modes: pixelRevealCatalogModes(),
+    resolveMode: (id) => (parsePixelRevealMode(id) ? { id, label: pixelRevealModeLabel(id), thumb: null } : null),
+  },
+  {
+    id: 'flash-count',
+    title: '찰나의 카운팅',
+    subEn: 'FLASH COUNT',
+    accent: 'cyan',
+    art: 'flashcount',
+    tag: '순간기억',
+    timeHint: '45~60초',
+    hook: '· 잠깐 뜬 아이콘 개수 기억\n· 혼자·다같이 선택 지원',
+    defaultMode: FLASH_COUNT_SETUP_MODE,
+    modes: flashCountCatalogModes(),
+    resolveMode: (id) => (parseFlashCountMode(id) ? { id, label: flashCountModeLabel(id), thumb: null } : null),
+  },
 ];
 
 /** Hand-made lobby card artwork for games whose look isn't a stage photo. */
@@ -111,6 +168,18 @@ const CARD_ART = {
       ${[['H', '092'], ['Q', ''], ['A', '160'], ['F', '']]
         .map(([l, n]) => `<span class="tile-preview"><i>${n}</i><b>${l}</b></span>`)
         .join('')}
+    </div>`,
+  colortrap: `<div class="game-card__colortrap-art" aria-hidden="true">
+      <span class="colortrap-preview__rule">글자의 색깔은?</span>
+      <span class="colortrap-preview__word">노랑</span>
+    </div>`,
+  pixel: `<div class="game-card__pixel-art" aria-hidden="true">
+      <img src="./assets/images/reveal/panda.jpg" alt="" loading="lazy" />
+      <div class="pixel-preview__grid"></div>
+    </div>`,
+  flashcount: `<div class="game-card__flashcount-art" aria-hidden="true">
+      <span>⭐</span><span>❤️</span><span>⚡</span>
+      <span class="flashcount-preview__pill">× ?</span>
     </div>`,
 };
 
