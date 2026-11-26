@@ -26,6 +26,8 @@ page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 const out = {};
 const SEED = 'E2E-42';
+// Every real run starts with a 3 · 2 · 1 countdown overlay
+const afterCountdown = () => page.waitForFunction(() => document.getElementById('stage-countdown')?.hidden, null, { timeout: 8000 });
 const resultStatus = () => page.textContent('.result-hero__status').catch(() => null);
 
 /* ---------- Spot difference: picker → every picture on hard, clicked to completion ---------- */
@@ -46,6 +48,7 @@ for (const stageId of stages) {
   await page.click(`.sd-pick-card[data-stage="${stageId}"]`);
   await page.click('[data-view="levels"] [data-level="hard"]');
   await page.waitForFunction(() => !document.querySelector('[data-sd-loading]') && document.querySelector('[data-sd-canvas="orig"]'));
+  await afterCountdown();
   const mode = new URL(page.url()).searchParams.get('mode');
   const targets = await page.evaluate(async ({ seed, mode }) => {
     const { createRng } = await import('/js/core/seed.js');
@@ -74,6 +77,30 @@ await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]'
 await page.click('[data-view="start"] [data-level="easy"]');
 await page.waitForSelector('[data-sd-canvas="orig"]');
 out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode') && /-easy$/.test(quickMode1) ? quickMode1 : `mismatch ${quickMode1}`;
+
+/* ---------- 플래시 암산: countdown, setup → full play ---------- */
+await page.goto(`${base}/?seed=${SEED}`);
+await page.click('.game-card[data-game-id="flash-anzan"] [data-launch-game]');
+await page.waitForSelector('.fa-setup');
+await page.click('[data-preset="easy"]');
+await page.click('[data-start]');
+await page.waitForSelector('.fa-stage');
+out.countdownShown = await page.evaluate(() => !document.getElementById('stage-countdown').hidden);
+await afterCountdown();
+const sums = await page.evaluate(async (seed) => {
+  const { createRng } = await import('/js/core/seed.js');
+  const { generateAnzanRun } = await import('/js/games/flash-anzan.js');
+  const { parseAnzanMode } = await import('/js/games/flash-anzan-settings.js');
+  return generateAnzanRun(createRng(`${seed}::flash-anzan::easy`), parseAnzanMode('easy')).map((p) => p.total);
+}, SEED);
+for (const total of sums) {
+  await page.waitForSelector('[data-answer]:not([hidden])', { timeout: 15000 });
+  await page.fill('[data-input]', String(total));
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('[data-answer]', { state: 'hidden' });
+}
+await page.waitForSelector('.arcade-modal', { timeout: 8000 }).catch(() => {});
+out.anzan = `${await resultStatus()} · ${(await page.$$eval('.result-stat-box', (els) => els.map((e) => e.textContent.trim()))).join(' / ')}`;
 
 /* ---------- 메모리 매치: lobby → in-game difficulty ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
@@ -184,6 +211,8 @@ if (out.lobbyHasSelect) failures.push('lobby still shows a select / hall of fame
 if (out.memoryMode !== '4x3') failures.push(`memory in-game difficulty: ${out.memoryMode}`);
 if (!out.hideSeekChangeDifficulty) failures.push('result "난이도 바꾸기" did not open setup');
 if (!out.hideSeekSetupAgain) failures.push('lobby start skipped the hide & seek setup');
+if (!out.countdownShown) failures.push('no start countdown');
+if (!/^성공 · 🧮 5\/5 정답/.test(out.anzan || '')) failures.push(`flash anzan: ${out.anzan}`);
 if (out.spotCardHasSelect || out.pickerCards !== 10 || !out.pickerExitNoConfirm) failures.push('spot picker flow');
 if (!out.deterministic) failures.push('determinism');
 if (out.hideSeekPresets !== 'easy,medium,hard,extreme,insane,god') failures.push('hide & seek presets');

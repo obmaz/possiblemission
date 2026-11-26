@@ -19,6 +19,7 @@
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
   />
   <link rel="stylesheet" href="./styles/main.css" />
+  <link rel="stylesheet" href="./styles/game-anzan.css" />
   <link rel="stylesheet" href="./styles/game-spot.css" />
   <link rel="stylesheet" href="./styles/game-memory.css" />
   <link rel="stylesheet" href="./styles/game-fortress.css" />
@@ -80,6 +81,12 @@
 
     <!-- Game mount target: 100dvh minus --hud-height -->
     <div id="game-stage" class="game-stage"></div>
+
+    <!-- 3 · 2 · 1 start countdown (covers the stage; the game is paused underneath) -->
+    <div id="stage-countdown" class="stage-countdown" hidden aria-live="assertive">
+      <p class="stage-countdown__label">준비</p>
+      <div class="stage-countdown__circle"><span id="stage-countdown-num">3</span></div>
+    </div>
 
     <!-- Anti-cheat pause / tab-blur curtain -->
     <div id="pause-curtain" class="pause-curtain" hidden>

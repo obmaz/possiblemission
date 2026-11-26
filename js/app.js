@@ -6,6 +6,7 @@ import * as audio from './core/audio.js';
 import * as storage from './core/storage.js';
 import * as ui from './core/ui.js';
 import { SPOT_PICK_MODE, spotCatalogModes } from './games/spot-stages.js';
+import { ANZAN_SETUP_MODE, anzanCatalogModes, anzanModeLabel, parseAnzanMode } from './games/flash-anzan-settings.js';
 import {
   HIDE_SEEK_SETUP_MODE,
   hideSeekCatalogModes,
@@ -26,6 +27,19 @@ const GAME_CATALOG = [
     hook: '그림 10장 중 하나를 고르고 난이도를 선택하세요. 좌우 그림에서 달라진 곳을 빠르게 짚어내는 눈썰미 대결!',
     defaultMode: SPOT_PICK_MODE,
     modes: spotCatalogModes(),
+  },
+  {
+    id: 'flash-anzan',
+    title: '플래시 암산',
+    subEn: 'FLASH ANZAN',
+    accent: 'cyan',
+    art: 'anzan',
+    tag: '암산',
+    timeHint: '약 60초',
+    hook: '숫자가 하나씩 번쩍 나타납니다. 머릿속으로 더해서 합계를 맞히세요. EASY부터 GOD까지 직접 고릅니다!',
+    defaultMode: ANZAN_SETUP_MODE,
+    modes: anzanCatalogModes(),
+    resolveMode: (id) => (parseAnzanMode(id) ? { id, label: anzanModeLabel(id), thumb: null } : null),
   },
   {
     id: 'memory-match',
@@ -66,6 +80,10 @@ const CARD_ART = {
       <div class="memory-preview-tile">🚄</div>
       <div class="memory-preview-tile">⚡</div>
       <div class="memory-preview-tile">💎</div>
+    </div>`,
+  anzan: `<div class="game-card__anzan-art" aria-hidden="true">
+      <span class="anzan-preview__count">3 / 5</span>
+      <span class="anzan-preview__number">47</span>
     </div>`,
   tiles: `<div class="game-card__tile-art" aria-hidden="true">
       ${[['H', '092'], ['Q', ''], ['A', '160'], ['F', '']]
@@ -112,6 +130,8 @@ function cacheDom() {
   dom.gameStage = document.getElementById('game-stage');
   dom.pauseCurtain = document.getElementById('pause-curtain');
   dom.pauseResumeBtn = document.getElementById('pause-resume-btn');
+  dom.countdown = document.getElementById('stage-countdown');
+  dom.countdownNum = document.getElementById('stage-countdown-num');
 }
 
 /* === URL & Seed Helpers === */
@@ -670,10 +690,60 @@ function setPaused(paused) {
     dom.hudPauseBtn.setAttribute('aria-label', next ? '재개' : '일시정지');
   }
 
+  // While the start countdown runs the game stays frozen; the countdown releases it
+  if (!next && state.activeGame.countdown) return;
   window.dispatchEvent(new CustomEvent('pm:pausechange', { detail: { paused: next } }));
 }
 
+const COUNTDOWN_FROM = 3;
+const COUNTDOWN_STEP_MS = 900;
+let countdownTimer = 0;
+
+function stopCountdown() {
+  window.clearTimeout(countdownTimer);
+  countdownTimer = 0;
+  if (dom.countdown) dom.countdown.hidden = true;
+}
+
+/**
+ * 3 · 2 · 1 before every real run (not on choosers). The game is mounted but kept
+ * paused underneath an opaque overlay, so nobody gets a free look before the start.
+ */
+function runCountdown(entry) {
+  if (!dom.countdown || !dom.countdownNum) return;
+  entry.countdown = true;
+  window.dispatchEvent(new CustomEvent('pm:pausechange', { detail: { paused: true } }));
+  dom.countdown.hidden = false;
+  let n = COUNTDOWN_FROM;
+  const tick = () => {
+    if (state.activeGame !== entry) return stopCountdown();
+    if (entry.paused) {
+      // Tab switched / paused mid-countdown: hold the current number
+      countdownTimer = window.setTimeout(tick, 200);
+      return undefined;
+    }
+    if (n === 0) {
+      stopCountdown();
+      entry.countdown = false;
+      audio.playHint();
+      window.dispatchEvent(new CustomEvent('pm:pausechange', { detail: { paused: false } }));
+      return undefined;
+    }
+    dom.countdownNum.textContent = String(n);
+    // Restart the ring animation for each number
+    dom.countdownNum.classList.remove('is-tick');
+    void dom.countdownNum.offsetWidth;
+    dom.countdownNum.classList.add('is-tick');
+    audio.playTick();
+    n -= 1;
+    countdownTimer = window.setTimeout(tick, COUNTDOWN_STEP_MS);
+    return undefined;
+  };
+  tick();
+}
+
 function unmountActiveGame() {
+  stopCountdown();
   if (!state.activeGame) return;
   try {
     state.activeGame.instance?.unmount?.();
@@ -979,6 +1049,7 @@ async function launchGame(gameId, requestedMode) {
     // Idle screens (e.g. a picture picker) have no run to lose: no exit confirm, no pause
     activeEntry.idle = Boolean(activeEntry.instance?.idle);
     if (activeEntry.idle && dom.hudPauseBtn) dom.hudPauseBtn.hidden = true;
+    if (!activeEntry.idle) runCountdown(activeEntry);
   } catch (err) {
     console.error(`Failed to mount game "${gameId}":`, err);
     ui.showToast('게임 모듈을 불러오는 중 오류가 발생했습니다.', 'error');

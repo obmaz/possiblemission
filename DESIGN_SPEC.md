@@ -63,6 +63,7 @@ All routing (`?game=<id>&mode=<mode>`), dynamic imports (`./games/<id>.js`), sto
 | Game ID (`<id>`) | File (`./js/games/<id>.js`) | Korean Title | English Sub-label | Accent Token | Canonical `ctx.mode` Values (Default First) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `spot-difference` | `spot-difference.js` | 틀린그림찾기 | `SPOT THE DIFFERENCE` | `--neon-magenta` | `pick` (in-game picture → difficulty chooser), then `<picture>-<difficulty>` for the 10 pictures in `js/games/spot-stages.js` (e.g. `beach-normal`; difficulty `easy` / `normal` / `hard`) |
+| `flash-anzan` | `flash-anzan.js` | 플래시 암산 | `FLASH ANZAN` | `--neon-cyan` | `setup` (in-game settings), presets `easy` … `god`, or `custom-<digits>-<count>-<interval×10>-<problems>` (see `js/games/flash-anzan-settings.js`) |
 | `memory-match` | `memory-match.js` | 메모리 매치 | `MEMORY MATCH` | `--neon-violet` | `setup` (in-game difficulty chooser), then `4x3`, `4x4`, `6x4` |
 | `despair-fortress` | `despair-fortress.js` | 숫자 숨바꼭질 | `NUMBER HIDE & SEEK` | `--neon-crimson` | `setup` (in-game settings screen), presets `easy` `medium` `hard` `extreme` `insane` `god`, or `custom-<t>-<r>-<b>-<i>-<w>-<s>-<h>` (see `js/games/hide-seek-settings.js`) |
 
@@ -529,6 +530,8 @@ const ctx = {
 };
 ```
 
+**Start countdown (hub owned)**: when a non-idle game mounts, the hub covers the stage with a `준비 3 · 2 · 1` overlay (`#stage-countdown`, 0.9 s per step) and keeps the game paused via `pm:pausechange` until it ends, so nobody gets a free look. A pause during the countdown holds it; restarts run it again.
+
 `mount()` may return `{ unmount, idle: true }` for a screen that has no run to lose (e.g. a picker). The hub then skips the exit-confirm modal, hides the pause button and does not auto-pause on tab switch.
 
 #### Exact Game Module Export Contract
@@ -620,6 +623,12 @@ export function mount(container, ctx) {
 | `camp-mushroom` | 우측 그루터기 옆 버섯 | `cel-prop` | 빈 풀밭 → 빨간 갓 흰 점박이 버섯 추가 | `(0.798, 0.655)` | `0.050` |
 
 ---
+
+### 6.5 Game: 플래시 암산 (`js/games/flash-anzan.js`)
+- **CSS Scope**: `.game-anzan` in `styles/game-anzan.css`, keyframes `fa-`.
+- **Setup (`setup`, idle)**: presets EASY 1자리×5 @1.2s · MEDIUM 1×8 @0.8s · HARD 2×6 @0.8s · EXTREME 2×10 @0.6s · INSANE 3×10 @0.5s · GOD 3×15 @0.3s (5 problems each), plus steppers for digits (1–4), numbers (3–15), interval (0.3–2 s) and problems (3/5/10). Last choice remembered (`anzanLastMode`).
+- **Run**: per problem `ready` (1.1 s, "문제 n / N") → `flash` (each number visible 72% of the interval, blank for the rest; same spot; tick sound; neighbours never equal) → `answer` (input + on-screen keypad, Enter/확인) → `feedback` (2.2 s: correct total and the full sum). Game clock only.
+- **Scoring**: correct = `round(60 × digits × count / √interval)` + speed bonus up to +50% (answer within 10 s) + streak bonus. Cleared when ≥ 60% correct. Details: `🧮 x/N 정답`, `⏱ 평균 …초`, `🔢 d자리 × n개`, `⚡ …초 간격`.
 
 ### 6.3 Game 3: 메모리 매치 (`js/games/memory-match.js`)
 - **Symbols**: 18 (12 arcade/workshop items + 6 railway icons for the KRRI workshop: 고속열차, 트램, 철로, 철도 신호기, 자기부상열차, 열차 바퀴). Generic drawings only — no organisation logos or trademarks.
