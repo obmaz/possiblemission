@@ -141,7 +141,15 @@ out.compactCards = await page.evaluate(() => {
   const noOldText = !document.querySelector('.game-card__sub-en, .game-card__hook');
   const titlesInBody = document.querySelectorAll('.game-card__body .game-card__pb-bar .game-card__title').length === 8;
   const summaries = document.querySelectorAll('.game-card__pb-bar .game-card__summary').length === 8;
-  return noOldText && titlesInBody && summaries;
+  const soloOnly = ['spot-difference', 'dobble', 'memory-match', 'despair-fortress'].every((id) => {
+    const c = document.querySelector(`.game-card[data-game-id="${id}"]`);
+    return c?.querySelector('[data-player-icon="solo"]') && !c?.querySelector('[data-player-icon="group"]');
+  });
+  const bothModes = ['flash-anzan', 'color-trap', 'pixel-reveal', 'flash-count'].every((id) => {
+    const c = document.querySelector(`.game-card[data-game-id="${id}"]`);
+    return c?.querySelector('[data-player-icon="solo"]') && c?.querySelector('[data-player-icon="group"]');
+  });
+  return noOldText && titlesInBody && summaries && soloOnly && bothModes;
 });
 await page.click('.game-card[data-game-id="dobble"] [data-launch-game]');
 await page.waitForSelector('.db-setup');

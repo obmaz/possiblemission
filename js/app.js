@@ -42,6 +42,7 @@ const GAME_CATALOG = [
     subEn: 'SPOT THE DIFFERENCE',
     accent: 'magenta',
     tag: '매의 눈',
+    players: 'solo',
     timeHint: '75~90초',
     hook: '· 카페 20장 조합·캠프 2종\n· 좌우 다른 곳을 빠르게 터치',
     defaultMode: SPOT_PICK_MODE,
@@ -54,6 +55,7 @@ const GAME_CATALOG = [
     accent: 'gold',
     art: 'dobble',
     tag: '순발력',
+    players: 'solo',
     timeHint: '45~75초',
     hook: '· 공통 그림 1개 찾기\n· 겹치는 아이콘 빠르게 터치',
     defaultMode: DOBBLE_SETUP_MODE,
@@ -67,6 +69,7 @@ const GAME_CATALOG = [
     accent: 'cyan',
     art: 'anzan',
     tag: '암산',
+    players: 'both',
     timeHint: '약 60초',
     hook: '· 번쩍이는 숫자 연속 암산\n· 합계를 입력해 맞히기',
     defaultMode: ANZAN_SETUP_MODE,
@@ -80,6 +83,7 @@ const GAME_CATALOG = [
     accent: 'violet',
     art: 'memory',
     tag: '단기기억',
+    players: 'solo',
     timeHint: '45~80초',
     hook: '· 2초 암기 후 같은 짝 찾기\n· 연속 성공 시 콤보 점수',
     defaultMode: 'setup',
@@ -97,6 +101,7 @@ const GAME_CATALOG = [
     accent: 'crimson',
     art: 'tiles',
     tag: '순간 포착',
+    players: 'solo',
     timeHint: '약 90초',
     hook: '· 타일 뒤 숨은 숫자 순간 포착\n· 목표 숫자의 글자 입력',
     defaultMode: HIDE_SEEK_SETUP_MODE,
@@ -111,6 +116,7 @@ const GAME_CATALOG = [
     accent: 'emerald',
     art: 'colortrap',
     tag: '순발력·파티',
+    players: 'both',
     timeHint: '45~60초',
     hook: '· 글자 색깔과 뜻 함정\n· 혼자·다같이 선택 지원',
     defaultMode: COLOR_TRAP_SETUP_MODE,
@@ -124,6 +130,7 @@ const GAME_CATALOG = [
     accent: 'violet',
     art: 'pixel',
     tag: '눈치·스피드',
+    players: 'both',
     timeHint: '60초',
     hook: '· 모자이크 그림 정체 맞히기\n· 혼자·다같이 선택 지원',
     defaultMode: PIXEL_REVEAL_SETUP_MODE,
@@ -137,6 +144,7 @@ const GAME_CATALOG = [
     accent: 'cyan',
     art: 'flashcount',
     tag: '순간기억',
+    players: 'both',
     timeHint: '45~60초',
     hook: '· 잠깐 뜬 아이콘 개수 기억\n· 혼자·다같이 선택 지원',
     defaultMode: FLASH_COUNT_SETUP_MODE,
@@ -144,6 +152,20 @@ const GAME_CATALOG = [
     resolveMode: (id) => (parseFlashCountMode(id) ? { id, label: flashCountModeLabel(id), thumb: null } : null),
   },
 ];
+
+const ICON_PLAYER_SOLO = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="7.5" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0z"/></svg>`;
+const ICON_PLAYER_GROUP = `<svg width="21" height="15" viewBox="0 0 28 24" fill="currentColor" aria-hidden="true"><circle cx="6.5" cy="9.5" r="2.9" opacity="0.72"/><path d="M1.5 20.5a5 5 0 0 1 10 0z" opacity="0.72"/><circle cx="21.5" cy="9.5" r="2.9" opacity="0.72"/><path d="M16.5 20.5a5 5 0 0 1 10 0z" opacity="0.72"/><circle cx="14" cy="7.5" r="3.6"/><path d="M7.2 21a6.8 6.8 0 0 1 13.6 0z"/></svg>`;
+
+function renderPlayerIcons(players) {
+  const showSolo = players === 'solo' || players === 'both';
+  const showGroup = players === 'party' || players === 'both';
+  return `
+    <span class="game-card__players" aria-label="${showSolo && showGroup ? '1인 및 다같이 플레이 가능' : showGroup ? '다같이 플레이 가능' : '1인 플레이'}">
+      ${showSolo ? `<span class="game-card__player-chip" data-player-icon="solo" title="1인 플레이 가능">${ICON_PLAYER_SOLO}</span>` : ''}
+      ${showGroup ? `<span class="game-card__player-chip" data-player-icon="group" title="다같이(한 화면) 플레이 가능">${ICON_PLAYER_GROUP}</span>` : ''}
+    </span>
+  `;
+}
 
 /** Hand-made lobby card artwork for games whose look isn't a stage photo. */
 const CARD_ART = {
@@ -584,7 +606,10 @@ function renderGameGrid() {
         ${mediaHtml}
         <div class="game-card__media-scrim" aria-hidden="true"></div>
         <div class="game-card__badges">
-          <span class="game-card__tag">${game.tag}</span>
+          <div class="game-card__badges-left">
+            <span class="game-card__tag">${game.tag}</span>
+            ${renderPlayerIcons(game.players)}
+          </div>
           <span class="game-card__time">⏱ ${game.timeHint}</span>
         </div>
       </div>

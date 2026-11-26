@@ -954,8 +954,38 @@ textarea:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   z-index: 2;
+}
+
+.game-card__badges-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.game-card__players {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.game-card__player-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: var(--text-on-image);
+}
+
+.game-card__player-chip svg {
+  display: block;
 }
 
 .game-card__tag,
@@ -969,6 +999,7 @@ textarea:focus-visible {
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: var(--text-on-image);
+  white-space: nowrap;
 }
 
 .game-card__body {
