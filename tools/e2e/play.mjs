@@ -428,7 +428,14 @@ await page.goto(`${base}/?seed=${SEED}&game=flash-anzan&mode=easy-party`);
 await page.waitForSelector('.fa-stage');
 out.anzanParty = await page.evaluate(() => Boolean(document.querySelector('.game-anzan.is-party') && document.querySelector('.fa-party-panel')));
 
-/* ---------- 모자이크 줌아웃: setup → solo full play + party no-overlap layout check ---------- */
+/* ---------- 모자이크 줌아웃: 100-image pool + setup → solo full play + party no-overlap layout check ---------- */
+out.pixelRevealPool = await page.evaluate(async () => {
+  const { REVEAL_ITEMS } = await import('/js/games/pixel-reveal-items.js');
+  const ids = new Set(REVEAL_ITEMS.map((x) => x.id));
+  const labels = new Set(REVEAL_ITEMS.map((x) => x.label));
+  const statuses = await Promise.all(REVEAL_ITEMS.map((x) => fetch(x.src, { method: 'HEAD' }).then((r) => r.status)));
+  return { count: REVEAL_ITEMS.length, uniqueIds: ids.size, uniqueLabels: labels.size, allOk: statuses.every((s) => s === 200) };
+});
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="pixel-reveal"] [data-launch-game]');
 await page.waitForSelector('.pr-setup');
@@ -528,6 +535,9 @@ if (!out.hideSeekRemembersLast) failures.push('hide & seek setup does not rememb
 if (!cleared(out.colorTrapSolo) || !out.colorTrapParty) failures.push(`color-trap: ${out.colorTrapSolo} / party=${out.colorTrapParty}`);
 if (!out.anzanParty) failures.push('flash-anzan party mode');
 if (!out.pixelRevealNoOverlap || !cleared(out.pixelRevealSolo)) failures.push(`pixel-reveal: overlapOk=${out.pixelRevealNoOverlap} / ${out.pixelRevealSolo}`);
+if (out.pixelRevealPool?.count !== 100 || out.pixelRevealPool?.uniqueIds !== 100 || out.pixelRevealPool?.uniqueLabels !== 100 || !out.pixelRevealPool?.allOk) {
+  failures.push(`pixel-reveal pool: ${JSON.stringify(out.pixelRevealPool)}`);
+}
 if (!cleared(out.flashCountSolo)) failures.push(`flash-count: ${out.flashCountSolo}`);
 if (out.consoleErrors.length) failures.push(`console errors: ${out.consoleErrors.length}`);
 if (failures.length) {

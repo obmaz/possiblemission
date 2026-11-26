@@ -10,6 +10,7 @@
 import { pickSeeded, shuffleSeeded } from '../core/seed.js';
 import { WRONG_INPUT_COOLDOWN_MS } from '../core/rules.js';
 import { renderPlayModeSwitch } from './party-kit.js';
+import { REVEAL_ITEMS } from './pixel-reveal-items.js';
 import {
   PIXEL_REVEAL_DEFAULT_PRESET,
   PIXEL_REVEAL_FIELDS,
@@ -19,67 +20,20 @@ import {
   pixelRevealModeId,
 } from './pixel-reveal-settings.js';
 
+export { REVEAL_ITEMS };
+
 const LAST_MODE_PREF = 'pixelRevealLastMode';
 const FEEDBACK_MS = 1050;
 const CANVAS_W = 800;
-const CANVAS_H = 597;
-
-export const REVEAL_ITEMS = [
-  {
-    id: 'burger',
-    label: '치즈버거',
-    src: './assets/images/reveal/burger.jpg',
-    distractors: ['피자', '핫도그', '샌드위치', '타코', '도넛'],
-  },
-  {
-    id: 'panda',
-    label: '판다',
-    src: './assets/images/reveal/panda.jpg',
-    distractors: ['코알라', '북극곰', '펭귄', '너구리', '고양이'],
-  },
-  {
-    id: 'rocket',
-    label: '우주 로켓',
-    src: './assets/images/reveal/rocket.jpg',
-    distractors: ['비행기', '인공위성', '잠수함', '헬리콥터', '등대'],
-  },
-  {
-    id: 'sushi',
-    label: '연어 초밥',
-    src: './assets/images/reveal/sushi.jpg',
-    distractors: ['김밥', '우동', '라멘', '만두', '스테이크'],
-  },
-  {
-    id: 'eiffel',
-    label: '에펠탑',
-    src: './assets/images/reveal/eiffel.jpg',
-    distractors: ['자유의 여신상', '피사의 사탑', '피라미드', '콜로세움', '빅벤'],
-  },
-  {
-    id: 'cactus',
-    label: '선인장',
-    src: './assets/images/reveal/cactus.jpg',
-    distractors: ['야자수', '해바라기', '튤립', '버섯', '대나무'],
-  },
-  {
-    id: 'balloon',
-    label: '열기구',
-    src: './assets/images/reveal/balloon.jpg',
-    distractors: ['낙하산', '비행선', '드론', '글라이더', '우산'],
-  },
-  {
-    id: 'snowman',
-    label: '눈사람',
-    src: './assets/images/reveal/snowman.jpg',
-    distractors: ['산타클로스', '루돌프', '펭귄', '허수아비', '로봇'],
-  },
-];
+const CANVAS_H = 600;
 
 /** Deterministic round sequence and 4-choice options for a given seed + settings. */
 export function generatePixelRevealRun(rng, settings) {
   const picked = shuffleSeeded(rng, REVEAL_ITEMS).slice(0, settings.rounds);
   return picked.map((item) => {
-    const distractors = pickSeeded(rng, item.distractors, 3);
+    const sameCat = REVEAL_ITEMS.filter((x) => x.id !== item.id && x.category === item.category);
+    const pool = sameCat.length >= 3 ? sameCat : REVEAL_ITEMS.filter((x) => x.id !== item.id);
+    const distractors = pickSeeded(rng, pool, 3).map((x) => x.label);
     const choices = shuffleSeeded(rng, [item.label, ...distractors]).map((label) => ({
       label,
       isCorrect: label === item.label,

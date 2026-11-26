@@ -6,7 +6,7 @@ export const PIXEL_REVEAL_SETUP_MODE = 'setup';
 
 export const PIXEL_REVEAL_FIELDS = [
   { key: 'play', label: '플레이 방식', unit: '', options: [0, 1], valueLabels: ['혼자 (선택지)', '다같이 (한 화면)'] },
-  { key: 'rounds', label: '문제 수', unit: '문제', options: [4, 6, 8] },
+  { key: 'rounds', label: '문제 수', unit: '문제', options: [4, 6, 8, 10, 12] },
   { key: 'revealSec', label: '선명해지는 시간', unit: '초', options: [8, 10, 12, 15] },
   { key: 'startGrid', label: '초기 모자이크 칸', unit: '칸', options: [6, 8, 10, 14] },
 ];
