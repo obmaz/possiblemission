@@ -305,17 +305,20 @@ textarea:focus-visible {
 }
 
 .hero-icon-btn {
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid var(--border-specular);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
-  color: var(--text-primary);
-  font-size: 1.15rem;
+  background: #ffffff;
+  border: 1.5px solid rgba(15, 23, 42, 0.18);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.18);
+  color: #172033;
   display: inline-grid;
   place-items: center;
   cursor: pointer;
+}
+
+.hero-icon-btn.is-muted {
+  color: var(--neon-crimson);
 }
 
 .hero-banner__bg {
@@ -1385,10 +1388,10 @@ textarea:focus-visible {
   border: 1px solid var(--border-specular);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-floating);
-  padding: clamp(18px, 3vw, 26px);
+  padding: clamp(22px, 3.2vw, 28px);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .arcade-modal--wide {
@@ -1528,15 +1531,17 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
+  padding-top: 2px;
   text-align: center;
 }
 
 .qr-frame {
-  padding: 14px;
+  padding: 16px;
   border-radius: var(--radius-lg);
   background: #ffffff;
-  box-shadow: 0 0 32px rgba(34, 211, 238, 0.25);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
 }
 
 .qr-frame canvas {
@@ -1545,12 +1550,12 @@ textarea:focus-visible {
 
 .qr-url-box {
   width: 100%;
-  padding: 10px 12px;
+  padding: 11px 14px;
   border-radius: var(--radius-sm);
   background: var(--bg-surface-soft);
   border: 1px solid var(--border-subtle);
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: var(--neon-cyan);
   word-break: break-all;
 }
@@ -1558,23 +1563,26 @@ textarea:focus-visible {
 .mc-steps {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  padding-top: 2px;
 }
 
 .mc-step {
   display: flex;
-  gap: 12px;
-  padding: 12px 14px;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 15px 16px;
   border-radius: var(--radius-md);
-  background: rgba(15, 23, 42, 0.04);
+  background: var(--bg-surface-soft);
   border: 1px solid var(--border-subtle);
 }
 
 .mc-step__num {
   width: 28px;
   height: 28px;
+  margin-top: 1px;
   border-radius: 50%;
-  background: rgba(34, 211, 238, 0.18);
+  background: rgba(11, 132, 198, 0.12);
   border: 1px solid var(--neon-cyan);
   color: var(--neon-cyan);
   font-family: var(--font-mono);
@@ -1586,11 +1594,12 @@ textarea:focus-visible {
 
 .mc-step__title {
   font-weight: 800;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .mc-step__desc {
-  font-size: 0.86rem;
+  font-size: 0.87rem;
+  line-height: 1.55;
   color: var(--text-secondary);
 }
 

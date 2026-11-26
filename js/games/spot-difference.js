@@ -871,6 +871,39 @@ function drawMirrorCrosshair(ctx2d, pointerState, targetSide) {
   ctx2d.restore();
 }
 
+function copyBoxFeathered(srcCtx, dstCtx, box, featherPx = 6) {
+  const [nx0, ny0, nx1, ny1] = box;
+  const x0 = Math.max(0, Math.floor(nx0 * BASE_W));
+  const y0 = Math.max(0, Math.floor(ny0 * BASE_H));
+  const x1 = Math.min(BASE_W, Math.ceil(nx1 * BASE_W));
+  const y1 = Math.min(BASE_H, Math.ceil(ny1 * BASE_H));
+  const w = x1 - x0;
+  const h = y1 - y0;
+  if (w <= 0 || h <= 0) return;
+
+  const srcData = srcCtx.getImageData(x0, y0, w, h);
+  const dstData = dstCtx.getImageData(x0, y0, w, h);
+  const s = srcData.data;
+  const d = dstData.data;
+
+  for (let py = 0; py < h; py += 1) {
+    let ay = 1;
+    if (y0 > 2 && py < featherPx) ay = Math.min(ay, (py + 1) / (featherPx + 1));
+    if (y1 < BASE_H - 2 && h - 1 - py < featherPx) ay = Math.min(ay, (h - py) / (featherPx + 1));
+    for (let px = 0; px < w; px += 1) {
+      let ax = 1;
+      if (x0 > 2 && px < featherPx) ax = Math.min(ax, (px + 1) / (featherPx + 1));
+      if (x1 < BASE_W - 2 && w - 1 - px < featherPx) ax = Math.min(ax, (w - px) / (featherPx + 1));
+      const a = ax * ay;
+      const idx = (py * w + px) * 4;
+      d[idx] = Math.round(d[idx] + (s[idx] - d[idx]) * a);
+      d[idx + 1] = Math.round(d[idx + 1] + (s[idx + 1] - d[idx + 1]) * a);
+      d[idx + 2] = Math.round(d[idx + 2] + (s[idx + 2] - d[idx + 2]) * a);
+    }
+  }
+  dstCtx.putImageData(dstData, x0, y0);
+}
+
 /* === Main Game Entry Point === */
 export function mount(container, ctx) {
   const config = parseModeConfig(ctx.mode);
@@ -1788,7 +1821,17 @@ export function mount(container, ctx) {
       .then(([leftImg, rightImg]) => {
         if (unmounted) return;
         origBaseCtx.drawImage(leftImg, 0, 0, BASE_W, BASE_H);
-        modBaseCtx.drawImage(rightImg, 0, 0, BASE_W, BASE_H);
+        // Start right canvas identical to left, then paste ONLY the round's selected anomalies
+        // from rightImg so every visible difference on screen matches `anomalies` 1-to-1.
+        modBaseCtx.drawImage(leftImg, 0, 0, BASE_W, BASE_H);
+        const rightBuf = document.createElement('canvas');
+        rightBuf.width = BASE_W;
+        rightBuf.height = BASE_H;
+        const rightBufCtx = rightBuf.getContext('2d', { willReadFrequently: true });
+        rightBufCtx.drawImage(rightImg, 0, 0, BASE_W, BASE_H);
+        for (const spot of anomalies) {
+          if (spot.box) copyBoxFeathered(rightBufCtx, modBaseCtx, spot.box);
+        }
         startRound();
       })
       .catch(() => {

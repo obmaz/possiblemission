@@ -248,6 +248,10 @@ function syncSeedFromInput({ rerender = true, announce = false } = {}) {
   return state.seed;
 }
 
+const ICON_SOUND_ON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.8 5.8a9 9 0 0 1 0 12.4"/></svg>`;
+const ICON_SOUND_OFF = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>`;
+const ICON_SETTINGS = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+
 /* === Mute Icon Sync === */
 function syncMuteButtons() {
   const muted = audio.isMuted();
@@ -258,7 +262,8 @@ function syncMuteButtons() {
   }
   const lobbyMuteBtn = document.getElementById('lobby-mute-btn');
   if (lobbyMuteBtn) {
-    lobbyMuteBtn.textContent = icon;
+    lobbyMuteBtn.innerHTML = muted ? ICON_SOUND_OFF : ICON_SOUND_ON;
+    lobbyMuteBtn.classList.toggle('is-muted', muted);
     const label = muted ? '소리 꺼짐' : '소리 켜짐';
     lobbyMuteBtn.setAttribute('aria-pressed', String(muted));
     lobbyMuteBtn.setAttribute('aria-label', label);
@@ -288,10 +293,10 @@ function renderHeroBanner() {
     </div>
     <div class="hero-banner__tools">
       <button id="lobby-mute-btn" class="hero-icon-btn" type="button" aria-pressed="false" aria-label="소리 켜짐" title="소리 켜짐">
-        🔊
+        ${ICON_SOUND_ON}
       </button>
       <details class="workshop-more">
-        <summary class="hero-icon-btn" aria-label="진행자 도구" title="진행자 도구">🎛️</summary>
+        <summary class="hero-icon-btn" aria-label="진행자 도구" title="진행자 도구">${ICON_SETTINGS}</summary>
         <div class="workshop-more__panel">
           <div class="workshop-more__tools">
             <button id="open-qr-btn" class="workshop-tool-btn" type="button">📱 QR 코드</button>
@@ -582,7 +587,7 @@ function openMcGuideModal() {
       <div>
         <div class="mc-step__title">모든 참가자에게 동일한 '룸 시드' 공유 (5~100명 동시)</div>
         <div class="mc-step__desc">
-          <strong>🎛️ 진행자 도구 → QR 코드</strong>를 회의실 프로젝터에 띄우거나 <strong>링크 복사</strong>로 Slack/카톡방에 뿌려주세요.
+          상단 <strong>설정 아이콘 → QR 코드</strong>를 회의실 프로젝터에 띄우거나 팝업 내 <strong>초대 링크 복사</strong>로 공유하세요.
           같은 시드(예: <code>ROUND-1</code>)에서는 100명 모두 <strong>100% 동일한 문제 배치</strong>가 출제됩니다.
         </div>
       </div>

@@ -66,6 +66,58 @@ for (const stageId of stages) {
   out.spot[stageId] = `${mode} · ${targets.length} diffs → ${await resultStatus()}`;
 }
 
+/* ---------- Spot difference cafe-easy: rendered diffs match anomalies 1:1 ---------- */
+{
+  await page.goto(`${base}/?seed=${SEED}`);
+  await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
+  await page.click('[data-browse]');
+  await page.click('.sd-pick-card[data-stage="cafe"]');
+  await page.click('[data-view="levels"] [data-level="easy"]');
+  await page.waitForFunction(() => !document.querySelector('[data-sd-loading]') && document.querySelector('[data-sd-canvas="orig"]'));
+  await afterCountdown();
+  const mode = new URL(page.url()).searchParams.get('mode');
+  const check = await page.evaluate(async ({ seed, mode }) => {
+    const { createRng } = await import('/js/core/seed.js');
+    const m = await import('/js/games/spot-difference.js');
+    const cfg = m.parseModeConfig(mode);
+    const rng = createRng(`${seed}::spot-difference::${mode}`);
+    const anomalies = m.resolveRoundData(rng, cfg.stage, cfg.targetCount, cfg.difficulty.id).anomalies;
+    const boxes = anomalies.map((a) => a.box);
+    const cOrig = document.querySelector('[data-sd-canvas="orig"]');
+    const cMod = document.querySelector('[data-sd-canvas="mod"]');
+    const w = cOrig.width;
+    const h = cOrig.height;
+    const dOrig = cOrig.getContext('2d').getImageData(0, 0, w, h).data;
+    const dMod = cMod.getContext('2d').getImageData(0, 0, w, h).data;
+    let maxOutsideDelta = 0;
+    for (let y = 0; y < h; y += 2) {
+      const ny = y / h;
+      for (let x = 0; x < w; x += 2) {
+        const nx = x / w;
+        if (boxes.some((b) => nx >= b[0] - 0.002 && nx <= b[2] + 0.002 && ny >= b[1] - 0.002 && ny <= b[3] + 0.002)) continue;
+        const idx = (y * w + x) * 4;
+        const delta = Math.max(
+          Math.abs(dOrig[idx] - dMod[idx]),
+          Math.abs(dOrig[idx + 1] - dMod[idx + 1]),
+          Math.abs(dOrig[idx + 2] - dMod[idx + 2])
+        );
+        if (delta > maxOutsideDelta) maxOutsideDelta = delta;
+      }
+    }
+    return {
+      maxOutsideDelta,
+      targets: anomalies.map((a) => ({ x: a.x, y: a.y })),
+    };
+  }, { seed: SEED, mode });
+  const box = await page.locator('[data-sd-canvas="mod"]').boundingBox();
+  for (const t of check.targets) {
+    await page.mouse.click(box.x + t.x * box.width, box.y + t.y * box.height);
+    await page.waitForTimeout(40);
+  }
+  await page.waitForSelector('.arcade-modal', { timeout: 4000 }).catch(() => {});
+  out.spotCafeEasyExact = check.maxOutsideDelta <= 2 && /성공/.test((await resultStatus()) || '');
+}
+
 /* ---------- 틀린그림찾기 quick start: difficulty only, picture from the room seed ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
@@ -81,7 +133,10 @@ out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode')
 /* ---------- 도블 스피드 매치: projective plane math + KRRI/KTX + setup → full play + result buttons ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
 out.noInviteCopyBtn = await page.evaluate(() => !document.getElementById('copy-invite-btn'));
-out.heroToolsInBanner = await page.evaluate(() => Boolean(document.querySelector('#hero-banner #lobby-mute-btn') && document.querySelector('#hero-banner .workshop-more')));
+out.heroToolsInBanner = await page.evaluate(() => Boolean(
+  document.querySelector('#hero-banner #lobby-mute-btn svg')
+  && document.querySelector('#hero-banner .workshop-more summary svg')
+));
 await page.click('.game-card[data-game-id="dobble"] [data-launch-game]');
 await page.waitForSelector('.db-setup');
 out.dobbleMathValid = await page.evaluate(async () => {
@@ -269,6 +324,7 @@ if (!out.hideSeekSetupAgain) failures.push('lobby start skipped the hide & seek 
 if (!out.countdownShown) failures.push('no start countdown');
 if (!/^성공 · 🧮 5\/5 정답/.test(out.anzan || '')) failures.push(`flash anzan: ${out.anzan}`);
 if (out.spotCardHasSelect || out.pickerCards !== 2 || !out.pickerExitNoConfirm) failures.push('spot picker flow');
+if (!out.spotCafeEasyExact) failures.push('spot cafe-easy 1:1 visual/logic match');
 if (!out.dobbleMathValid || !cleared(out.dobble)) failures.push(`dobble: ${out.dobbleMathValid} / ${out.dobble}`);
 if (!out.noInviteCopyBtn || !out.heroToolsInBanner) failures.push('lobby hero tools / invite copy removal');
 if (out.resultButtons?.labels?.join(',') !== '로비,난이도 변경,재도전' || !out.resultButtons?.sameRow || !out.resultButtons?.sameSize) {
