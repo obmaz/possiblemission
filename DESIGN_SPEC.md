@@ -46,8 +46,7 @@ Every programmer works strictly inside their assigned CSS + JS module(s). Modify
         ├── hidden-workshop.jpg     # 1376x768 — Hidden Object Stage 1 (Creative Lounge)
         ├── hidden-space.jpg        # 1376x768 — Hidden Object Stage 2 (Orbital Observatory)
         ├── spot-cafe.jpg           # 1200x896 — Spot the Difference Stage 1 (Board Game Cafe)
-        ├── spot-camp.jpg           # 1200x896 — Spot the Difference Stage 2 (Golden Camp)
-        └── fortress-bg.jpg         # 1376x768 — legacy Despair Fortress art (no longer referenced by the redesigned wall game)
+        └── spot-camp.jpg           # 1200x896 — Spot the Difference Stage 2 (Golden Camp)
 ```
 
 ### CSS Isolation Rule (Zero Style Collisions)

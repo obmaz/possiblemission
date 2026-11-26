@@ -156,7 +156,6 @@ textarea:focus-visible {
     linear-gradient(180deg, #0c1018 0%, #0e1420 55%, #0a0e16 100%);
 }
 
-
 .arcade-backdrop__aurora {
   position: absolute;
   width: 56vw;
@@ -342,15 +341,6 @@ textarea:focus-visible {
 @keyframes live-blink {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.45; transform: scale(0.8); }
-}
-
-.hero-brand-tag {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: var(--text-caption);
-  letter-spacing: 0.14em;
-  color: var(--neon-cyan);
-  text-transform: uppercase;
 }
 
 .hero-banner__title {
@@ -590,13 +580,6 @@ textarea:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-}
-
-.seed-chips__label {
-  font-size: var(--text-caption);
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-right: 4px;
 }
 
 .seed-chip {
@@ -985,30 +968,6 @@ textarea:focus-visible {
 .game-card__mode-select select option {
   background: #131a26;
   color: #eef2f8;
-}
-
-.mode-pill {
-  min-height: 32px;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  font-size: var(--text-caption);
-  font-weight: 700;
-  transition: all var(--dur-fast) var(--ease-arcade);
-}
-
-.mode-pill:hover {
-  border-color: var(--border-specular);
-  color: var(--text-primary);
-}
-
-.mode-pill.is-selected {
-  background: color-mix(in srgb, var(--card-accent) 20%, transparent);
-  border-color: var(--card-accent);
-  color: var(--text-primary);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--card-accent) 30%, transparent);
 }
 
 .game-card__play {
@@ -1465,51 +1424,6 @@ textarea:focus-visible {
   }
 }
 
-/* === Stub Fallback Card === */
-.game-stub {
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  height: 100%;
-}
-
-.game-stub__card {
-  max-width: 440px;
-  width: 100%;
-  padding: 28px;
-  border-radius: var(--radius-xl);
-  background: var(--bg-surface-deep);
-  border: 1px solid var(--border-specular);
-  box-shadow: var(--shadow-card);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.game-stub__eyebrow {
-  font-family: var(--font-mono);
-  font-size: var(--text-micro);
-  letter-spacing: 0.14em;
-  color: var(--neon-cyan);
-}
-
-.game-stub__title {
-  font-family: var(--font-display);
-  font-size: var(--text-h2);
-  font-weight: 800;
-}
-
-.game-stub__desc {
-  color: var(--text-secondary);
-}
-
-.game-stub__actions {
-  margin-top: 8px;
-  display: flex;
-  justify-content: center;
-}
-
 /* === Pause / Anti-Cheat Curtain === */
 .pause-curtain {
   position: fixed;
@@ -1943,7 +1857,6 @@ textarea:focus-visible {
     width: 44px;
     height: 44px;
   }
-  .mode-pill,
   .seed-chip,
   .hof-tab {
     display: inline-flex;

@@ -1261,7 +1261,7 @@ async function launchGame(gameId, requestedMode) {
     dom.gameStage.innerHTML = '';
     activeEntry.instance = mod.mount(dom.gameStage, ctx);
     // Idle screens (e.g. a picture picker) have no run to lose: no exit confirm, no pause
-    activeEntry.idle = Boolean(activeEntry.instance?.idle) || Boolean(dom.gameStage.querySelector('.game-stub'));
+    activeEntry.idle = Boolean(activeEntry.instance?.idle);
     if (activeEntry.idle && dom.hudPauseBtn) dom.hudPauseBtn.hidden = true;
   } catch (err) {
     console.error(`Failed to mount game "${gameId}":`, err);
