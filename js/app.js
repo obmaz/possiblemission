@@ -258,8 +258,11 @@ function syncMuteButtons() {
   }
   const lobbyMuteBtn = document.getElementById('lobby-mute-btn');
   if (lobbyMuteBtn) {
-    lobbyMuteBtn.textContent = muted ? '🔇 소리 꺼짐' : '🔊 소리 켜짐';
+    lobbyMuteBtn.textContent = icon;
+    const label = muted ? '소리 꺼짐' : '소리 켜짐';
     lobbyMuteBtn.setAttribute('aria-pressed', String(muted));
+    lobbyMuteBtn.setAttribute('aria-label', label);
+    lobbyMuteBtn.setAttribute('title', label);
   }
 }
 
@@ -275,12 +278,34 @@ function toggleMute() {
 function renderHeroBanner() {
   if (!dom.heroBanner) return;
   dom.heroBanner.innerHTML = `
-    <img
-      class="hero-banner__bg"
-      src="./assets/images/hero-arcade.jpg"
-      alt="네온 워크샵 아케이드 파티 배너"
-    />
-    <div class="hero-banner__scrim" aria-hidden="true"></div>
+    <div class="hero-banner__media">
+      <img
+        class="hero-banner__bg"
+        src="./assets/images/hero-arcade.jpg"
+        alt="네온 워크샵 아케이드 파티 배너"
+      />
+      <div class="hero-banner__scrim" aria-hidden="true"></div>
+    </div>
+    <div class="hero-banner__tools">
+      <button id="lobby-mute-btn" class="hero-icon-btn" type="button" aria-pressed="false" aria-label="소리 켜짐" title="소리 켜짐">
+        🔊
+      </button>
+      <details class="workshop-more">
+        <summary class="hero-icon-btn" aria-label="진행자 도구" title="진행자 도구">🎛️</summary>
+        <div class="workshop-more__panel">
+          <div class="workshop-more__tools">
+            <button id="open-qr-btn" class="workshop-tool-btn" type="button">📱 QR 코드</button>
+            <button id="open-mc-guide-btn" class="workshop-tool-btn workshop-tool-btn--mc" type="button">
+              🎙️ MC 가이드
+            </button>
+          </div>
+          <div class="workshop-more__seeds">
+            <span class="workshop-more__label">빠른 시드</span>
+            <div id="seed-chips" class="seed-chips" role="group" aria-label="프리셋 룸 시드"></div>
+          </div>
+        </div>
+      </details>
+    </div>
     <div class="hero-banner__content">
       <h1 class="hero-banner__title">
         오늘 워크샵, <span class="hero-banner__title-accent">텐션 한계 돌파!</span>
@@ -303,6 +328,22 @@ function renderHeroBanner() {
     const game = GAME_CATALOG[Math.floor(Math.random() * GAME_CATALOG.length)];
     launchGame(game.id, game.defaultMode);
   });
+
+  document.getElementById('open-qr-btn')?.addEventListener('click', () => {
+    audio.playClick();
+    syncSeedFromInput();
+    openQrModal();
+  });
+
+  document.getElementById('open-mc-guide-btn')?.addEventListener('click', () => {
+    audio.playClick();
+    openMcGuideModal();
+  });
+
+  document.getElementById('lobby-mute-btn')?.addEventListener('click', toggleMute);
+
+  renderSeedChips();
+  syncMuteButtons();
 }
 
 function renderWorkshopBar() {
@@ -357,32 +398,6 @@ function renderWorkshopBar() {
         </div>
       </div>
     </div>
-
-    <div class="workshop-bar__bottom">
-      <div class="workshop-actions">
-        <button id="copy-invite-btn" class="workshop-tool-btn workshop-tool-btn--accent" type="button">
-          🔗 초대 링크 복사
-        </button>
-        <button id="lobby-mute-btn" class="workshop-tool-btn" type="button" aria-pressed="false">
-          🔊 소리 켜짐
-        </button>
-        <details class="workshop-more">
-          <summary class="workshop-tool-btn">🎛️ 진행자 도구</summary>
-          <div class="workshop-more__panel">
-            <div class="workshop-more__tools">
-              <button id="open-qr-btn" class="workshop-tool-btn" type="button">📱 QR 코드</button>
-              <button id="open-mc-guide-btn" class="workshop-tool-btn workshop-tool-btn--mc" type="button">
-                🎙️ MC 가이드
-              </button>
-            </div>
-            <div class="workshop-more__seeds">
-              <span class="workshop-more__label">빠른 시드</span>
-              <div id="seed-chips" class="seed-chips" role="group" aria-label="프리셋 룸 시드"></div>
-            </div>
-          </div>
-        </details>
-      </div>
-    </div>
   `;
 
   const nickInput = document.getElementById('player-nick-input');
@@ -425,33 +440,6 @@ function renderWorkshopBar() {
       applySeed();
     }
   });
-
-  document.getElementById('copy-invite-btn')?.addEventListener('click', async () => {
-    audio.playClick();
-    syncSeedFromInput();
-    const url = ui.buildShareUrl({ seed: state.seed });
-    const ok = await ui.copyToClipboard(url);
-    ui.showToast(
-      ok ? `시드 #${state.seed} 초대 링크가 복사되었습니다!` : '링크 복사에 실패했습니다. URL을 직접 복사해주세요.',
-      ok ? 'success' : 'warn'
-    );
-  });
-
-  document.getElementById('open-qr-btn')?.addEventListener('click', () => {
-    audio.playClick();
-    syncSeedFromInput();
-    openQrModal();
-  });
-
-  document.getElementById('open-mc-guide-btn')?.addEventListener('click', () => {
-    audio.playClick();
-    openMcGuideModal();
-  });
-
-  document.getElementById('lobby-mute-btn')?.addEventListener('click', toggleMute);
-
-  renderSeedChips();
-  syncMuteButtons();
 }
 
 function renderSeedChips() {

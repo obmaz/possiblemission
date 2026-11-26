@@ -275,7 +275,8 @@ textarea:focus-visible {
 /* === Hero Banner === */
 .hero-banner {
   position: relative;
-  overflow: hidden;
+  z-index: 30;
+  overflow: visible;
   border-radius: var(--radius-xl);
   border: 1px solid var(--border-specular);
   box-shadow: var(--shadow-card);
@@ -283,6 +284,38 @@ textarea:focus-visible {
   display: flex;
   align-items: flex-end;
   background-color: var(--bg-obsidian-elevated);
+}
+
+.hero-banner__media {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.hero-banner__tools {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero-icon-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-specular);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  color: var(--text-primary);
+  font-size: 1.15rem;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
 }
 
 .hero-banner__bg {
@@ -307,7 +340,7 @@ textarea:focus-visible {
   position: relative;
   z-index: 2;
   width: 100%;
-  padding: clamp(20px, 3.8vw, 40px);
+  padding: 64px clamp(20px, 3.8vw, 40px) clamp(20px, 3.8vw, 40px);
   display: flex;
   flex-direction: column;
   gap: 14px;

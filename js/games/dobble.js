@@ -25,28 +25,77 @@ const WRONG_PENALTY_SEC = 2.0;
 const FINISH_DELAY_MS = 380;
 
 /**
- * Generates a valid projective plane deck of order p (prime).
- * Returns N = p^2 + p + 1 cards, each with (p + 1) symbol indices in 0..N-1.
+ * Finite field GF(q) arithmetic supporting prime orders and prime powers q=8, 9, 16.
+ * Allows valid projective-plane Dobble decks for 4, 6, 8, 9, 10, 12, 14, 17, 18 icons/card.
+ */
+function makeField(q) {
+  if (q === 8 || q === 16) {
+    const poly = q === 8 ? 0b1011 : 0b10011; // x^3+x+1 / x^4+x+1 over GF(2)
+    return {
+      add: (a, b) => a ^ b,
+      mul: (a, b) => {
+        let res = 0;
+        let x = a;
+        let y = b;
+        while (y > 0) {
+          if (y & 1) res ^= x;
+          x <<= 1;
+          if (x & q) x ^= poly;
+          y >>= 1;
+        }
+        return res;
+      },
+    };
+  }
+  if (q === 9) {
+    // Elements 0..8 represent a + b*i over GF(3) with i^2 = -1 = 2 (mod 3)
+    return {
+      add: (x, y) => {
+        const a = (x % 3) + (y % 3);
+        const b = Math.floor(x / 3) + Math.floor(y / 3);
+        return (a % 3) + (b % 3) * 3;
+      },
+      mul: (x, y) => {
+        const a = x % 3;
+        const b = Math.floor(x / 3);
+        const c = y % 3;
+        const d = Math.floor(y / 3);
+        const re = (((a * c - b * d) % 3) + 3) % 3;
+        const im = (a * d + b * c) % 3;
+        return re + im * 3;
+      },
+    };
+  }
+  return {
+    add: (a, b) => (a + b) % q,
+    mul: (a, b) => (a * b) % q,
+  };
+}
+
+/**
+ * Generates a valid projective plane deck of prime-power order q.
+ * Returns N = q^2 + q + 1 cards, each with (q + 1) symbol indices in 0..N-1.
  * Every pair of distinct cards shares exactly one symbol index.
  */
-export function buildProjectiveDeck(p) {
+export function buildProjectiveDeck(q) {
+  const F = makeField(q);
   const cards = [];
-  // Card 0: [0, 1, ..., p]
-  cards.push(Array.from({ length: p + 1 }, (_, i) => i));
-  // Cards 1..p
-  for (let i = 0; i < p; i += 1) {
+  // Card 0: [0, 1, ..., q]
+  cards.push(Array.from({ length: q + 1 }, (_, i) => i));
+  // Cards 1..q
+  for (let i = 0; i < q; i += 1) {
     const card = [0];
-    for (let j = 0; j < p; j += 1) {
-      card.push(p + 1 + i * p + j);
+    for (let j = 0; j < q; j += 1) {
+      card.push(q + 1 + i * q + j);
     }
     cards.push(card);
   }
-  // Cards (p+1)..(p^2+p)
-  for (let a = 0; a < p; a += 1) {
-    for (let b = 0; b < p; b += 1) {
+  // Cards (q+1)..(q^2+q)
+  for (let a = 0; a < q; a += 1) {
+    for (let b = 0; b < q; b += 1) {
       const card = [a + 1];
-      for (let j = 0; j < p; j += 1) {
-        card.push(p + 1 + j * p + ((a * j + b) % p));
+      for (let j = 0; j < q; j += 1) {
+        card.push(q + 1 + j * q + F.add(F.mul(a, j), b));
       }
       cards.push(card);
     }
@@ -54,11 +103,16 @@ export function buildProjectiveDeck(p) {
   return cards;
 }
 
-/** Deterministic run generator for Dobble. */
+/** Deterministic run generator for Dobble. Always includes KRRI & KTX featured symbols. */
 export function generateDobbleRun(rng, settings) {
-  const p = settings.symbolsPerCard - 1;
-  const rawDeck = buildProjectiveDeck(p);
-  const symbolPool = shuffleSeeded(rng, DOBBLE_SYMBOLS).slice(0, rawDeck.length);
+  const q = settings.symbolsPerCard - 1;
+  const rawDeck = buildProjectiveDeck(q);
+  const featured = DOBBLE_SYMBOLS.filter((s) => s.featured);
+  const others = shuffleSeeded(
+    rng,
+    DOBBLE_SYMBOLS.filter((s) => !s.featured)
+  );
+  const symbolPool = shuffleSeeded(rng, [...featured, ...others].slice(0, rawDeck.length));
 
   // Build shuffled card sequence so consecutive cards form rounds (like The Tower)
   const deckIndices = shuffleSeeded(
@@ -86,20 +140,8 @@ export function generateDobbleRun(rng, settings) {
 
   const makeSlotLayout = (count, rotate) => {
     const slots = [];
-    if (count === 4) {
-      const baseAngles = [Math.PI * 0.25, Math.PI * 0.75, Math.PI * 1.25, Math.PI * 1.75];
-      for (const a of baseAngles) {
-        const ang = a + (rng() - 0.5) * 0.22;
-        const dist = 24 + rng() * 5;
-        slots.push({
-          x: 50 + Math.cos(ang) * dist,
-          y: 50 + Math.sin(ang) * dist,
-          size: rotate ? 25 + rng() * 6 : 28,
-          rot: rotate ? Math.floor(rng() * 360) : 0,
-        });
-      }
-    } else {
-      // 1 center + (count - 1) outer ring slots: guaranteed zero overlap
+    if (count <= 8) {
+      // 1 center + (count - 1) outer ring slots
       slots.push({
         x: 50 + (rng() - 0.5) * 4,
         y: 50 + (rng() - 0.5) * 4,
@@ -115,6 +157,50 @@ export function generateDobbleRun(rng, settings) {
           x: 50 + Math.cos(ang) * dist,
           y: 50 + Math.sin(ang) * dist,
           size: rotate ? (count === 8 ? 17 + rng() * 5.5 : 20 + rng() * 5.5) : count === 8 ? 20 : 22,
+          rot: rotate ? Math.floor(rng() * 360) : 0,
+        });
+      }
+    } else {
+      // 10, 12, 14, 17 icons: 1 center + inner ring + outer ring with zero overlap
+      const ringSpec =
+        count <= 10
+          ? { inner: 3, outer: count - 4, rIn: 20, rOut: 37, baseSize: 16.5 }
+          : count <= 12
+            ? { inner: 4, outer: count - 5, rIn: 20, rOut: 37.5, baseSize: 15.2 }
+            : count <= 14
+              ? { inner: 4, outer: count - 5, rIn: 19.5, rOut: 38, baseSize: 14.0 }
+              : { inner: 5, outer: count - 6, rIn: 19, rOut: 38.5, baseSize: 12.6 };
+
+      const jitterSize = () =>
+        rotate ? ringSpec.baseSize * (0.86 + rng() * 0.24) : ringSpec.baseSize;
+
+      slots.push({
+        x: 50 + (rng() - 0.5) * 2.5,
+        y: 50 + (rng() - 0.5) * 2.5,
+        size: jitterSize() * 1.08,
+        rot: rotate ? Math.floor(rng() * 360) : 0,
+      });
+
+      const inOffset = rng() * Math.PI * 2;
+      for (let i = 0; i < ringSpec.inner; i += 1) {
+        const ang = inOffset + (i * Math.PI * 2) / ringSpec.inner + (rng() - 0.5) * 0.12;
+        const dist = ringSpec.rIn + (rng() - 0.5) * 1.4;
+        slots.push({
+          x: 50 + Math.cos(ang) * dist,
+          y: 50 + Math.sin(ang) * dist,
+          size: jitterSize(),
+          rot: rotate ? Math.floor(rng() * 360) : 0,
+        });
+      }
+
+      const outOffset = inOffset + Math.PI / ringSpec.outer;
+      for (let i = 0; i < ringSpec.outer; i += 1) {
+        const ang = outOffset + (i * Math.PI * 2) / ringSpec.outer + (rng() - 0.5) * 0.08;
+        const dist = ringSpec.rOut + (rng() - 0.5) * 1.2;
+        slots.push({
+          x: 50 + Math.cos(ang) * dist,
+          y: 50 + Math.sin(ang) * dist,
+          size: jitterSize(),
           rot: rotate ? Math.floor(rng() * 360) : 0,
         });
       }
@@ -316,7 +402,7 @@ function mountGame(container, ctx, settings) {
   const rightCardEl = root.querySelector('[data-db-card="right"]');
 
   function computeScore() {
-    const perMatch = settings.symbolsPerCard === 8 ? 300 : settings.symbolsPerCard === 6 ? 240 : 180;
+    const perMatch = Math.round(settings.symbolsPerCard * 38);
     const cleared = roundIndex >= totalRounds;
     const base = roundIndex * perMatch;
     const timeBonus = cleared ? Math.round(Math.max(0, remainingSec) * 60) : 0;

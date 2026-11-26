@@ -78,16 +78,23 @@ await page.click('[data-view="start"] [data-level="easy"]');
 await page.waitForSelector('[data-sd-canvas="orig"]');
 out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode') && /-easy$/.test(quickMode1) ? quickMode1 : `mismatch ${quickMode1}`;
 
-/* ---------- 도블 스피드 매치: projective plane math + setup → full play + result buttons ---------- */
+/* ---------- 도블 스피드 매치: projective plane math + KRRI/KTX + setup → full play + result buttons ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
+out.noInviteCopyBtn = await page.evaluate(() => !document.getElementById('copy-invite-btn'));
+out.heroToolsInBanner = await page.evaluate(() => Boolean(document.querySelector('#hero-banner #lobby-mute-btn') && document.querySelector('#hero-banner .workshop-more')));
 await page.click('.game-card[data-game-id="dobble"] [data-launch-game]');
 await page.waitForSelector('.db-setup');
 out.dobbleMathValid = await page.evaluate(async () => {
-  const { buildProjectiveDeck } = await import('/js/games/dobble.js');
-  return [3, 5, 7].every((p) => {
-    const deck = buildProjectiveDeck(p);
+  const { buildProjectiveDeck, generateDobbleRun } = await import('/js/games/dobble.js');
+  const { DOBBLE_SYMBOLS } = await import('/js/games/dobble-symbols.js');
+  const { parseDobbleMode } = await import('/js/games/dobble-settings.js');
+  const { createRng } = await import('/js/core/seed.js');
+  const hasKrriKtx = DOBBLE_SYMBOLS.some((s) => s.id === 'krri') && DOBBLE_SYMBOLS.some((s) => s.id === 'ktx');
+  const decksOk = [5, 7, 9, 11, 13, 16].every((q) => {
+    const deck = buildProjectiveDeck(q);
     for (let i = 0; i < deck.length; i += 1) {
       const a = new Set(deck[i]);
+      if (a.size !== q + 1) return false;
       for (let j = i + 1; j < deck.length; j += 1) {
         let shared = 0;
         for (const s of deck[j]) if (a.has(s)) shared += 1;
@@ -96,6 +103,9 @@ out.dobbleMathValid = await page.evaluate(async () => {
     }
     return true;
   });
+  const godRun = generateDobbleRun(createRng('X::dobble::god'), parseDobbleMode('god'));
+  const godIds = new Set(godRun.flatMap((r) => [...r.left, ...r.right].map((x) => x.symbol.id)));
+  return hasKrriKtx && decksOk && godRun[0].left.length === 17 && godIds.has('krri') && godIds.has('ktx');
 });
 await page.click('[data-preset="easy"]');
 await page.click('[data-start]');
@@ -259,6 +269,7 @@ if (!out.countdownShown) failures.push('no start countdown');
 if (!/^성공 · 🧮 5\/5 정답/.test(out.anzan || '')) failures.push(`flash anzan: ${out.anzan}`);
 if (out.spotCardHasSelect || out.pickerCards !== 2 || !out.pickerExitNoConfirm) failures.push('spot picker flow');
 if (!out.dobbleMathValid || !cleared(out.dobble)) failures.push(`dobble: ${out.dobbleMathValid} / ${out.dobble}`);
+if (!out.noInviteCopyBtn || !out.heroToolsInBanner) failures.push('lobby hero tools / invite copy removal');
 if (out.resultButtons?.labels?.join(',') !== '로비,난이도 변경,재도전' || !out.resultButtons?.sameRow || !out.resultButtons?.sameSize) {
   failures.push(`resultButtons: ${JSON.stringify(out.resultButtons)}`);
 }
