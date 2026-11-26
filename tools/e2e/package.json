@@ -1,0 +1,12 @@
+{
+  "name": "possible-mission-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only end-to-end checks. The site itself has no dependencies.",
+  "scripts": {
+    "test": "node play.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.1"
+  }
+}

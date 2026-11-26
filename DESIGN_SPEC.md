@@ -15,6 +15,9 @@ Every programmer works strictly inside their assigned CSS + JS module(s). Modify
 ```text
 /
 ├── DESIGN_SPEC.md                  # [this document] Authoritative architecture & module contracts
+├── README.md                       # Player / host quick start
+├── HANDOFF.md                      # Developer & agent continuation notes, status, backlog
+├── .nojekyll                       # GitHub Pages: serve files as-is
 ├── index.html                      # Single-page shell (Lobby view, Game view, HUD, Modals, Toast/Confetti layers)
 ├── styles/
 │   ├── main.css                    # CSS variables (:root tokens), backdrop, lobby, shared HUD, modals, toasts, responsive grid
@@ -28,10 +31,13 @@ Every programmer works strictly inside their assigned CSS + JS module(s). Modify
 │   │   ├── seed.js                 # Deterministic FNV-1a + Mulberry32 PRNG & seeded array utilities
 │   │   ├── audio.js                # Pure Web Audio API retro SFX synthesizer & mute persistence
 │   │   ├── storage.js              # localStorage persistence (profile, PB per game+mode, seed history, run log, mute)
-│   │   └── ui.js                   # Toasts, confetti canvas burst, S/A/B/C grading, Slack/Kakao formatter, modals, share URL + QR matrix
+│   │   ├── ui.js                   # Toasts, confetti canvas burst, S/A/B/C grading, Slack/Kakao formatter, modals, share URL + QR matrix
+│   │   └── rules.js                # Cross-game fairness constants (wrong-input cooldown, touch hit slop) — see §5
 │   └── games/
 │       ├── hidden-object.js        # Programmer A — exports mount(container, ctx) -> { unmount() }
 │       ├── spot-difference.js      # Programmer B — exports mount(container, ctx) -> { unmount() }
+│       ├── spot-stages.js          # 틀린그림찾기 picture & difficulty registry (shared with the lobby)
+│       ├── spot-scenes.js          # 8 drawn 틀린그림찾기 scenes + difference engine
 │       ├── memory-match.js         # Programmer C — exports mount(container, ctx) -> { unmount() }
 │       └── despair-fortress.js     # Programmer D — exports mount(container, ctx) -> { unmount() }
 └── assets/
@@ -41,7 +47,7 @@ Every programmer works strictly inside their assigned CSS + JS module(s). Modify
         ├── hidden-space.jpg        # 1376x768 — Hidden Object Stage 2 (Orbital Observatory)
         ├── spot-cafe.jpg           # 1200x896 — Spot the Difference Stage 1 (Board Game Cafe)
         ├── spot-camp.jpg           # 1200x896 — Spot the Difference Stage 2 (Golden Camp)
-        └── fortress-bg.jpg         # 1376x768 — Despair Fortress Security Vault
+        └── fortress-bg.jpg         # 1376x768 — legacy Despair Fortress art (no longer referenced by the redesigned wall game)
 ```
 
 ### CSS Isolation Rule (Zero Style Collisions)
@@ -52,7 +58,7 @@ Every programmer works strictly inside their assigned CSS + JS module(s). Modify
    - `memory-match.js` → root `<div class="game-root game-memory">`, keyframes prefixed `mm-`
    - `despair-fortress.js` → root `<div class="game-root game-fortress">`, keyframes prefixed `df-`
 3. Game stylesheets MUST NOT style bare tags (`button`, `canvas`, `h2`, `body`) outside their root scope class, and MUST consume tokens from `styles/main.css` (`var(--neon-cyan)`, etc.).
-4. **16:9 Arcade Cabinet (PC first)**: on viewports `>= 900px` every mini-game MUST render inside a fixed 16:9 stage frame. `styles/main.css` owns this rule (`.game-stage > .game-root { aspect-ratio: 16/9; width: min(100%, calc((100dvh - var(--hud-height) - 2 * clamp(8px, 1.6vh, 20px)) * 16 / 9)); }`), so game modules must fill the frame (`width/height: 100%`) and never assume the viewport aspect ratio. Game-specific desktop layouts may switch to a 2-column grid inside the frame (e.g. `despair-fortress` arena | keypad, `hidden-object` stage | target dock).
+4. **16:9 Arcade Cabinet (PC first)**: on viewports `>= 900px` every mini-game MUST render inside a fixed 16:9 stage frame. `styles/main.css` owns this rule (`.game-stage > .game-root { aspect-ratio: 16/9; width: min(100%, calc((100dvh - var(--hud-height) - 2 * clamp(8px, 1.6vh, 20px)) * 16 / 9)); }`), so game modules must fill the frame (`width/height: 100%`) and never assume the viewport aspect ratio. Game-specific desktop layouts may switch to a 2-column grid inside the frame (e.g. `hidden-object` stage | target dock; `despair-fortress` uses a console bar over a full-width wall).
 
 ---
 
@@ -63,9 +69,9 @@ All routing (`?game=<id>&mode=<mode>`), dynamic imports (`./games/<id>.js`), sto
 | Game ID (`<id>`) | File (`./js/games/<id>.js`) | Korean Title | English Sub-label | Accent Token | Canonical `ctx.mode` Values (Default First) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `hidden-object` | `hidden-object.js` | 숨은그림찾기 | `HIDDEN MISSION` | `--neon-cyan` | `stage1-normal`, `stage1-hard`, `stage2-normal`, `stage2-hard` |
-| `spot-difference` | `spot-difference.js` | 틀린그림찾기 | `SPOT THE GLITCH` | `--neon-magenta` | `stage1-normal`, `stage1-hard`, `stage2-normal`, `stage2-hard` |
+| `spot-difference` | `spot-difference.js` | 틀린그림찾기 | `SPOT THE DIFFERENCE` | `--neon-magenta` | `pick` (in-game picture → difficulty chooser), then `<picture>-<difficulty>` for the 10 pictures in `js/games/spot-stages.js` (e.g. `beach-normal`; difficulty `easy` / `normal` / `hard`) |
 | `memory-match` | `memory-match.js` | 네온 메모리 매치 | `NEON MEMORY` | `--neon-violet` | `4x3`, `4x4`, `6x4` |
-| `despair-fortress` | `despair-fortress.js` | 절망요새 숨바꼭질 | `DESPAIR FORTRESS` | `--neon-crimson` | `standard` |
+| `despair-fortress` | `despair-fortress.js` | 절망요새 숨바꼭질 | `DESPAIR FORTRESS` | `--neon-crimson` | `wall` |
 
 ---
 
@@ -418,7 +424,7 @@ export function launchConfetti(tier = 'S')
  * `[POSSIBLE MISSION] <emoji> <gameTitle> (<modeLabel>) | <nickname>(<team>) | <grade>랭크 <score>점 (<timeSec>초) | 정확도 <accuracy>% | 시드: <seed>`
  * (If team is empty, omit `(<team>)`.)
  */
-export function formatResultText({ gameId, gameTitle, modeLabel, player, grade, score, timeMs, accuracy, seed })
+export function formatResultText({ emoji, gameTitle, modeLabel, player, grade, score, timeMs, accuracy, seed }) // emoji comes from GAME_CATALOG in app.js
 
 /**
  * Parses pasted Slack/KakaoTalk result lines for the Hall of Fame projector importer.
@@ -485,7 +491,7 @@ export function closeModal()
 ```js
 const ctx = {
   seed,       // string, e.g. "MISSION-1"
-  mode,       // string, e.g. "stage1-normal" | "4x4" | "standard"
+  mode,       // string, e.g. "stage1-normal" | "4x4" | "beach-hard" | "wall"
   player,     // { nickname: string, team: string }
   rng,        // () => number (already seeded for `${seed}::${gameId}::${mode}`)
   audio,      // { playClick, playFlip, playMatch, playError, playHint, playTick, playClear, playAlarm, setMuted, isMuted }
@@ -521,9 +527,18 @@ const ctx = {
   /**
    * Unmounts the active game and returns cleanly to the Lobby view.
    */
-  exitToHub() {}
+  exitToHub() {},
+
+  /**
+   * Relaunches the same game in another of its catalog modes (replaces the history
+   * entry). Used by in-game choosers such as the 틀린그림찾기 picture picker.
+   * @param {string} mode - Must be one of the game's catalog mode ids
+   */
+  switchMode(mode) {}
 };
 ```
+
+`mount()` may return `{ unmount, idle: true }` for a screen that has no run to lose (e.g. a picker). The hub then skips the exit-confirm modal, hides the pause button and does not auto-pause on tab switch.
 
 #### Exact Game Module Export Contract
 Every file in `js/games/*.js` MUST export:
@@ -555,8 +570,8 @@ export function mount(container, ctx) {
 ## 5. Common Fairness, Input & Anti-Cheat Rules
 
 1. **Normalized Coordinate System**: All hit-testing in canvas-based games (`hidden-object`, `spot-difference`, `despair-fortress`) MUST use normalized `[0.0..1.0, 0.0..1.0]` coordinates relative to the drawn image/board rect, independent of device pixel ratio (`devicePixelRatio`) or CSS scaling.
-2. **Mobile Touch Hit Slop**: When `event.pointerType === 'touch'`, automatically add `+0.012` (~10–15px) to the hit radius `r`.
-3. **Spam-Click Cooldown**: On any wrong click/tap, trigger a **450ms input cooldown** (ignoring rapid multi-finger taps or accidental double-taps during penalty feedback).
+2. **Mobile Touch Hit Slop**: When `event.pointerType === 'touch'`, automatically add `+0.012` (~10–15px) to the hit radius `r`. Import `TOUCH_HIT_SLOP` from `js/core/rules.js` rather than hard-coding it.
+3. **Spam-Click Cooldown**: On any wrong click/tap, trigger a **450ms input cooldown** (ignoring rapid multi-finger taps or accidental double-taps during penalty feedback). Import `WRONG_INPUT_COOLDOWN_MS` from `js/core/rules.js`. Keyboard handlers must also ignore `event.repeat` (and modifier combos such as Ctrl/Cmd/Alt) so a held key cannot bypass the cooldown or steal browser shortcuts.
 4. **Pause Curtain & Tab Switch**: Whenever `paused` is `true`, `#pause-curtain` covers `#game-stage` with an opaque blur so players cannot memorize or search while the clock is stopped.
 5. **Double-Completion Guard**: Games MUST maintain a `finished` boolean flag so `ctx.completeGame(...)` can never be called more than once per `mount()`.
 
@@ -570,11 +585,12 @@ export function mount(container, ctx) {
   - `stage1-*`: `./assets/images/hidden-workshop.jpg` (`1376 × 768`, 크리에이티브 라운지)
   - `stage2-*`: `./assets/images/hidden-space.jpg` (`1376 × 768`, 궤도 관측소)
 - **Modes & Parameters**:
-  - `stage1-normal` / `stage2-normal`: Pick **7 items** from 18-item pool / **75s** limit / **2 Hints**
-  - `stage1-hard` / `stage2-hard`: Pick **10 items** from 18-item pool / **90s** limit / **2 Hints**
+  - `stage1-normal` / `stage2-normal`: Pick **7 items** from the stage prop list (12 per stage) / **75s** limit / **2 Hints**
+  - `stage1-hard` / `stage2-hard`: Pick **10 items** from the stage prop list (12 per stage) / **90s** limit / **2 Hints**
 - **Selection & Rendering**:
-  - Use `ctx.rng` with spatial dispersion ($d \ge 0.12$, covering all 4 quadrants first) to select the 7 or 10 target items.
-  - Draw ONLY the selected items onto the `<canvas>` over the stage JPG using deterministic **Canvas vector illustrations** (`#1E1824` `2px` outline, subtle directional drop shadow, `0.92` alpha blend, size ~`38–48px` at 1376px base width).
+  - Each stage lists the props that **belong in that room and are not already drawn in the art** (`STAGES[*].props`). A prop that duplicates something painted in the background (mugs, dice, headphones, potions, crystals…) is excluded, because players would tap the painted copy and take a penalty.
+  - Each stage lists **resting spots on real surfaces** (shelves, tables, sofa seats, floor): the point where a prop's bottom edge sits (`spots[*].x/y`) plus a perspective `scale`. Props are placed with their measured art bounds (`PROP_BOX`) so they stand upright on the surface, with a soft contact shadow and a per-stage colour grade (`propFilter`). `pinned` spots (cork board) accept only the props listed in `only`.
+  - Use `ctx.rng` to pick the props, then spatially dispersed spots ($d \ge 0.12$, quadrants first), filling restricted spots first.
   - Render the bottom/side **Target Dock** using the **exact same vector drawing helper** (rendered into mini `<canvas>` or matching SVG paths) + Korean label so targets match 1:1 visually.
 - **Magnifier Loupe (`2.2x`, `140px` diameter, cyan rim + crosshair)**:
   - **Desktop**: Tracks pointer hover over canvas (`M` key toggles on/off).
@@ -641,18 +657,13 @@ export function mount(container, ctx) {
 
 ### 6.2 Game 2: 틀린그림찾기 (`js/games/spot-difference.js`)
 - **CSS Scope**: `.game-spot` in `styles/game-spot.css`
-- **Assets**:
-  - `stage1-*`: `./assets/images/spot-cafe.jpg` (`1200 × 896`, 보드게임 디저트 카페)
-  - `stage2-*`: `./assets/images/spot-camp.jpg` (`1200 × 896`, 골든아워 어드벤처 캠프)
-- **Modes & Parameters**:
-  - `stage1-normal` / `stage2-normal`: Pick **6 anomalies** from 10-item pool / **60s** limit / **2 Hints**
-  - `stage1-hard` / `stage2-hard`: Pick **8 anomalies** from 10-item pool / **75s** limit / **2 Hints**
-- **Dual-Canvas Procedural Modification Pipeline**:
-  - Render base image on `Original` `<canvas>` and `Modified` `<canvas>`.
-  - Apply ONLY the `N` seeded anomalies to `Modified` using 3 clean techniques:
-    1. `color-swap`: Read `ImageData` within circular/elliptical soft mask; rotate HSL hue (`+110°..+185°` or specified delta) ONLY on pixels with `luminance >= 0.22` (preserving dark `#1E1824` illustration outlines 100%).
-    2. `patch-remove`: Clone adjacent clean texture patch over the target object to remove it seamlessly.
-    3. `cel-prop`: Draw crisp `2px #1E1824` outlined cel-shaded vector detail (or patch face + redraw hands/suit).
+- **Pictures (10)**, registry in `js/games/spot-stages.js`:
+  - 2 photos with hand-placed, pixel-verified anomalies: `cafe` (`spot-cafe.jpg`), `camp` (`spot-camp.jpg`).
+  - 8 drawn scenes in `js/games/spot-scenes.js`: `beach`, `city`, `farm`, `sea`, `snow`, `space`, `kitchen`, `park`. A scene is data (background painter + objects made of shapes) and each difference is a declarative edit of one object (`recolor`, `remove`, `add`, `move`, `scale`, `flip`, `replace`). Hitboxes are computed from the shapes that actually changed, and a difference that changes nothing is rejected when the pool is built.
+- **Flow**: the lobby launches mode `pick` → choose a picture → choose a difficulty → `ctx.switchMode('<picture>-<difficulty>')`.
+- **Difficulties**: `easy` **5** differences / **90s** (skips `subtle` ones), `normal` **7** / **80s**, `hard` **9** / **75s**; **2 Hints** each.
+- **Photo pipeline**: render the JPG on both buffers, then apply ONLY the seeded anomalies to `Modified` (`color-swap` preserving dark outlines, `patch-remove`, `cel-prop`).
+- **Vector pipeline**: render the scene twice from the same data, the second time with the seeded differences applied.
 - **Synchronized Interaction & Layout**:
   - **Desktop (`>= 900px`)**: Side-by-side layout (`Original` left, `Modified` right) + **Mirror Crosshair** on opposite canvas at identical normalized `(x, y)` during pointer hover.
   - **Mobile (`< 900px`)**: Stacked top/bottom layout + optional `2.0x` zoom loupe toggle (NO overlay-flicker cheat button).
@@ -721,40 +732,22 @@ export function mount(container, ctx) {
 ---
 
 ### 6.4 Game 4: 절망요새 숨바꼭질 (`js/games/despair-fortress.js`)
-- **CSS Scope**: `.game-fortress` in `styles/game-fortress.css`
-- **Asset**: `./assets/images/fortress-bg.jpg` (`1376 × 768`) with dark terminal scanline & red alert vignette overlay.
-- **Mode**: `standard` — 3 consecutive security sectors, **3 shared Shields (`♥ ♥ ♥`)**.
-- **Sector Progression**:
-  | Sector | Label | Nodes | Letters | Memorize | Movement & Gimmick | Decode Limit | Base Pts/Slot |
-  | :---: | :--- | :---: | :---: | :---: | :--- | :---: | :---: |
-  | `1` | 제1구역: 외곽 격납고 | `6` | `A`–`F` | `4.0s` | Static + gentle hover (`±4px`, zero overlap) | `15.0s` | `400` |
-  | `2` | 제2구역: 중앙 제어실 | `8` | `A`–`H` | `4.0s` | Smooth drift (`55–75 px/s`) + safe-area bounce + pairwise repulsion | `15.0s` | `550` |
-  | `3` | 제3구역: 절대 영점 금고 | `10` | `A`–`J` | `4.5s` | Fast drift (`85–115 px/s`) + repulsion + **Decoy Blink** | `15.0s` | `700` |
-- **3-Phase Micro-Loop per Sector**:
-  1. `LOCK-ON` (`1.8s` for Sector 1, `0.8s` afterwards): Spawn nodes inside safe play area with pairwise repulsion ensuring zero overlap. Assign unique 2-digit numbers (`03`–`98`, zero-padded) with **no mirror-pair collisions** (e.g., if `17` is chosen, `71` is forbidden in that sector).
-  2. `MEMORIZE`: The arena runs the **rolling reveal** (see below); `audio.playTick()` pulses during final `1.5s`.
-  3. `TERMINAL DECODE` (`15.0s`): Terminal header displays 3 distinct target numbers in order: e.g. `CODE: [17] - [04] - [82]` (active slot highlighted cyan). The rolling reveal keeps running, so the player can re-check a pairing while decoding but never sees every number at once.
-     - **Dual Input**: Direct tap/click on floating node (`r = 0.048`, `+0.012` touch slop) **OR** keyboard `A–J` **OR** tactile `A–J` keypad buttons (prevents mobile frustration on fast Sector 3 nodes).
-- **ROLLING REVEAL (core identity — not a full blackout)**:
-  - Numbers are **never hidden all at once and never shown all at once**. Each node owns a short window inside a sector cycle, so at any moment only ~2–3 numbers are visible and they appear **in sequence**.
-  - Window/stagger per sector: `1.45s / 0.62s` (S1), `1.25s / 0.52s` (S2), `1.05s / 0.42s` (S3); cycle = `nodeCount × stagger` (≈ `3.7–4.2s`), so every node is revealed at least once per memorize phase.
-  - Numbers fade in/out over `0.16s` (soft edges), solved nodes never show their number again, and the reveal clock stops while paused/ended.
-  - Design intent: a *glimpse-and-remember* game. The target numbers create the goal; the rolling scan provides both the memorization window and the mid-decode mercy the old "SIGNAL LEAK" tried to give, without revealing the whole board.
-- **Fairness Rule for Sector 3 `Decoy Blink`**:
-  - NEVER swap a node's true letter-number pairing.
-  - During memorize (`1.2s..3.2s` window only): flash red border on 2 random nodes for `180ms` with `"교란 신호 감지! GLITCH"` banner.
-  - During decode: flash brief red warning rings on 2 wrong nodes and a `교란 신호 — FAKE NN` banner line (no fake numbers are ever drawn on nodes).
-- **Shields & End Conditions**:
-  - **Hit**: Lock slot `[17 ✓]`, `audio.playMatch(++streak)`, disable already-solved node for remainder of sector.
-  - **Miss**: `-1 ♥` shield, `audio.playError()`, red `"ACCESS DENIED — 재시도!"` + `350ms` screen shake, reset `streak = 0` (active slot stays open).
-  - **Fail**: `shields === 0` OR sector decode timer reaches `0.0s` → `audio.playAlarm()`, call `ctx.completeGame({ ..., cleared: false })`.
-  - **Clear**: All 9 slots across 3 sectors solved → `ctx.completeGame({ ..., cleared: true })`.
-- **Scoring Formula**:
-  - $\text{SlotPoints} = \sum_{\text{solved}} \text{SectorBase}_k$
-  - $\text{StreakBonus} = \sum_{\text{solved},\ C_j \ge 2} \big(60 \times \min(C_j, 9)\big)$
-  - $\text{FastBonus} = \sum_{k \in \text{cleared sectors}} \text{round}\big(\max(0, 15.0 - t_{\text{decode}, k}) \times 80\big)$
-  - $\text{ShieldSurvivalBonus} = (\text{allCleared}) ? (L_{\text{rem}} \times 400) : 0$
-  - $\text{TotalScore} = \text{SlotPoints} + \text{StreakBonus} + \text{FastBonus} + \text{ShieldSurvivalBonus}$
+- **Reference**: the かくれんぼ room of Fuji-Q Highland's 絶望要塞. Numbers hide behind letter tiles on a wall screen and keep peeking out; the player answers with the **letter** of the tile hiding each requested number. Right when numbers first appear, all of them are visible for about a second.
+- **CSS Scope**: `.game-fortress` in `styles/game-fortress.css`. Built for **one screen** (e.g. a venue wall display): the wall canvas always fills the available area. Its long side follows the screen's aspect ratio, and portrait screens swap the tile grid.
+- **Mode**: `wall`: 3 rounds, **3 shared Shields**, 3 target numbers per round.
+
+  | Round | Tiles | Flash (all numbers) | Peek cycle / window | Time | Base Pts |
+  | :---: | :---: | :---: | :---: | :---: | :---: |
+  | `1` | `8×5 = 40` | `1.6s` | `4.2s / 1.1s` | `30s` | `400` |
+  | `2` | `10×6 = 60` | `1.2s` | `5.0s / 0.9s` | `32s` | `550` |
+  | `3` | `12×7 = 84` | `1.0s` | `5.6s / 0.75s` | `35s` | `700` |
+
+- **Tiles**: seeded letter (`A–Z`, repeats allowed), unique 3-digit number (`000–999`), tilt, size and a peek offset. Every tile peeks once per cycle; its number slides up from behind the tile (drawn before the tile, so the tile covers it) and back down.
+- **Phases per round**: `intro` (`1.6s`, targets shown) → `flash` (all numbers out) → `hunt` (peeking) → `clear` (`1.3s`) or `fail` (`1.1s`). All timing runs on the game clock, so pausing freezes everything.
+- **Input**: tap/click a tile (rotated-square hit test, touch slop from `rules.js`) or type its letter (`A–Z`, no modifiers, no key repeat). Answers are accepted during `flash` and `hunt`. Because the answer is the letter, any tile with the right letter counts.
+- **Hit**: next target, `60 × min(streak, 9)` streak bonus, the true tile flashes green. **Miss**: `-1 ♥`, `450ms` cooldown, red tile flash + shake.
+- **End**: fail when shields reach 0 or a round's time runs out; clear after round 3.
+- **Scoring**: `base per target + streak bonus + round speed bonus (remaining sec × 60) + perfect round +500 + (cleared ? shields × 400 : 0)`.
 
 ---
 
@@ -764,6 +757,6 @@ export function mount(container, ctx) {
 | :--- | :--- | :--- |
 | **Core Lead** | `index.html`, `styles/main.css`, `js/core/seed.js`, `js/core/audio.js`, `js/core/storage.js`, `js/core/ui.js`, `js/app.js` | URL `?seed=TEST&game=memory-match&mode=4x4` boots straight in; QR canvas scans; copy-result + paste-aggregator podium works; pause curtain stops game clock. |
 | **Programmer A** | `styles/game-hidden.css`, `js/games/hidden-object.js` | Identical 7/10 subset on same seed; vector props match Target Dock icons 1:1; mobile drag loupe offsets `+72px` and never triggers miss on `pointerup`. |
-| **Programmer B** | `styles/game-spot.css`, `js/games/spot-difference.js` | Both canvases sync marks & mirror crosshair; `color-swap` preserves dark outlines; `stage1` and `stage2` all 10 anomalies visibly distinct. |
+| **Programmer B** | `styles/game-spot.css`, `js/games/spot-difference.js`, `js/games/spot-stages.js`, `js/games/spot-scenes.js` | Picker → difficulty → round; every picture clears on `hard` by clicking each computed difference; both canvases sync marks & mirror crosshair. |
 | **Programmer C** | `styles/game-memory.css`, `js/games/memory-match.js` | 2.0s preview freezes timer; matched pairs have `0ms` lock; mismatched pairs lock `600ms`; `4x3`/`4x4`/`6x4` fit `100dvh` without overflow. |
-| **Programmer D** | `styles/game-fortress.css`, `js/games/despair-fortress.js` | No mirror numbers per sector; Sector 2/3 repulsion prevents overlapping badges; keyboard `A-J` & tactile keypad work; Sector 3 decoy never alters true pairs. |
+| **Programmer D** | `styles/game-fortress.css`, `js/games/despair-fortress.js` | Same seed → same tiles/targets; all numbers visible during the flash; tiles never overlap their neighbours; 3 rounds clear by keyboard and by tap; a held key costs at most one shield. |

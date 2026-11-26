@@ -504,3 +504,178 @@
     transition: none !important;
   }
 }
+
+/* === Picture → difficulty picker (mode `pick`) ============================= */
+.game-spot.sd-picker {
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 14px 18px;
+  overflow-y: auto;
+}
+
+.game-spot .sd-picker__head {
+  text-align: center;
+}
+
+.game-spot .sd-picker__title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2vw, 1.6rem);
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.game-spot .sd-picker__sub {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.game-spot .sd-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.game-spot .sd-picker__grid[hidden],
+.game-spot .sd-picker__levels[hidden] {
+  display: none;
+}
+
+.game-spot .sd-pick-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-deep);
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.game-spot .sd-pick-card:hover,
+.game-spot .sd-pick-card:focus-visible {
+  border-color: var(--sd-accent);
+  transform: translateY(-2px);
+  outline: none;
+}
+
+.game-spot .sd-pick-card__thumb {
+  display: block;
+  aspect-ratio: 1200 / 896;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: #10141c;
+}
+
+.game-spot .sd-pick-card__thumb img,
+.game-spot .sd-pick-card__thumb canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.game-spot .sd-pick-card__title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.game-spot .sd-picker__levels {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 20px;
+  width: min(100%, 980px);
+}
+
+.game-spot .sd-picker__chosen .sd-pick-card__thumb {
+  border: 1px solid var(--border-strong);
+}
+
+.game-spot .sd-picker__level-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.game-spot .sd-level-btn {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'label meta' 'label note';
+  align-items: center;
+  column-gap: 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-deep);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.game-spot .sd-level-btn:hover,
+.game-spot .sd-level-btn:focus-visible {
+  border-color: var(--sd-accent);
+  background: var(--bg-surface-hover);
+  outline: none;
+}
+
+.game-spot .sd-level-btn__label {
+  grid-area: label;
+  min-width: 64px;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.game-spot .sd-level-btn--easy .sd-level-btn__label { color: var(--sd-emerald); }
+.game-spot .sd-level-btn--normal .sd-level-btn__label { color: var(--sd-gold); }
+.game-spot .sd-level-btn--hard .sd-level-btn__label { color: var(--sd-crimson); }
+
+.game-spot .sd-level-btn__meta {
+  grid-area: meta;
+  font-weight: 700;
+}
+
+.game-spot .sd-level-btn__note {
+  grid-area: note;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.game-spot .sd-picker__back {
+  grid-column: 1 / -1;
+  justify-self: center;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.game-spot .sd-picker__back:hover,
+.game-spot .sd-picker__back:focus-visible {
+  color: var(--text-primary);
+  outline: none;
+}
+
+@media (max-width: 899px) {
+  .game-spot .sd-picker__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .game-spot .sd-picker__levels {
+    grid-template-columns: 1fr;
+  }
+}

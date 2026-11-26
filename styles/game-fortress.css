@@ -1,766 +1,268 @@
 /* ==========================================================================
-   Game 4: 절망요새 숨바꼭질 (DESPAIR FORTRESS) — Scoped Styles (.game-fortress)
-   All selectors scoped under .game-fortress; all @keyframes prefixed df-.
+   Game 4: 절망요새 숨바꼭질 — single wall screen of letter tiles
+   Everything is scoped under .game-fortress; keyframes are prefixed df-.
    ========================================================================== */
 
 .game-fortress {
-  --df-crimson: var(--neon-crimson, #ef4444);
-  --df-cyan: var(--neon-cyan, #22d3ee);
-  --df-gold: var(--neon-gold, #fbbf24);
-  --df-emerald: var(--neon-emerald, #34d399);
-  --df-magenta: var(--neon-magenta, #f43f8e);
-
-  position: relative;
+  --df-neon: var(--neon-emerald);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
   width: 100%;
   height: 100%;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: clamp(8px, 1.5vw, 16px);
-  overflow: hidden;
-  user-select: none;
-  -webkit-user-select: none;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(239, 68, 68, 0.16), transparent 55%),
-    linear-gradient(180deg, #060711 0%, #0a0b18 100%);
+  padding: 10px;
+  box-sizing: border-box;
+  background: #0b100e;
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
 }
 
-/* === Lockdown Terminal Header === */
-.game-fortress .df-terminal {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 14px;
-  border-radius: var(--radius-lg, 20px);
-  background: rgba(11, 14, 28, 0.88);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(239, 68, 68, 0.34);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  flex-shrink: 0;
+/* --- Console: round · target numbers · shields + time ------------------- */
+.game-fortress .df-console {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px;
+  border: 1px solid rgba(63, 191, 146, 0.35);
+  border-radius: var(--radius-md);
+  background: rgba(18, 26, 23, 0.92);
 }
 
-.game-fortress .df-terminal.is-shake {
-  animation: df-shake 350ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
-  border-color: var(--df-crimson);
-  box-shadow: var(--glow-crimson);
+.game-fortress .df-round {
+  padding: 5px 12px;
+  border-radius: var(--radius-pill);
+  background: rgba(63, 191, 146, 0.14);
+  color: var(--df-neon);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.86rem;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
-.game-fortress .df-terminal__top {
+.game-fortress .df-targets {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.game-fortress .df-sector-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 12px;
   min-width: 0;
 }
 
-.game-fortress .df-sector-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill, 9999px);
-  background: rgba(239, 68, 68, 0.18);
-  border: 1px solid rgba(239, 68, 68, 0.52);
-  color: #fecaca;
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
+.game-fortress .df-targets__label {
+  color: var(--text-muted);
+  font-size: 0.86rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
   white-space: nowrap;
 }
 
-.game-fortress .df-sector-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--df-crimson);
-  box-shadow: 0 0 8px var(--df-crimson);
-  animation: df-pulse-dot 1s ease-in-out infinite alternate;
-}
-
-.game-fortress .df-sector-name {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(0.88rem, 1.2vw, 1.05rem);
-  color: var(--text-primary, #f8fafc);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.game-fortress .df-status-group {
+.game-fortress .df-targets__slots {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-}
-
-.game-fortress .df-shields {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill, 9999px);
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.34);
-  font-size: 0.85rem;
-  letter-spacing: 0.08em;
-}
-
-.game-fortress .df-shield-heart {
-  color: var(--df-crimson);
-  text-shadow: 0 0 10px rgba(239, 68, 68, 0.65);
-  transition: transform 180ms ease, opacity 180ms ease;
-}
-
-.game-fortress .df-shield-heart.is-lost {
-  color: var(--text-dim, #64748b);
-  text-shadow: none;
-  opacity: 0.38;
-  transform: scale(0.84);
-}
-
-.game-fortress .df-streak-pill {
-  padding: 4px 10px;
-  border-radius: var(--radius-pill, 9999px);
-  background: rgba(251, 191, 36, 0.16);
-  border: 1px solid rgba(251, 191, 36, 0.45);
-  color: var(--df-gold);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-/* === Target Code Slots Bar === */
-.game-fortress .df-terminal__codebar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.game-fortress .df-code-sequence {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.game-fortress .df-code-label {
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--text-muted, #94a3b8);
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.game-fortress .df-slots {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .game-fortress .df-slot {
-  position: relative;
-  min-width: 72px;
-  height: 40px;
-  padding: 0 10px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(148, 163, 184, 0.24);
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  align-items: baseline;
   gap: 6px;
+  padding: 4px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
   font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-weight: 800;
-  font-size: 0.96rem;
-  color: var(--text-muted, #94a3b8);
-  transition: all 180ms var(--ease-arcade, ease);
-}
-
-.game-fortress .df-slot.is-masked {
-  letter-spacing: 0.12em;
-  color: rgba(148, 163, 184, 0.55);
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 0.08em;
 }
 
 .game-fortress .df-slot.is-active {
-  background: rgba(34, 211, 238, 0.16);
-  border-color: var(--df-cyan);
-  color: #ffffff;
-  box-shadow: 0 0 18px rgba(34, 211, 238, 0.35), inset 0 0 10px rgba(34, 211, 238, 0.15);
-  transform: translateY(-1px) scale(1.04);
+  border-color: var(--df-neon);
+  background: rgba(63, 191, 146, 0.16);
+  color: var(--text-primary);
+  font-size: 1.45rem;
+  animation: df-pulse 1.4s ease-in-out infinite;
 }
 
 .game-fortress .df-slot.is-solved {
-  background: rgba(52, 211, 153, 0.18);
-  border-color: var(--df-emerald);
-  color: #ecfdf5;
-  box-shadow: 0 0 14px rgba(52, 211, 153, 0.28);
-}
-
-.game-fortress .df-slot.is-error {
-  background: rgba(239, 68, 68, 0.26);
-  border-color: var(--df-crimson);
-  color: #fecaca;
+  border-color: rgba(63, 191, 146, 0.4);
+  color: var(--df-neon);
 }
 
 .game-fortress .df-slot__letter {
-  display: inline-grid;
-  place-items: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 5px;
+  display: inline-block;
+  padding: 0 6px;
   border-radius: 6px;
-  background: rgba(52, 211, 153, 0.28);
-  color: var(--df-emerald);
-  font-size: 0.78rem;
+  background: var(--df-neon);
+  color: #08120d;
+  font-family: var(--font-display);
 }
 
-.game-fortress .df-slot-arrow {
-  color: var(--text-dim, #64748b);
-  font-size: 0.8rem;
-  font-weight: 700;
+.game-fortress .df-slot__arrow {
+  color: var(--text-dim);
 }
 
-.game-fortress .df-phase-controls {
+.game-fortress .df-status {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
 }
 
-.game-fortress .df-phase-pill {
-  padding: 5px 11px;
-  border-radius: var(--radius-pill, 9999px);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  color: var(--text-secondary, #cbd5e1);
-  white-space: nowrap;
+.game-fortress .df-shields {
+  color: var(--neon-crimson);
+  font-size: 1.1rem;
+  letter-spacing: 0.12em;
 }
 
-.game-fortress .df-phase-pill[data-phase='memorize'] {
-  background: rgba(251, 191, 36, 0.18);
-  border-color: rgba(251, 191, 36, 0.55);
-  color: var(--df-gold);
-}
-
-.game-fortress .df-phase-pill[data-phase='decode'] {
-  background: rgba(34, 211, 238, 0.16);
-  border-color: rgba(34, 211, 238, 0.55);
-  color: var(--df-cyan);
-}
-
-.game-fortress .df-phase-pill[data-phase='blackout'] {
-  background: rgba(239, 68, 68, 0.24);
-  border-color: var(--df-crimson);
-  color: #fecaca;
-}
-
-.game-fortress .df-skip-btn {
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 0;
-  border-radius: 8px;
-  background: none;
-  color: var(--text-muted, #94a3b8);
-  font-family: var(--font-sans);
-  font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  opacity: 0.7;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color 140ms ease, opacity 140ms ease;
-}
-
-.game-fortress .df-skip-btn:hover {
-  color: var(--text-primary, #f8fafc);
-  opacity: 1;
-}
-
-.game-fortress .df-skip-btn[hidden] {
-  display: none;
-}
-
-/* Phase countdown bar inside terminal */
-.game-fortress .df-timer-track {
-  position: relative;
-  width: 100%;
-  height: 5px;
-  border-radius: 999px;
+.game-fortress .df-timebar {
+  width: 140px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.08);
-  overflow: hidden;
 }
 
-.game-fortress .df-timer-fill {
+.game-fortress .df-timebar span {
+  display: block;
   height: 100%;
-  width: 100%;
-  transform-origin: left center;
-  transform: scaleX(var(--df-bar, 1));
-  background: linear-gradient(90deg, var(--df-cyan), var(--df-gold));
-  transition: background-color 180ms ease;
+  width: calc(var(--df-time, 1) * 100%);
+  background: var(--df-neon);
+  transition: width 120ms linear;
 }
 
-.game-fortress .df-timer-fill[data-mode='memorize'] {
-  background: linear-gradient(90deg, var(--df-gold), var(--df-magenta));
+.game-fortress .df-timebar span[data-state='danger'] {
+  background: var(--neon-crimson);
 }
 
-.game-fortress .df-timer-fill[data-mode='danger'] {
-  background: linear-gradient(90deg, var(--df-crimson), #fb7185);
-}
-
-/* === Containment Chamber Arena === */
-.game-fortress .df-arena {
+/* --- Wall screen ----------------------------------------------------------- */
+.game-fortress .df-wall-wrap {
   position: relative;
-  flex: 1 1 auto;
-  min-height: 220px;
-  border-radius: var(--radius-xl, 26px);
-  overflow: hidden;
-  border: 1px solid rgba(239, 68, 68, 0.18);
-  background: #060813;
-  box-shadow:
-    inset 0 0 38px rgba(0, 0, 0, 0.5),
-    0 12px 28px rgba(0, 0, 0, 0.42);
-  touch-action: manipulation;
+  min-height: 0;
 }
 
-.game-fortress .df-arena.is-shake {
-  animation: df-shake 350ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
-  border-color: var(--df-crimson);
+.game-fortress .df-wall-wrap.is-shake {
+  animation: df-shake 320ms ease;
 }
 
-.game-fortress .df-arena.is-glitch {
-  border-color: rgba(239, 68, 68, 0.72);
-  box-shadow: inset 0 0 44px rgba(239, 68, 68, 0.16), 0 0 14px rgba(239, 68, 68, 0.16);
-}
-
-.game-fortress .df-arena__bg {
+.game-fortress .df-wall {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.36;
-  filter: saturate(1.15) contrast(1.08);
-  pointer-events: none;
-}
-
-.game-fortress .df-arena__vignette {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(7, 9, 20, 0.14) 30%, rgba(7, 9, 20, 0.6) 100%),
-    linear-gradient(180deg, rgba(239, 68, 68, 0.05) 0%, transparent 26%, transparent 74%, rgba(239, 68, 68, 0.06) 100%);
-}
-
-/* Scanline overlay disabled: the arena reads as a clean dark panel */
-.game-fortress .df-arena__scanlines {
-  display: none;
-}
-
-.game-fortress .df-canvas {
-  position: relative;
-  z-index: 2;
   display: block;
   width: 100%;
   height: 100%;
-  cursor: crosshair;
-  touch-action: none;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
-.game-fortress .df-arena-hud {
+.game-fortress .df-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  min-height: 68px;
-  padding: 10px 12px 0;
-  pointer-events: none;
-}
-
-/* Center Arena Banner (Sector intro, Vanishing Warning, Glitch, Sector Clear) */
-.game-fortress .df-banner {
-  max-width: 100%;
-  padding: 5px 13px;
-  border-radius: var(--radius-pill, 9999px);
-  background: rgba(7, 9, 20, 0.9);
-  border: 1px solid rgba(34, 211, 238, 0.55);
-  color: #f8fafc;
-  font-family: var(--font-display);
-  font-size: 0.84rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  line-height: 1.3;
+  left: 50%;
+  top: 50%;
+  min-width: min(440px, 86%);
+  padding: 22px 28px;
+  border: 1px solid var(--df-neon);
+  border-radius: var(--radius-lg);
+  background: rgba(8, 12, 10, 0.92);
+  box-shadow: var(--shadow-floating);
   text-align: center;
-  word-break: keep-all;
-  overflow-wrap: anywhere;
+  transform: translate(-50%, -50%);
   pointer-events: none;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-  transition: opacity 160ms ease, transform 160ms ease;
+  animation: df-pop 260ms var(--ease-pop);
 }
 
-.game-fortress .df-banner[hidden] {
+.game-fortress .df-overlay[hidden] {
   display: none;
 }
 
-.game-fortress .df-banner[data-tone='warn'] {
-  border-color: var(--df-gold);
-  color: #fef3c7;
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.35);
+.game-fortress .df-overlay[data-tone='danger'] {
+  border-color: var(--neon-crimson);
 }
 
-.game-fortress .df-banner[data-tone='danger'] {
-  border-color: var(--df-crimson);
-  background: rgba(127, 29, 29, 0.88);
-  color: #fee2e2;
-  box-shadow: var(--glow-crimson);
-}
-
-.game-fortress .df-banner[data-tone='success'] {
-  border-color: var(--df-emerald);
-  background: rgba(6, 78, 59, 0.88);
-  color: #d1fae5;
-  box-shadow: var(--glow-emerald);
-}
-
-/* Sector Clear Center Overlay */
-.game-fortress .df-sector-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 6;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: rgba(7, 9, 20, 0.68);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  pointer-events: none;
-}
-
-.game-fortress .df-sector-overlay[hidden] {
-  display: none;
-}
-
-.game-fortress .df-sector-card {
-  padding: 18px 26px;
-  border-radius: var(--radius-lg, 20px);
-  background: rgba(12, 17, 38, 0.94);
-  border: 1px solid var(--df-emerald);
-  box-shadow: var(--glow-emerald), 0 18px 40px rgba(0, 0, 0, 0.7);
-  text-align: center;
-  animation: df-pop 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.game-fortress .df-sector-card.is-fail {
-  border-color: var(--df-crimson);
-  box-shadow: var(--glow-crimson), 0 18px 40px rgba(0, 0, 0, 0.7);
-}
-
-.game-fortress .df-sector-card__eyebrow {
+.game-fortress .df-overlay__eyebrow {
+  margin: 0 0 6px;
+  color: var(--df-neon);
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: var(--df-emerald);
 }
 
-.game-fortress .df-sector-card.is-fail .df-sector-card__eyebrow {
-  color: var(--df-crimson);
+.game-fortress .df-overlay[data-tone='danger'] .df-overlay__eyebrow {
+  color: var(--neon-crimson);
 }
 
-.game-fortress .df-sector-card__title {
-  margin-top: 4px;
+.game-fortress .df-overlay__title {
+  margin: 0 0 8px;
   font-family: var(--font-display);
-  font-size: clamp(1.25rem, 2.2vw, 1.75rem);
-  font-weight: 900;
-  color: #ffffff;
+  font-size: clamp(1.3rem, 2.4vw, 2rem);
+  font-weight: 800;
 }
 
-.game-fortress .df-sector-card__bonus {
-  margin-top: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: var(--df-gold);
+.game-fortress .df-overlay__body {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  word-break: keep-all;
 }
 
-/* === Bottom Tactical A-J Keypad === */
-.game-fortress .df-keypad-wrap {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: var(--radius-lg, 20px);
-  background: rgba(11, 14, 28, 0.88);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  flex-shrink: 0;
+.game-fortress .df-help {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  word-break: keep-all;
 }
 
-.game-fortress .df-keypad-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 0.74rem;
-  color: var(--text-muted, #94a3b8);
+/* --- Small screens ------------------------------------------------------- */
+@media (max-width: 720px) {
+  .game-fortress {
+    height: calc(100dvh - var(--hud-height, 64px));
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .game-fortress .df-console {
+    grid-template-columns: auto auto;
+    grid-template-areas:
+      'round status'
+      'targets targets';
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .game-fortress .df-round { grid-area: round; justify-self: start; }
+  .game-fortress .df-status { grid-area: status; }
+  .game-fortress .df-targets { grid-area: targets; }
+  .game-fortress .df-targets__label { display: none; }
+  .game-fortress .df-slot { padding: 3px 8px; font-size: 0.95rem; }
+  .game-fortress .df-slot.is-active { font-size: 1.15rem; }
+  .game-fortress .df-timebar { width: 96px; }
 }
 
-.game-fortress .df-keypad-hint {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+@media (prefers-reduced-motion: reduce) {
+  .game-fortress .df-slot.is-active,
+  .game-fortress .df-wall-wrap.is-shake,
+  .game-fortress .df-overlay {
+    animation: none;
+  }
 }
 
-.game-fortress .df-keypad-keys-hint {
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--df-cyan);
-  white-space: nowrap;
-}
-
-.game-fortress .df-keypad {
-  display: grid;
-  grid-template-columns: repeat(var(--df-cols, 10), minmax(0, 1fr));
-  gap: 6px;
-}
-
-.game-fortress .df-key {
-  min-height: 44px;
-  border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-primary, #f8fafc);
-  font-family: var(--font-display);
-  font-weight: 900;
-  font-size: 1rem;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  transition: transform 110ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
-}
-
-.game-fortress .df-key:hover:not(:disabled) {
-  background: rgba(34, 211, 238, 0.18);
-  border-color: var(--df-cyan);
-  transform: translateY(-2px);
-  box-shadow: 0 0 14px rgba(34, 211, 238, 0.28);
-}
-
-.game-fortress .df-key:active:not(:disabled) {
-  transform: scale(0.95);
-}
-
-.game-fortress .df-key:disabled {
-  opacity: 0.34;
-  cursor: not-allowed;
-}
-
-.game-fortress .df-key.is-solved {
-  background: rgba(52, 211, 153, 0.2);
-  border-color: var(--df-emerald);
-  color: var(--df-emerald);
-  opacity: 0.72;
-}
-
-.game-fortress .df-key.is-wrong {
-  background: rgba(239, 68, 68, 0.32);
-  border-color: var(--df-crimson);
-  color: #fecaca;
-  box-shadow: var(--glow-crimson);
-}
-
-/* === Keyframes (all prefixed df-) === */
-@keyframes df-pulse-dot {
-  from { opacity: 0.55; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1.15); }
+@keyframes df-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(63, 191, 146, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(63, 191, 146, 0); }
 }
 
 @keyframes df-shake {
   0%, 100% { transform: translateX(0); }
-  18% { transform: translateX(-7px); }
-  36% { transform: translateX(7px); }
-  54% { transform: translateX(-5px); }
-  72% { transform: translateX(4px); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
 }
 
 @keyframes df-pop {
-  0% { opacity: 0; transform: scale(0.86); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-/* === Responsive Breakpoints === */
-@media (max-width: 720px) {
-  .game-fortress {
-    height: auto;
-    min-height: 100%;
-    gap: 8px;
-    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
-    overflow: visible;
-  }
-
-  .game-fortress .df-arena {
-    flex: 1 1 auto;
-    min-height: clamp(250px, 40dvh, 430px);
-  }
-
-  .game-fortress .df-arena-hud {
-    min-height: 60px;
-    padding: 8px 10px 0;
-    gap: 5px;
-  }
-
-  .game-fortress .df-banner {
-    font-size: 0.78rem;
-    padding: 4px 11px;
-  }
-
-  .game-fortress .df-terminal {
-    padding: 8px 10px;
-    gap: 6px;
-  }
-
-  .game-fortress .df-slot {
-    min-width: 60px;
-    height: 36px;
-    padding: 0 7px;
-    font-size: 0.88rem;
-  }
-
-  .game-fortress .df-keypad {
-    grid-template-columns: repeat(var(--df-cols-mobile, 5), minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .game-fortress .df-keypad-keys-hint {
-    display: none;
-  }
-
-  .game-fortress .df-keypad-hint {
-    white-space: normal;
-    line-height: 1.3;
-  }
-}
-
-@media (max-width: 420px) {
-  .game-fortress .df-code-label {
-    display: none;
-  }
-
-  .game-fortress .df-slot {
-    min-width: 54px;
-    height: 34px;
-    font-size: 0.84rem;
-  }
-
-  .game-fortress .df-key {
-    min-height: 44px;
-    font-size: 0.96rem;
-  }
-}
-
-/* === 16:9 Desktop Cabinet (PC / monitor first) === */
-@media (min-width: 900px) {
-  .game-fortress {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) clamp(196px, 18%, 268px);
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-areas:
-      'terminal terminal'
-      'arena keypad';
-    gap: 10px;
-    padding: 12px;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .game-fortress .df-terminal {
-    grid-area: terminal;
-  }
-
-  .game-fortress .df-arena {
-    grid-area: arena;
-    min-height: 0;
-  }
-
-  .game-fortress .df-keypad-wrap {
-    grid-area: keypad;
-    min-height: 0;
-    align-content: start;
-    gap: 10px;
-    overflow: hidden;
-  }
-
-  .game-fortress .df-keypad-meta {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    font-size: 0.72rem;
-  }
-
-  .game-fortress .df-keypad-hint {
-    white-space: normal;
-    line-height: 1.35;
-  }
-
-  .game-fortress .df-keypad-keys-hint {
-    display: none;
-  }
-
-  .game-fortress .df-keypad {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-auto-rows: 56px;
-    gap: 8px;
-    align-content: start;
-  }
-
-  .game-fortress .df-key {
-    min-height: 0;
-    height: 100%;
-    font-size: 1.15rem;
-  }
-}
-
-@media (min-width: 1200px) {
-  .game-fortress .df-key {
-    font-size: 1.25rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .game-fortress .df-terminal.is-shake,
-  .game-fortress .df-arena.is-shake,
-  .game-fortress .df-sector-dot {
-    animation: none !important;
-  }
+  from { opacity: 0; transform: translate(-50%, -46%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }

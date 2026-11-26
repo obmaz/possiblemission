@@ -7,28 +7,57 @@
  * removals, cel-shaded vector props, mirror crosshair, 2.0x loupe, and hint radar.
  */
 import { pickDispersed } from '../core/seed.js';
+import { SPOT_DIFFICULTIES, SPOT_STAGES, parseSpotMode, spotModeId } from './spot-stages.js';
+import { SCENE_H, SCENE_W, VECTOR_SCENES, buildScenePool, renderScene } from './spot-scenes.js';
+import { TOUCH_HIT_SLOP, WRONG_INPUT_COOLDOWN_MS } from '../core/rules.js';
 
 export const BASE_W = 1200;
 export const BASE_H = 896;
 
-const PENALTY_SEC = 3.0;
-const COOLDOWN_MS = 450;
+const MISS_TIME_PENALTY_SEC = 3.0;
+const FINISH_DELAY_MS = 420; // let the final ring & sparkle play before the result modal
+const SHAKE_MS = 380;
+const HIT_FLASH_MS = 280;
 const HINT_DURATION_MS = 3500;
 const FOUND_ANIM_MS = 1200;
 const MAX_HINTS = 2;
-const TOUCH_HIT_SLOP = 0.012;
 const MIN_HIT_RADIUS = 0.052;
 const OUTLINE_COLOR = '#1E1824';
 
 /**
- * Curated Stage Definitions (10 distinct anomalies per stage).
- * All coordinates are normalized [0..1] against 1200x896 source artwork.
+ * Overlay colours (found rings, hint radar, cursor, feedback). Defaults match the
+ * design tokens and are refreshed from the live CSS variables on mount, so the canvas
+ * follows the same calm palette as the rest of the shell.
  */
-export const STAGES = {
-  stage1: {
-    id: 'stage1',
-    titleKo: '보드게임 디저트 카페',
-    shortKo: '카페',
+const COLOR = {
+  success: '#3fbf92',
+  successDeep: '#1f7a5c',
+  gold: '#eeb44a',
+  accent: '#38bdf8',
+  danger: '#e06767',
+};
+
+function syncPaletteFromTokens(el) {
+  const css = getComputedStyle(el);
+  const read = (name) => css.getPropertyValue(name).trim();
+  COLOR.success = read('--neon-emerald') || COLOR.success;
+  COLOR.gold = read('--neon-gold') || COLOR.gold;
+  COLOR.accent = read('--neon-cyan') || COLOR.accent;
+  COLOR.danger = read('--neon-crimson') || COLOR.danger;
+}
+
+/** `#rrggbb` + alpha → rgba() string. */
+function withAlpha(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+
+/**
+ * Photo stages: hand-placed anomalies (10 per picture), each pixel-verified against
+ * the 1200×896 artwork. Titles live in ./spot-stages.js.
+ */
+export const PHOTO_STAGES = {
+  cafe: {
     imageSrc: './assets/images/spot-cafe.jpg',
     pool: [
       {
@@ -175,10 +204,7 @@ export const STAGES = {
     ],
   },
 
-  stage2: {
-    id: 'stage2',
-    titleKo: '황혼의 모험 캠프',
-    shortKo: '캠프',
+  camp: {
     imageSrc: './assets/images/spot-camp.jpg',
     pool: [
       {
@@ -327,34 +353,41 @@ export const STAGES = {
 };
 
 /**
- * Parses `ctx.mode` into stage config, difficulty, target count, and timer limit.
+ * Parses `ctx.mode` into picture, difficulty, target count and time limit.
+ * Returns null for the picker mode (or an unknown id).
  * @param {string} mode
  */
 export function parseModeConfig(mode) {
-  const safeMode = String(mode || 'stage1-normal');
-  const isStage2 = safeMode.startsWith('stage2');
-  const isHard = safeMode.endsWith('hard');
-  const stage = isStage2 ? STAGES.stage2 : STAGES.stage1;
-  const targetCount = isHard ? 8 : 6;
-  const timeLimitSec = isHard ? 75 : 60;
-  const diffLabel = isHard ? '하드' : '노말';
+  const parsed = parseSpotMode(mode);
+  if (!parsed) return null;
+  const { stage, difficulty } = parsed;
   return {
     stage,
-    isHard,
-    targetCount,
-    timeLimitSec,
-    modeLabel: `${stage.shortKo} · ${diffLabel}`,
+    difficulty,
+    targetCount: difficulty.count,
+    timeLimitSec: difficulty.timeSec,
+    modeLabel: `${stage.shortKo} · ${difficulty.label}`,
   };
+}
+
+/** Full anomaly pool of a picture (photo: curated list, vector: derived from the scene). */
+export function getStagePool(stage) {
+  if (stage.kind === 'photo') return PHOTO_STAGES[stage.id].pool;
+  return buildScenePool(VECTOR_SCENES.find((sc) => sc.id === stage.id));
 }
 
 /**
  * Deterministically selects `count` dispersed anomalies for a round using `rng`.
+ * Easy rounds skip anomalies flagged `subtle` whenever enough obvious ones exist.
  * @param {() => number} rng
- * @param {object} stage
+ * @param {Array<object>} pool
  * @param {number} count
+ * @param {string} [difficultyId]
  */
-export function selectRoundAnomalies(rng, stage, count) {
-  return pickDispersed(rng, stage.pool, count, 0.12).map((spot, idx) => ({
+export function selectRoundAnomalies(rng, pool, count, difficultyId = 'normal') {
+  const obvious = pool.filter((spot) => !spot.subtle);
+  const source = difficultyId === 'easy' && obvious.length >= count ? obvious : pool;
+  return pickDispersed(rng, source, count, 0.12).map((spot, idx) => ({
     ...spot,
     index: idx,
     found: false,
@@ -633,7 +666,7 @@ function drawCafeBirdProp(ctx2d, spot) {
   ctx2d.stroke();
 
   // Beak
-  ctx2d.fillStyle = '#fbbf24';
+  ctx2d.fillStyle = COLOR.gold;
   ctx2d.beginPath();
   ctx2d.moveTo(-13, 0);
   ctx2d.lineTo(-21, 2);
@@ -682,7 +715,7 @@ function drawCampBirdProp(ctx2d, spot) {
   ctx2d.stroke();
 
   // Plump body
-  ctx2d.fillStyle = '#fbbf24';
+  ctx2d.fillStyle = COLOR.gold;
   ctx2d.beginPath();
   ctx2d.ellipse(0, 3, 13, 10.5, -0.1, 0, Math.PI * 2);
   ctx2d.fill();
@@ -760,7 +793,7 @@ function drawCampMushroomProp(ctx2d, spot) {
   ctx2d.stroke();
 
   // Red mushroom cap
-  ctx2d.fillStyle = '#ef4444';
+  ctx2d.fillStyle = COLOR.danger;
   ctx2d.beginPath();
   ctx2d.moveTo(-21, 3);
   ctx2d.bezierCurveTo(-21, -18, 21, -18, 21, 3);
@@ -840,11 +873,11 @@ function drawFoundMarker(ctx2d, spot, nowMs, orderNum) {
   // Outer soft emerald glow ring
   ctx2d.beginPath();
   ctx2d.arc(0, 0, rPx * pulse * popScale, 0, Math.PI * 2);
-  ctx2d.fillStyle = 'rgba(52, 211, 153, 0.14)';
+  ctx2d.fillStyle = withAlpha(COLOR.success, 0.14);
   ctx2d.fill();
   ctx2d.lineWidth = 4;
-  ctx2d.strokeStyle = '#34d399';
-  ctx2d.shadowColor = 'rgba(52, 211, 153, 0.55)';
+  ctx2d.strokeStyle = COLOR.success;
+  ctx2d.shadowColor = withAlpha(COLOR.success, 0.55);
   ctx2d.shadowBlur = 8;
   ctx2d.stroke();
 
@@ -852,7 +885,7 @@ function drawFoundMarker(ctx2d, spot, nowMs, orderNum) {
   ctx2d.shadowBlur = 0;
   ctx2d.setLineDash([7, 6]);
   ctx2d.lineWidth = 2;
-  ctx2d.strokeStyle = '#fbbf24';
+  ctx2d.strokeStyle = COLOR.gold;
   ctx2d.beginPath();
   ctx2d.arc(0, 0, (rPx - 6) * popScale, 0, Math.PI * 2);
   ctx2d.stroke();
@@ -863,7 +896,7 @@ function drawFoundMarker(ctx2d, spot, nowMs, orderNum) {
   const by = -rPx * 0.72;
   ctx2d.beginPath();
   ctx2d.arc(bx, by, 14, 0, Math.PI * 2);
-  ctx2d.fillStyle = '#059669';
+  ctx2d.fillStyle = COLOR.successDeep;
   ctx2d.fill();
   ctx2d.lineWidth = 2.5;
   ctx2d.strokeStyle = '#ecfdf5';
@@ -896,7 +929,7 @@ function drawHintBeacon(ctx2d, hintState, nowMs) {
   ctx2d.beginPath();
   ctx2d.arc(x, y, baseR * (0.45 + t * 0.75), 0, Math.PI * 2);
   ctx2d.lineWidth = 3;
-  ctx2d.strokeStyle = `rgba(251, 191, 36, ${(1 - t) * 0.9})`;
+  ctx2d.strokeStyle = withAlpha(COLOR.gold, (1 - t) * 0.9);
   ctx2d.stroke();
 
   // Rotating dashed gold zone
@@ -905,10 +938,10 @@ function drawHintBeacon(ctx2d, hintState, nowMs) {
   ctx2d.setLineDash([12, 8]);
   ctx2d.beginPath();
   ctx2d.arc(0, 0, baseR, 0, Math.PI * 2);
-  ctx2d.fillStyle = 'rgba(251, 191, 36, 0.12)';
+  ctx2d.fillStyle = withAlpha(COLOR.gold, 0.12);
   ctx2d.fill();
   ctx2d.lineWidth = 3.5;
-  ctx2d.strokeStyle = '#fbbf24';
+  ctx2d.strokeStyle = COLOR.gold;
   ctx2d.stroke();
 
   ctx2d.restore();
@@ -922,9 +955,9 @@ function drawMirrorCrosshair(ctx2d, pointerState, targetSide) {
   ctx2d.save();
   ctx2d.translate(x, y);
 
-  ctx2d.strokeStyle = 'rgba(34, 211, 238, 0.92)';
+  ctx2d.strokeStyle = withAlpha(COLOR.accent, 0.92);
   ctx2d.lineWidth = 2.2;
-  ctx2d.shadowColor = 'rgba(34, 211, 238, 0.85)';
+  ctx2d.shadowColor = withAlpha(COLOR.accent, 0.85);
   ctx2d.shadowBlur = 8;
 
   ctx2d.beginPath();
@@ -944,7 +977,7 @@ function drawMirrorCrosshair(ctx2d, pointerState, targetSide) {
 
   ctx2d.beginPath();
   ctx2d.arc(0, 0, 3, 0, Math.PI * 2);
-  ctx2d.fillStyle = '#fbbf24';
+  ctx2d.fillStyle = COLOR.gold;
   ctx2d.fill();
 
   ctx2d.restore();
@@ -952,10 +985,12 @@ function drawMirrorCrosshair(ctx2d, pointerState, targetSide) {
 
 /* === Main Game Entry Point === */
 export function mount(container, ctx) {
-  const { stage, targetCount, timeLimitSec, modeLabel } = parseModeConfig(ctx.mode);
-  const anomalies = selectRoundAnomalies(ctx.rng, stage, targetCount);
+  const config = parseModeConfig(ctx.mode);
+  if (!config) return mountPicker(container, ctx);
+  const { stage, difficulty, targetCount, timeLimitSec, modeLabel } = config;
+  const anomalies = selectRoundAnomalies(ctx.rng, getStagePool(stage), targetCount, difficulty.id);
 
-  let isUnmounted = false;
+  let unmounted = false;
   let isPaused = false;
   let finished = false;
   let remainingSec = timeLimitSec;
@@ -1006,6 +1041,7 @@ export function mount(container, ctx) {
       <div class="sd-toolbar__left">
         <span class="sd-stage-badge">
           <span>${stage.titleKo}</span>
+          <span class="sd-stage-badge__sub">${difficulty.label}</span>
           <span class="sd-stage-badge__sub">${targetCount}곳</span>
         </span>
         <div class="sd-counter" aria-label="발견한 차이점 개수">
@@ -1074,6 +1110,7 @@ export function mount(container, ctx) {
     </div>
   `;
   container.appendChild(root);
+  syncPaletteFromTokens(root);
 
   // DOM References
   const origCanvas = root.querySelector('[data-sd-canvas="orig"]');
@@ -1226,7 +1263,7 @@ export function mount(container, ctx) {
     lCtx.drawImage(sourceBuffer, sx, sy, srcSpan, srcSpan, 0, 0, lSize, lSize);
 
     // Subtle reticle crosshair inside loupe
-    lCtx.strokeStyle = 'rgba(34, 211, 238, 0.72)';
+    lCtx.strokeStyle = withAlpha(COLOR.accent, 0.72);
     lCtx.lineWidth = 1.5;
     lCtx.beginPath();
     lCtx.moveTo(half - 14, half);
@@ -1244,7 +1281,7 @@ export function mount(container, ctx) {
   function spawnFeedback(nx, ny, type, labelText, ringRPx = 0) {
     const now = performance.now();
     if (type === 'hit') {
-      const colors = ['#34d399', '#fbbf24', '#22d3ee', '#ffffff'];
+      const colors = [COLOR.success, COLOR.gold, COLOR.accent, '#ffffff'];
       for (let i = 0; i < 14; i += 1) {
         const angle = (Math.PI * 2 * i) / 14 + (Math.random() - 0.5) * 0.25;
         const speed = 1.8 + Math.random() * 3.4;
@@ -1263,7 +1300,7 @@ export function mount(container, ctx) {
         x: nx * BASE_W,
         y: ny * BASE_H - Math.max(ringRPx, 48) - 12,
         text: labelText,
-        color: '#34d399',
+        color: COLOR.success,
         bornAt: now,
         life: 1250,
         type: 'hit',
@@ -1273,7 +1310,7 @@ export function mount(container, ctx) {
         x: nx * BASE_W,
         y: ny * BASE_H,
         text: labelText,
-        color: '#ef4444',
+        color: COLOR.danger,
         bornAt: now,
         life: 820,
         type: 'miss',
@@ -1291,7 +1328,7 @@ export function mount(container, ctx) {
     shakeTimerId = window.setTimeout(() => {
       origCard?.classList.remove('is-shaking');
       modCard?.classList.remove('is-shaking');
-    }, 380);
+    }, SHAKE_MS);
   }
 
   function triggerHitFlash() {
@@ -1301,11 +1338,11 @@ export function mount(container, ctx) {
     hitFlashTimerId = window.setTimeout(() => {
       origCard?.classList.remove('is-hit');
       modCard?.classList.remove('is-hit');
-    }, 280);
+    }, HIT_FLASH_MS);
   }
 
   function finishGame(cleared) {
-    if (finished || isUnmounted) return;
+    if (finished || unmounted) return;
     finished = true;
     hideLoupes();
     activeHint = null;
@@ -1313,26 +1350,25 @@ export function mount(container, ctx) {
     hintBtn?.classList.remove('is-active');
     markDirty();
     updateHintBtn();
+    deliverResult(cleared);
+  }
 
+  // Single source for the result payload (time-out finish and full-clear finish)
+  function deliverResult(cleared) {
     const totalInputs = foundCount + wrongTaps;
     const accuracy = totalInputs > 0 ? Math.round((foundCount / totalInputs) * 100) : 0;
-    const finalScore = computeScore();
-    const elapsedSec = (activePlayMs / 1000).toFixed(1);
-
-    const details = [
-      { label: '발견한 차이점', value: `${foundCount} / ${targetCount}` },
-      { label: '실제 플레이', value: `${elapsedSec}초` },
-      { label: '최대 콤보 / 실수', value: `${maxStreak}콤보 · ${wrongTaps}회` },
-      { label: '사용한 힌트', value: `${hintsUsed} / ${MAX_HINTS}회` },
-    ];
-
     ctx.completeGame({
-      score: finalScore,
+      score: computeScore(),
       timeMs: Math.round(activePlayMs),
       accuracy,
       cleared,
       modeLabel,
-      details,
+      details: [
+        { label: '발견한 차이점', value: `${foundCount} / ${targetCount}` },
+        { label: '실제 플레이', value: `${(activePlayMs / 1000).toFixed(1)}초` },
+        { label: '최대 콤보 / 실수', value: `${maxStreak}콤보 · ${wrongTaps}회` },
+        { label: '사용한 힌트', value: `${hintsUsed} / ${MAX_HINTS}회` },
+      ],
     });
   }
 
@@ -1392,27 +1428,13 @@ export function mount(container, ctx) {
 
       if (foundCount >= targetCount) {
         updateHintBtn();
-        // Brief 420ms celebration window so player sees the final emerald ring & sparkle
+        // Brief celebration window so the player sees the final ring & sparkle
         finished = true;
         hideLoupes();
         finishTimerId = window.setTimeout(() => {
-          if (isUnmounted) return;
-          const totalInputs = foundCount + wrongTaps;
-          const accuracy = totalInputs > 0 ? Math.round((foundCount / totalInputs) * 100) : 0;
-          ctx.completeGame({
-            score: computeScore(),
-            timeMs: Math.round(activePlayMs),
-            accuracy,
-            cleared: true,
-            modeLabel,
-            details: [
-              { label: '발견한 차이점', value: `${foundCount} / ${targetCount}` },
-              { label: '실제 플레이', value: `${(activePlayMs / 1000).toFixed(1)}초` },
-              { label: '최대 콤보 / 실수', value: `${maxStreak}콤보 · ${wrongTaps}회` },
-              { label: '사용한 힌트', value: `${hintsUsed} / ${MAX_HINTS}회` },
-            ],
-          });
-        }, 420);
+          if (unmounted) return;
+          deliverResult(true);
+        }, FINISH_DELAY_MS);
       }
       return;
     }
@@ -1432,13 +1454,13 @@ export function mount(container, ctx) {
     // Wrong tap penalty
     wrongTaps += 1;
     streak = 0;
-    cooldownUntilMs = now + COOLDOWN_MS;
-    remainingSec = Math.max(0, remainingSec - PENALTY_SEC);
+    cooldownUntilMs = now + WRONG_INPUT_COOLDOWN_MS;
+    remainingSec = Math.max(0, remainingSec - MISS_TIME_PENALTY_SEC);
 
     ctx.audio.playError();
     triggerShake();
-    spawnFeedback(nx, ny, 'miss', '+3초 페널티!');
-    setCallout(`❌ 다른 곳이 아니에요! (-${PENALTY_SEC.toFixed(0)}초 페널티)`, 'error');
+    spawnFeedback(nx, ny, 'miss', `-${MISS_TIME_PENALTY_SEC}초 페널티!`);
+    setCallout(`❌ 다른 곳이 아니에요! (-${MISS_TIME_PENALTY_SEC}초 페널티)`, 'error');
     syncHud();
     markDirty();
 
@@ -1539,7 +1561,7 @@ export function mount(container, ctx) {
         const py = pop.y - t * 32;
 
         if (pop.type === 'miss') {
-          targetCtx.strokeStyle = '#ef4444';
+          targetCtx.strokeStyle = COLOR.danger;
           targetCtx.lineWidth = 5;
           targetCtx.lineCap = 'round';
           targetCtx.beginPath();
@@ -1566,7 +1588,7 @@ export function mount(container, ctx) {
           targetCtx.fillStyle = 'rgba(9, 15, 22, 0.9)';
           targetCtx.fill();
           targetCtx.lineWidth = 1.5;
-          targetCtx.strokeStyle = 'rgba(52, 211, 153, 0.75)';
+          targetCtx.strokeStyle = withAlpha(COLOR.success, 0.75);
           targetCtx.stroke();
           targetCtx.textAlign = 'center';
           targetCtx.textBaseline = 'middle';
@@ -1619,7 +1641,7 @@ export function mount(container, ctx) {
   }
 
   function frame(nowMs) {
-    if (isUnmounted) return;
+    if (unmounted) return;
     const dtMs = Math.max(0, Math.min(120, nowMs - lastFrameMs));
     lastFrameMs = nowMs;
 
@@ -1639,7 +1661,7 @@ export function mount(container, ctx) {
 
       if (remainingSec <= 0) {
         finishGame(false);
-        if (isUnmounted) return;
+        if (unmounted) return;
       }
     }
 
@@ -1758,6 +1780,7 @@ export function mount(container, ctx) {
       if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
       if (isPaused || finished) return;
       e.preventDefault();
+      if (e.repeat) return;
       triggerHint();
     };
 
@@ -1818,7 +1841,8 @@ export function mount(container, ctx) {
 
   const onKeyDown = (e) => {
     if (isPaused || finished) return;
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    // Ignore auto-repeat so a held H cannot burn both hints at once
+    if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
     if (isTypingTarget(e.target)) return;
     const key = e.key.toLowerCase();
     if (key === 'h') {
@@ -1850,43 +1874,52 @@ export function mount(container, ctx) {
   syncHud();
   updateHintBtn();
 
-  const img = new Image();
-  img.decoding = 'async';
-  img.onload = () => {
-    if (isUnmounted) return;
-
-    origBaseCtx.clearRect(0, 0, BASE_W, BASE_H);
-    origBaseCtx.drawImage(img, 0, 0, BASE_W, BASE_H);
-
-    modBaseCtx.clearRect(0, 0, BASE_W, BASE_H);
-    modBaseCtx.drawImage(img, 0, 0, BASE_W, BASE_H);
-
-    // Apply ONLY the N seeded anomalies onto Modified buffer
-    for (const spot of anomalies) {
-      applyAnomalyToBuffer(modBaseCtx, spot);
-    }
-
+  function startRound() {
     imageReady = true;
     lastFrameMs = performance.now();
     loadingEls.forEach((el) => el.remove());
     needsRender = true;
     renderBoards(lastFrameMs);
     rafId = requestAnimationFrame(frame);
-  };
+  }
 
-  img.onerror = () => {
-    if (isUnmounted) return;
-    loadingEls.forEach((el) => {
-      el.textContent = '이미지를 불러오지 못했습니다.';
-    });
-    ctx.ui.showToast('스테이지 이미지를 불러오는 데 실패했습니다.', 'error');
-  };
-
-  img.src = stage.imageSrc;
+  let img = null;
+  if (stage.kind === 'vector') {
+    // Drawn scenes: both pictures come from the same data, the modified one with the
+    // round's differences applied.
+    const scene = VECTOR_SCENES.find((sc) => sc.id === stage.id);
+    const fit = (g) => g.setTransform(BASE_W / SCENE_W, 0, 0, BASE_H / SCENE_H, 0, 0);
+    fit(origBaseCtx);
+    renderScene(origBaseCtx, scene);
+    fit(modBaseCtx);
+    renderScene(modBaseCtx, scene, anomalies.map((a) => a.diff));
+    origBaseCtx.setTransform(1, 0, 0, 1, 0, 0);
+    modBaseCtx.setTransform(1, 0, 0, 1, 0, 0);
+    startRound();
+  } else {
+    img = new Image();
+    img.decoding = 'async';
+    img.onload = () => {
+      if (unmounted) return;
+      origBaseCtx.drawImage(img, 0, 0, BASE_W, BASE_H);
+      modBaseCtx.drawImage(img, 0, 0, BASE_W, BASE_H);
+      // Apply ONLY the N seeded anomalies onto the modified buffer
+      for (const spot of anomalies) applyAnomalyToBuffer(modBaseCtx, spot);
+      startRound();
+    };
+    img.onerror = () => {
+      if (unmounted) return;
+      loadingEls.forEach((el) => {
+        el.textContent = '이미지를 불러오지 못했습니다.';
+      });
+      ctx.ui.showToast('스테이지 이미지를 불러오는 데 실패했습니다.', 'error');
+    };
+    img.src = PHOTO_STAGES[stage.id].imageSrc;
+  }
 
   return {
     unmount() {
-      isUnmounted = true;
+      unmounted = true;
       if (rafId) cancelAnimationFrame(rafId);
       if (finishTimerId) clearTimeout(finishTimerId);
       if (shakeTimerId) clearTimeout(shakeTimerId);
@@ -1901,8 +1934,117 @@ export function mount(container, ctx) {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('pm:pausechange', onPauseChange);
 
-      img.onload = null;
-      img.onerror = null;
+      if (img) {
+        img.onload = null;
+        img.onerror = null;
+      }
+      container.innerHTML = '';
+    },
+  };
+}
+
+/**
+ * Picture → difficulty chooser shown for the `pick` mode. It never scores anything:
+ * choosing calls ctx.switchMode(), which relaunches the game in the chosen mode so the
+ * URL, room seed sync and per-mode records all keep working.
+ * @param {HTMLElement} container
+ * @param {object} ctx
+ */
+function mountPicker(container, ctx) {
+  const root = document.createElement('div');
+  root.className = 'game-root game-spot sd-picker';
+  root.innerHTML = `
+    <div class="sd-picker__head">
+      <h2 class="sd-picker__title" data-sd-pick-title>그림을 고르세요</h2>
+      <p class="sd-picker__sub" data-sd-pick-sub>같은 룸 시드라면 모두에게 같은 차이점이 나옵니다.</p>
+    </div>
+    <div class="sd-picker__grid" data-sd-pick-grid>
+      ${SPOT_STAGES.map(
+        (stage) => `
+        <button type="button" class="sd-pick-card" data-stage="${stage.id}">
+          <span class="sd-pick-card__thumb" data-thumb="${stage.id}">
+            ${stage.thumb ? `<img src="${stage.thumb}" alt="" loading="lazy" />` : ''}
+          </span>
+          <span class="sd-pick-card__title">${stage.titleKo}</span>
+        </button>`
+      ).join('')}
+    </div>
+    <div class="sd-picker__levels" data-sd-pick-levels hidden>
+      <div class="sd-picker__chosen" data-sd-pick-chosen></div>
+      <div class="sd-picker__level-list">
+        ${SPOT_DIFFICULTIES.map(
+          (d) => `
+          <button type="button" class="sd-level-btn sd-level-btn--${d.id}" data-level="${d.id}">
+            <span class="sd-level-btn__label">${d.label}</span>
+            <span class="sd-level-btn__meta">차이 ${d.count}곳 · ${d.timeSec}초</span>
+            <span class="sd-level-btn__note">${d.note}</span>
+          </button>`
+        ).join('')}
+      </div>
+      <button type="button" class="sd-picker__back" data-sd-pick-back>← 다른 그림 고르기</button>
+    </div>
+  `;
+  container.appendChild(root);
+
+  // Drawn pictures get a live thumbnail rendered from the scene itself
+  for (const stage of SPOT_STAGES) {
+    if (stage.thumb) continue;
+    const slot = root.querySelector(`[data-thumb="${stage.id}"]`);
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 224;
+    const g = canvas.getContext('2d');
+    g.setTransform(300 / SCENE_W, 0, 0, 224 / SCENE_H, 0, 0);
+    renderScene(g, VECTOR_SCENES.find((sc) => sc.id === stage.id));
+    slot.appendChild(canvas);
+  }
+
+  const gridEl = root.querySelector('[data-sd-pick-grid]');
+  const levelsEl = root.querySelector('[data-sd-pick-levels]');
+  const chosenEl = root.querySelector('[data-sd-pick-chosen]');
+  const titleEl = root.querySelector('[data-sd-pick-title]');
+  let chosen = null;
+
+  const showGrid = () => {
+    chosen = null;
+    levelsEl.hidden = true;
+    gridEl.hidden = false;
+    titleEl.textContent = '그림을 고르세요';
+    gridEl.querySelector('.sd-pick-card')?.focus({ preventScroll: true });
+  };
+
+  const onClick = (e) => {
+    const card = e.target.closest('[data-stage]');
+    const level = e.target.closest('[data-level]');
+    if (card) {
+      ctx.audio.playClick();
+      chosen = SPOT_STAGES.find((s) => s.id === card.dataset.stage);
+      chosenEl.replaceChildren(card.querySelector('.sd-pick-card__thumb').cloneNode(true));
+      if (!chosen.thumb) {
+        // cloneNode does not copy canvas pixels
+        const src = card.querySelector('canvas');
+        const copy = chosenEl.querySelector('canvas');
+        copy.getContext('2d').drawImage(src, 0, 0);
+      }
+      titleEl.textContent = `${chosen.titleKo} · 난이도를 고르세요`;
+      gridEl.hidden = true;
+      levelsEl.hidden = false;
+      levelsEl.querySelector('[data-level="normal"]')?.focus({ preventScroll: true });
+    } else if (level && chosen) {
+      ctx.audio.playClick();
+      ctx.switchMode(spotModeId(chosen.id, level.dataset.level));
+    } else if (e.target.closest('[data-sd-pick-back]')) {
+      ctx.audio.playClick();
+      showGrid();
+    }
+  };
+  root.addEventListener('click', onClick);
+  ctx.updateHud({ timer: { text: '--:--', state: 'normal' }, score: 0, progress: '그림 선택', progressRatio: 1 });
+
+  return {
+    idle: true,
+    unmount() {
+      root.removeEventListener('click', onClick);
       container.innerHTML = '';
     },
   };

@@ -3,13 +3,6 @@
  * clipboard copy, shareable URL builder, pure-JS scannable QR code generator, and modal lifecycle.
  */
 
-const GAME_EMOJI = {
-  'hidden-object': '🔍',
-  'spot-difference': '⚡',
-  'memory-match': '🧠',
-  'despair-fortress': '🏰',
-};
-
 /**
  * Computes arcade rank grade from score and completion flag.
  * @param {number} score
@@ -194,10 +187,11 @@ export function launchConfetti(tier = 'S') {
 
 /**
  * Formats a single-line Slack / KakaoTalk workshop scorecard string.
+ * `emoji` comes from the game catalog in app.js (single source of game metadata).
  * `[POSSIBLE MISSION] <emoji> <gameTitle> (<modeLabel>) | <nickname>(<team>) | <grade>랭크 <score>점 (<timeSec>초) | 정확도 <accuracy>% | 시드: <seed>`
  */
 export function formatResultText({
-  gameId,
+  emoji = '🎮',
   gameTitle,
   modeLabel,
   player,
@@ -207,7 +201,6 @@ export function formatResultText({
   accuracy,
   seed,
 }) {
-  const emoji = GAME_EMOJI[gameId] || '🎮';
   const nick = (player?.nickname || '익명요원').trim() || '익명요원';
   const team = (player?.team || '').trim();
   const playerStr = team ? `${nick}(${team})` : nick;

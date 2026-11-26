@@ -216,8 +216,13 @@
 }
 
 .game-hidden .ho-prop-node {
-  transform-origin: 24px 24px;
+  transform-box: fill-box;
+  transform-origin: center;
   transition: opacity 260ms ease, filter 260ms ease;
+}
+
+.game-hidden .ho-prop-shadow {
+  fill: rgba(16, 10, 24, 0.34);
 }
 
 .game-hidden .ho-prop-node.is-found {

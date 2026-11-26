@@ -5,6 +5,7 @@ import { createRng } from './core/seed.js';
 import * as audio from './core/audio.js';
 import * as storage from './core/storage.js';
 import * as ui from './core/ui.js';
+import { SPOT_PICK_MODE, spotCatalogModes } from './games/spot-stages.js';
 
 const PRESET_SEEDS = ['MISSION-1', 'ROUND-1', 'ROUND-2', 'ROUND-3', 'ROUND-4', 'ROUND-5'];
 
@@ -12,6 +13,7 @@ const GAME_CATALOG = [
   {
     id: 'hidden-object',
     title: '숨은그림찾기',
+    emoji: '🔍',
     subEn: 'HIDDEN MISSION',
     accent: 'cyan',
     tag: '관찰력 · 돋보기',
@@ -28,24 +30,24 @@ const GAME_CATALOG = [
   {
     id: 'spot-difference',
     title: '틀린그림찾기',
-    subEn: 'SPOT THE GLITCH',
+    emoji: '⚡',
+    subEn: 'SPOT THE DIFFERENCE',
     accent: 'magenta',
-    tag: '매의 눈 · 듀얼뷰',
-    timeHint: '60~75초',
-    hook: '원본과 변형 캔버스 사이의 교묘한 글리치 포인트를 정확히 짚어내는 스피드 눈썰미 대결!',
-    defaultMode: 'stage1-normal',
-    modes: [
-      { id: 'stage1-normal', label: '카페 · 노말', thumb: './assets/images/spot-cafe.jpg' },
-      { id: 'stage1-hard', label: '카페 · 하드', thumb: './assets/images/spot-cafe.jpg' },
-      { id: 'stage2-normal', label: '캠프 · 노말', thumb: './assets/images/spot-camp.jpg' },
-      { id: 'stage2-hard', label: '캠프 · 하드', thumb: './assets/images/spot-camp.jpg' },
-    ],
+    tag: '매의 눈 · 그림 10장',
+    timeHint: '75~90초',
+    hook: '그림 10장 중 하나를 고르고 난이도를 선택하세요. 좌우 그림에서 달라진 곳을 빠르게 짚어내는 눈썰미 대결!',
+    // Picture and difficulty are chosen inside the game, not on the lobby card
+    pickInGame: true,
+    defaultMode: SPOT_PICK_MODE,
+    modes: spotCatalogModes(),
   },
   {
     id: 'memory-match',
     title: '네온 메모리 매치',
+    emoji: '🧠',
     subEn: 'NEON MEMORY',
     accent: 'violet',
+    art: 'memory',
     tag: '단기기억 · 콤보',
     timeHint: '45~80초',
     hook: '단 2초의 플래시 암기 후, 0ms 연속 매치 콤보로 덱을 쓸어버리는 두뇌 타임어택!',
@@ -59,17 +61,33 @@ const GAME_CATALOG = [
   {
     id: 'despair-fortress',
     title: '절망요새 숨바꼭질',
+    emoji: '🏰',
     subEn: 'DESPAIR FORTRESS',
     accent: 'crimson',
-    tag: '순발력 · 보스전',
-    timeHint: '약 60초',
-    hook: '블랙아웃 직전 떠다니는 보안 코드를 암기해 3구역 금고를 해독하는 극한 집중 미션!',
-    defaultMode: 'standard',
+    art: 'tiles',
+    tag: '순간 포착 · 벽 스크린',
+    timeHint: '약 90초',
+    hook: '알파벳 타일 뒤에 숨었다 고개를 내미는 숫자를 찾아, 그 타일의 알파벳을 맞히세요. 시작 순간 1초만 모든 숫자가 보입니다!',
+    defaultMode: 'wall',
     modes: [
-      { id: 'standard', label: '3구역 탈출', thumb: './assets/images/fortress-bg.jpg' },
+      { id: 'wall', label: '3라운드 숨바꼭질', thumb: null },
     ],
   },
 ];
+
+/** Hand-made lobby card artwork for games whose look isn't a stage photo. */
+const CARD_ART = {
+  memory: `<div class="game-card__memory-art" aria-hidden="true">
+      <div class="memory-preview-tile">🚀</div>
+      <div class="memory-preview-tile">⚡</div>
+      <div class="memory-preview-tile">💎</div>
+    </div>`,
+  tiles: `<div class="game-card__tile-art" aria-hidden="true">
+      ${[['H', '092'], ['Q', ''], ['A', '160'], ['F', '']]
+        .map(([l, n]) => `<span class="tile-preview"><i>${n}</i><b>${l}</b></span>`)
+        .join('')}
+    </div>`,
+};
 
 const GAME_MAP = new Map(GAME_CATALOG.map((g) => [g.id, g]));
 
@@ -77,7 +95,7 @@ const state = {
   seed: 'MISSION-1',
   selectedModes: Object.fromEntries(GAME_CATALOG.map((g) => [g.id, g.defaultMode])),
   hofTab: 'seed', // 'seed' | 'recent' | 'pb'
-  activeGame: null, // { id, mode, instance, finished, paused, runToken, isStub }
+  activeGame: null, // { id, mode, instance, finished, paused, runToken, idle }
   runCounter: 0,
 };
 
@@ -264,17 +282,6 @@ function renderHeroBanner() {
     const mode = state.selectedModes[game.id] || game.defaultMode;
     launchGame(game.id, mode);
   });
-
-  document.getElementById('hero-sync-seed-btn')?.addEventListener('click', () => {
-    audio.playClick();
-    const seedInput = document.getElementById('seed-input');
-    if (seedInput) {
-      seedInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      seedInput.focus();
-      seedInput.select();
-    }
-    ui.showToast('MC가 안내한 룸 시드를 입력하거나 프리셋 칩을 눌러주세요!', 'info');
-  });
 }
 
 function renderWorkshopBar() {
@@ -300,7 +307,7 @@ function renderWorkshopBar() {
           type="text"
           maxlength="12"
           placeholder="익명요원"
-          value="${escapeAttr(profile.nickname)}"
+          value="${escapeHtml(profile.nickname)}"
         />
       </label>
 
@@ -315,7 +322,7 @@ function renderWorkshopBar() {
           type="text"
           maxlength="10"
           placeholder="예: A조, 프로덕트팀"
-          value="${escapeAttr(profile.team)}"
+          value="${escapeHtml(profile.team)}"
         />
       </label>
 
@@ -332,7 +339,7 @@ function renderWorkshopBar() {
             maxlength="16"
             spellcheck="false"
             autocomplete="off"
-            value="${escapeAttr(state.seed)}"
+            value="${escapeHtml(state.seed)}"
           />
           <button id="seed-apply-btn" class="btn-neon-ghost" type="button">적용</button>
         </div>
@@ -345,7 +352,7 @@ function renderWorkshopBar() {
           🔗 초대 링크 복사
         </button>
         <button id="lobby-mute-btn" class="workshop-tool-btn" type="button" aria-pressed="false">
-          🔊 SFX ON
+          🔊 소리 켜짐
         </button>
         <details class="workshop-more">
           <summary class="workshop-tool-btn">🎛️ 진행자 도구</summary>
@@ -493,19 +500,13 @@ function renderGameGrid() {
   GAME_CATALOG.forEach((game) => {
     const selectedModeId = state.selectedModes[game.id] || game.defaultMode;
     const modeObj = game.modes.find((m) => m.id === selectedModeId) || game.modes[0];
-    const pb = storage.getPersonalBest(game.id, modeObj.id);
+    const pb = game.pickInGame ? bestAcrossModes(game) : storage.getPersonalBest(game.id, modeObj.id);
 
     const card = document.createElement('article');
     card.className = `game-card game-card--${game.accent}`;
     card.dataset.gameId = game.id;
 
-    const mediaHtml = modeObj.thumb
-      ? `<img class="game-card__img" src="${modeObj.thumb}" alt="${escapeAttr(game.title)} 스테이지 미리보기" loading="lazy" />`
-      : `<div class="game-card__memory-art" aria-hidden="true">
-           <div class="memory-preview-tile">🚀</div>
-           <div class="memory-preview-tile">⚡</div>
-           <div class="memory-preview-tile">💎</div>
-         </div>`;
+    const mediaHtml = CARD_ART[game.art] || `<img class="game-card__img" src="${modeObj.thumb}" alt="${escapeHtml(game.title)} 스테이지 미리보기" loading="lazy" />`;
 
     const pbHtml = pb
       ? `<span class="game-card__pb-pill">BEST ${pb.score.toLocaleString('en-US')} (${pb.grade})</span>`
@@ -530,14 +531,14 @@ function renderGameGrid() {
         <p class="game-card__hook">${game.hook}</p>
 
         ${
-          game.modes.length > 1
+          game.modes.length > 1 && !game.pickInGame
             ? `<label class="game-card__mode-select">
                  <span class="game-card__mode-label">난이도</span>
-                 <select data-mode-select aria-label="${escapeAttr(game.title)} 난이도 선택">
+                 <select data-mode-select aria-label="${escapeHtml(game.title)} 난이도 선택">
                    ${game.modes
                      .map(
                        (m) =>
-                         `<option value="${escapeAttr(m.id)}" ${
+                         `<option value="${escapeHtml(m.id)}" ${
                            m.id === modeObj.id ? 'selected' : ''
                          }>${escapeHtml(m.label)}</option>`
                      )
@@ -574,6 +575,12 @@ function renderGameGrid() {
 
     dom.gameGrid.appendChild(card);
   });
+}
+
+/** Highest cleared record over every mode of a game (for games that pick modes in-game). */
+function bestAcrossModes(game) {
+  const records = Object.values(storage.getAllPersonalBests()[game.id] || {});
+  return records.reduce((best, rec) => (!best || rec.score > best.score ? rec : best), null);
 }
 
 function renderHallOfFame() {
@@ -664,11 +671,6 @@ function renderHallOfFame() {
       renderHallOfFame();
     });
   });
-
-  document.getElementById('hof-open-aggregator')?.addEventListener('click', () => {
-    audio.playClick();
-    openAggregatorModal();
-  });
 }
 
 function formatHofRow(run, rank) {
@@ -686,7 +688,7 @@ function formatHofRow(run, rank) {
         <span class="hof-player__meta">#${escapeHtml(run.seed)} · ${timeSec}초 · 정확도 ${run.accuracy ?? 0}%</span>
       </div>
       <div class="hof-game">${escapeHtml(title)} · ${escapeHtml(run.modeLabel || '')}</div>
-      <span class="hof-grade hof-grade--${escapeAttr(run.grade)}">${escapeHtml(run.grade)}</span>
+      <span class="hof-grade hof-grade--${escapeHtml(run.grade)}">${escapeHtml(run.grade)}</span>
       <div class="hof-score">${Number(run.score || 0).toLocaleString('en-US')} PTS</div>
     </div>
   `;
@@ -740,7 +742,7 @@ function openMcGuideModal() {
       <div>
         <div class="mc-step__title">모든 참가자에게 동일한 '룸 시드' 공유 (5~100명 동시)</div>
         <div class="mc-step__desc">
-          상단의 <strong>QR 코드</strong>를 회의실 프로젝터에 띄우거나 <strong>링크 복사</strong>로 Slack/카톡방에 뿌려주세요.
+          <strong>🎛️ 진행자 도구 → QR 코드</strong>를 회의실 프로젝터에 띄우거나 <strong>링크 복사</strong>로 Slack/카톡방에 뿌려주세요.
           같은 시드(예: <code>ROUND-1</code>)에서는 100명 모두 <strong>100% 동일한 문제 배치</strong>가 출제됩니다.
         </div>
       </div>
@@ -750,7 +752,7 @@ function openMcGuideModal() {
       <div>
         <div class="mc-step__title">MC의 "3, 2, 1, 출격!" 카운트다운에 맞춰 동시 플레이</div>
         <div class="mc-step__desc">
-          참가자들은 닉네임과 팀명을 입력한 뒤 지정된 종목/난이도 카드의 <strong>출격(PLAY)</strong>을 누릅니다.
+          참가자들은 닉네임과 팀명을 입력한 뒤 지정된 종목/난이도 카드의 <strong>시작하기</strong>를 누릅니다.
           탭 전환 시 공정 플레이 커튼이 작동해 반칙을 방지합니다.
         </div>
       </div>
@@ -761,7 +763,7 @@ function openMcGuideModal() {
         <div class="mc-step__title">결과 복사로 단톡방 인증 → MC 결과 취합기로 포디움 공개!</div>
         <div class="mc-step__desc">
           게임 종료 후 <strong>결과 복사 (Slack/카톡)</strong> 버튼으로 1줄 스코어카드를 채팅방에 붙여넣습니다.
-          MC는 채팅 내역을 통째로 복사해 <strong>명예의 전당 → 결과 취합기</strong>에 붙여넣으면 실시간 순위가 자동 정렬됩니다!
+          MC는 채팅 내역을 통째로 복사해 <strong>🎛️ 진행자 도구 → 결과 취합기</strong>에 붙여넣으면 실시간 순위가 자동 정렬됩니다!
         </div>
       </div>
     </div>
@@ -830,7 +832,7 @@ function openAggregatorModal() {
               <span class="hof-player__meta">#${escapeHtml(item.seed)} · ${item.timeSec}초 · 정확도 ${item.accuracy}%</span>
             </div>
             <div class="hof-game">${escapeHtml(item.gameTitle)} · ${escapeHtml(item.modeLabel)}</div>
-            <span class="hof-grade hof-grade--${escapeAttr(item.grade)}">${escapeHtml(item.grade)}</span>
+            <span class="hof-grade hof-grade--${escapeHtml(item.grade)}">${escapeHtml(item.grade)}</span>
             <div class="hof-score">${item.score.toLocaleString('en-US')} PTS</div>
           </div>
         `;
@@ -869,7 +871,18 @@ function closeHudMenu() {
   if (hudMoreBtn) hudMoreBtn.setAttribute('aria-expanded', 'false');
 }
 
+// Last values written to the HUD. Games call updateHud() every frame, so only
+// touch the DOM when a value actually changes.
+const hudCache = { timerText: null, timerState: null, score: null, progress: null, ratio: null, extra: null };
+
+function clearHudCache() {
+  Object.keys(hudCache).forEach((key) => {
+    hudCache[key] = null;
+  });
+}
+
 function resetHud() {
+  clearHudCache();
   closeHudMenu();
   if (dom.hudTimer) {
     dom.hudTimer.textContent = '00:00';
@@ -952,7 +965,7 @@ function unmountActiveGame() {
 
 function exitToHub({ force = false, fromHistory = false } = {}) {
   const active = state.activeGame;
-  if (!force && active && !active.finished && !active.isStub) {
+  if (!force && active && !active.finished && !active.idle) {
     const confirmBody = document.createElement('div');
     confirmBody.style.display = 'flex';
     confirmBody.style.flexDirection = 'column';
@@ -1030,6 +1043,12 @@ function handlePopState() {
 
   const params = new URLSearchParams(window.location.search);
   const nextSeed = storage.normalizeSeed(params.get('seed') || state.seed);
+  if (params.has('game')) {
+    // Forward into an old game entry while sitting in the lobby: games are only started
+    // from the lobby, so rewrite the entry to match what is on screen (otherwise a reload
+    // would unexpectedly deep-link into that game).
+    syncUrlState({ seed: nextSeed, historyMode: 'replace' });
+  }
   if (nextSeed !== state.seed) {
     state.seed = nextSeed;
     storage.addSeedHistory(nextSeed);
@@ -1099,7 +1118,7 @@ async function launchGame(gameId, requestedMode) {
     finished: false,
     paused: false,
     runToken,
-    isStub: false,
+    idle: false,
   };
   state.activeGame = activeEntry;
 
@@ -1117,35 +1136,54 @@ async function launchGame(gameId, requestedMode) {
       }
       if (timer !== undefined && dom.hudTimer) {
         const formatted = formatTimerValue(timer);
-        dom.hudTimer.textContent = formatted.text;
-        dom.hudTimer.dataset.state = formatted.state;
+        if (formatted.text !== hudCache.timerText) {
+          hudCache.timerText = formatted.text;
+          dom.hudTimer.textContent = formatted.text;
+        }
+        if (formatted.state !== hudCache.timerState) {
+          hudCache.timerState = formatted.state;
+          dom.hudTimer.dataset.state = formatted.state;
+        }
       }
       if (score !== undefined && dom.hudScore) {
         const pts = Math.max(0, Math.round(Number(score) || 0));
-        dom.hudScore.textContent = `${pts.toLocaleString('en-US')} PTS`;
+        if (pts !== hudCache.score) {
+          hudCache.score = pts;
+          dom.hudScore.textContent = `${pts.toLocaleString('en-US')} PTS`;
+        }
       }
       if (progress !== undefined && dom.hudProgressPill) {
-        if (progress === null || progress === '') {
-          dom.hudProgressPill.hidden = true;
-          dom.hudProgressPill.textContent = '';
-        } else {
-          dom.hudProgressPill.hidden = false;
-          dom.hudProgressPill.textContent = String(progress);
+        const text = progress === null ? '' : String(progress);
+        if (text !== hudCache.progress) {
+          hudCache.progress = text;
+          dom.hudProgressPill.hidden = text === '';
+          dom.hudProgressPill.textContent = text;
         }
       }
       if (progressRatio !== undefined && dom.hudProgressBar) {
-        const clamped = Math.max(0, Math.min(1, Number(progressRatio) || 0));
-        dom.hudProgressBar.style.setProperty('--hud-progress', clamped.toFixed(4));
+        const ratioStr = Math.max(0, Math.min(1, Number(progressRatio) || 0)).toFixed(4);
+        if (ratioStr !== hudCache.ratio) {
+          hudCache.ratio = ratioStr;
+          dom.hudProgressBar.style.setProperty('--hud-progress', ratioStr);
+        }
       }
       if (extra !== undefined && dom.hudExtraSlot) {
-        dom.hudExtraSlot.innerHTML = '';
         if (extra instanceof HTMLElement) {
-          dom.hudExtraSlot.appendChild(extra);
-        } else if (typeof extra === 'string' && extra.trim()) {
-          const badge = document.createElement('span');
-          badge.className = 'hud-pill';
-          badge.textContent = extra;
-          dom.hudExtraSlot.appendChild(badge);
+          hudCache.extra = null;
+          dom.hudExtraSlot.replaceChildren(extra);
+        } else {
+          const text = typeof extra === 'string' ? extra.trim() : '';
+          if (text !== hudCache.extra) {
+            hudCache.extra = text;
+            if (text) {
+              const badge = document.createElement('span');
+              badge.className = 'hud-pill';
+              badge.textContent = text;
+              dom.hudExtraSlot.replaceChildren(badge);
+            } else {
+              dom.hudExtraSlot.replaceChildren();
+            }
+          }
         }
       }
     },
@@ -1206,6 +1244,12 @@ async function launchGame(gameId, requestedMode) {
     exitToHub() {
       exitToHub({ force: true });
     },
+    /** Relaunches this game in another of its modes (used by in-game pickers). */
+    switchMode(nextMode) {
+      if (!state.activeGame || state.activeGame.runToken !== runToken) return;
+      if (!gameMeta.modes.some((m) => m.id === nextMode)) return;
+      launchGame(gameId, nextMode);
+    },
   };
 
   try {
@@ -1216,7 +1260,9 @@ async function launchGame(gameId, requestedMode) {
     }
     dom.gameStage.innerHTML = '';
     activeEntry.instance = mod.mount(dom.gameStage, ctx);
-    activeEntry.isStub = Boolean(dom.gameStage.querySelector('.game-stub'));
+    // Idle screens (e.g. a picture picker) have no run to lose: no exit confirm, no pause
+    activeEntry.idle = Boolean(activeEntry.instance?.idle) || Boolean(dom.gameStage.querySelector('.game-stub'));
+    if (activeEntry.idle && dom.hudPauseBtn) dom.hudPauseBtn.hidden = true;
   } catch (err) {
     console.error(`Failed to mount game "${gameId}":`, err);
     ui.showToast('게임 모듈을 불러오는 중 오류가 발생했습니다.', 'error');
@@ -1240,6 +1286,7 @@ function openResultModal({
   const timeSec = (timeMs / 1000).toFixed(1);
   const summaryLine = ui.formatResultText({
     gameId: gameMeta.id,
+    emoji: gameMeta.emoji,
     gameTitle: gameMeta.title,
     modeLabel,
     player,
@@ -1343,10 +1390,6 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-function escapeAttr(str) {
-  return escapeHtml(str);
-}
-
 /* === Bootstrap === */
 function init() {
   cacheDom();
@@ -1423,7 +1466,7 @@ function init() {
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && state.activeGame && !state.activeGame.finished && !state.activeGame.isStub) {
+    if (document.hidden && state.activeGame && !state.activeGame.finished && !state.activeGame.idle) {
       setPaused(true);
     }
   });

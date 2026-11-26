@@ -42,6 +42,7 @@ const PREVIEW_STAGGER_MS = 10;
 const FLIP_DURATION_MS = 320;
 const MISMATCH_LOCK_MS = 680;
 const FINISH_DELAY_MS = 560;
+const FLOAT_BADGE_MS = 940;
 
 /**
  * 12 ultra-crisp custom vector SVG arcade & workshop symbols with unique gradients.
@@ -419,13 +420,6 @@ function renderCardBackHtml() {
   `;
 }
 
-function formatStaticClock(sec) {
-  const whole = Math.max(0, Math.ceil(sec));
-  const mins = Math.floor(whole / 60);
-  const rem = whole % 60;
-  return `${String(mins).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
-}
-
 /**
  * Mounts Neon Memory Match inside #game-stage.
  * @param {HTMLElement} container
@@ -616,7 +610,7 @@ export function mount(container, ctx) {
       lastHudTimerKey = timerKey;
       hudPatch.timer =
         phase === 'preview'
-          ? { text: formatStaticClock(cfg.timeLimitSec), state: 'normal' }
+          ? cfg.timeLimitSec
           : remSec;
     }
     if (matchScore !== lastHudScore) {
@@ -738,7 +732,7 @@ export function mount(container, ctx) {
     const tid = window.setTimeout(() => {
       fxTimeouts.delete(tid);
       badge.remove();
-    }, 940);
+    }, FLOAT_BADGE_MS);
     fxTimeouts.add(tid);
   }
 
@@ -874,7 +868,7 @@ export function mount(container, ctx) {
         finishGame(true);
       }
     } else {
-      // Mismatch: 650ms cooldown lock while cards shake and flip back
+      // Mismatch: MISMATCH_LOCK_MS input lock while cards shake and flip back
       combo = 0;
       mismatchLock = true;
       mismatchRemainingMs = MISMATCH_LOCK_MS;

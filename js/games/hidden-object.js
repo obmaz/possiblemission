@@ -3,12 +3,15 @@
  * Exports mount(container, ctx) -> { unmount() } and deterministic generateStageLayout().
  */
 import { pickDispersed, pickSeeded } from '../core/seed.js';
+import { WRONG_INPUT_COOLDOWN_MS } from '../core/rules.js';
 
 const SCENE_WIDTH = 1376;
 const SCENE_HEIGHT = 768;
 const MAX_HINTS = 2;
 const MISS_TIME_PENALTY_SEC = 3.0;
-const MISS_COOLDOWN_MS = 450;
+const FINISH_DELAY_MS = 460; // let the last found ring play before the result modal
+const LONG_PRESS_LOUPE_MS = 180;
+const HINT_BEACON_MS = 4000;
 const ZOOM_SCALE = 1.6;
 const LOUPE_SCALE = 2.0;
 
@@ -225,8 +228,44 @@ export const PROP_LIBRARY = [
 ];
 
 /**
- * Curated Stage Definitions with 18+ normalized anchor spots per stage.
- * Every anchor stays strictly within [0.07..0.93] and avoids clustering.
+ * Measured art bounds of every prop inside its 48×48 viewBox: [x0, y0, x1, y1].
+ * Used to rest a prop's real bottom edge on a surface and to centre its hitbox.
+ */
+const PROP_BOX = {
+  'golden-key': [5.5, 14.5, 43.5, 33.5],
+  'mini-rocket': [9, 9, 41, 40],
+  'lucky-dice': [8, 9, 40, 39],
+  'magic-potion': [9.5, 6, 38.5, 42],
+  'cassette-tape': [6, 12, 42, 36],
+  'espresso-cup': [8, 6, 40.5, 41],
+  'pixel-trophy': [8, 10, 40, 41],
+  'paper-plane': [6, 9, 42, 39],
+  'brass-compass': [9, 6, 39, 41],
+  'cherry-macaron': [8, 6.5, 40, 36.5],
+  'royal-crown': [7, 8.8, 41, 39],
+  'loupe-charm': [7.5, 7.5, 40, 40],
+  'ruby-gem': [7, 10, 41, 40],
+  'bolt-badge': [7.5, 7.5, 40.5, 40.5],
+  'retro-gamepad': [6, 15, 42, 35],
+  hourglass: [12, 7, 36, 41],
+  'neon-headphones': [7, 10, 41, 38],
+  'star-donut': [9, 9, 39, 39],
+};
+
+/** Base scale applied on top of each spot's perspective scale. */
+const PROP_BASE_SCALE = 1.3;
+
+/**
+ * Stage scenes. Props are hidden ON real surfaces (shelves, tables, sofa seats, floor)
+ * so they read as part of the room instead of stickers floating over walls and windows.
+ *
+ * - `props`: only items that belong in that room AND are not already drawn in the art
+ *   (the lounge already has mugs, dice, headphones and a rocket; the observatory has
+ *   potions, crystals, a compass and a star trophy), so players never tap the
+ *   background's own copy and eat a penalty.
+ * - spot `x, y`: the point on the surface where the prop's bottom edge rests
+ *   (normalised to the art). `scale` follows the scene's perspective.
+ * - `pinned`: hung on a board (centred, no contact shadow); `only` limits which props fit.
  */
 export const STAGES = {
   stage1: {
@@ -235,27 +274,26 @@ export const STAGES = {
     shortTitle: '라운지',
     subEn: 'CREATIVE LOUNGE',
     image: './assets/images/hidden-workshop.jpg',
+    // Warm window light: pull the flat prop colours toward the room's amber grade
+    propFilter: 'saturate(0.86) sepia(0.14) brightness(0.97)',
+    props: [
+      'cassette-tape', 'retro-gamepad', 'paper-plane', 'cherry-macaron', 'star-donut', 'golden-key',
+      'hourglass', 'pixel-trophy', 'loupe-charm', 'bolt-badge', 'brass-compass', 'royal-crown',
+    ],
     spots: [
-      { id: 's1-top-shelf', x: 0.085, y: 0.145, rotDeg: -10, scale: 0.9, opacity: 0.91 },
-      { id: 's1-cam-shelf', x: 0.182, y: 0.258, rotDeg: 8, scale: 0.88, opacity: 0.9 },
-      { id: 's1-vinyl-rack', x: 0.115, y: 0.432, rotDeg: -14, scale: 0.9, opacity: 0.91 },
-      { id: 's1-mid-books', x: 0.206, y: 0.562, rotDeg: 12, scale: 0.88, opacity: 0.9 },
-      { id: 's1-dragon-shelf', x: 0.074, y: 0.608, rotDeg: -6, scale: 0.9, opacity: 0.92 },
-      { id: 's1-espresso-front', x: 0.142, y: 0.772, rotDeg: 16, scale: 0.94, opacity: 0.92 },
-      { id: 's1-counter-jar', x: 0.242, y: 0.892, rotDeg: -8, scale: 0.94, opacity: 0.92 },
-      { id: 's1-kettle-edge', x: 0.352, y: 0.918, rotDeg: 11, scale: 0.92, opacity: 0.92 },
-      { id: 's1-sill-left', x: 0.312, y: 0.525, rotDeg: -12, scale: 0.86, opacity: 0.89 },
-      { id: 's1-sill-right', x: 0.422, y: 0.495, rotDeg: 14, scale: 0.86, opacity: 0.89 },
-      { id: 's1-sofa-left', x: 0.365, y: 0.678, rotDeg: -9, scale: 0.94, opacity: 0.91 },
-      { id: 's1-sofa-right', x: 0.492, y: 0.658, rotDeg: 10, scale: 0.92, opacity: 0.91 },
-      { id: 's1-rug-floor', x: 0.468, y: 0.882, rotDeg: -15, scale: 0.94, opacity: 0.92 },
-      { id: 's1-coffee-table', x: 0.588, y: 0.762, rotDeg: 7, scale: 0.9, opacity: 0.92 },
-      { id: 's1-brick-wall', x: 0.652, y: 0.215, rotDeg: -9, scale: 0.9, opacity: 0.9 },
-      { id: 's1-cork-top', x: 0.792, y: 0.218, rotDeg: 12, scale: 0.88, opacity: 0.91 },
-      { id: 's1-cork-corner', x: 0.905, y: 0.312, rotDeg: -11, scale: 0.88, opacity: 0.9 },
-      { id: 's1-back-desk', x: 0.785, y: 0.558, rotDeg: 9, scale: 0.88, opacity: 0.91 },
-      { id: 's1-monitor-plant', x: 0.912, y: 0.578, rotDeg: -16, scale: 0.88, opacity: 0.91 },
-      { id: 's1-front-tablet', x: 0.862, y: 0.758, rotDeg: 15, scale: 0.94, opacity: 0.92 },
+      { id: 's1-shelf-top', x: 0.16, y: 0.125, scale: 0.6 },
+      { id: 's1-sill', x: 0.362, y: 0.547, scale: 0.7 },
+      { id: 's1-arcade-top', x: 0.61, y: 0.31, scale: 0.68 },
+      { id: 's1-espresso-top', x: 0.163, y: 0.655, scale: 0.78 },
+      { id: 's1-counter', x: 0.1, y: 0.915, scale: 1.05 },
+      { id: 's1-sofa-seat', x: 0.47, y: 0.718, scale: 0.88 },
+      { id: 's1-floor-sofa', x: 0.47, y: 0.87, scale: 0.98 },
+      { id: 's1-table-end', x: 0.643, y: 0.758, scale: 0.82 },
+      { id: 's1-table-under', x: 0.585, y: 0.835, scale: 0.7 },
+      { id: 's1-rug', x: 0.63, y: 0.905, scale: 1.0 },
+      { id: 's1-desk-left', x: 0.668, y: 0.59, scale: 0.7 },
+      { id: 's1-desk-front', x: 0.8, y: 0.745, scale: 0.85 },
+      { id: 's1-board', x: 0.885, y: 0.3, scale: 0.62, rotDeg: 8, pinned: true, only: ['bolt-badge', 'paper-plane'] },
     ],
   },
   stage2: {
@@ -264,27 +302,24 @@ export const STAGES = {
     shortTitle: '관측소',
     subEn: 'ORBITAL OBSERVATORY',
     image: './assets/images/hidden-space.jpg',
+    // Dim teal/violet cabin light
+    propFilter: 'saturate(0.84) hue-rotate(-6deg) brightness(0.9)',
+    props: [
+      'hourglass', 'royal-crown', 'mini-rocket', 'espresso-cup', 'lucky-dice', 'star-donut',
+      'cherry-macaron', 'neon-headphones', 'retro-gamepad', 'cassette-tape', 'paper-plane', 'golden-key',
+    ],
     spots: [
-      { id: 's2-tank-top', x: 0.095, y: 0.168, rotDeg: -10, scale: 0.9, opacity: 0.9 },
-      { id: 's2-tank-shelf', x: 0.215, y: 0.348, rotDeg: 10, scale: 0.88, opacity: 0.9 },
-      { id: 's2-dome-left', x: 0.268, y: 0.165, rotDeg: -14, scale: 0.9, opacity: 0.88 },
-      { id: 's2-dome-mid', x: 0.495, y: 0.155, rotDeg: 8, scale: 0.9, opacity: 0.88 },
-      { id: 's2-dome-right', x: 0.718, y: 0.168, rotDeg: 12, scale: 0.9, opacity: 0.88 },
-      { id: 's2-left-console', x: 0.105, y: 0.485, rotDeg: -8, scale: 0.9, opacity: 0.91 },
-      { id: 's2-left-dome', x: 0.088, y: 0.818, rotDeg: 14, scale: 0.94, opacity: 0.92 },
-      { id: 's2-front-desk', x: 0.245, y: 0.895, rotDeg: -12, scale: 0.94, opacity: 0.92 },
-      { id: 's2-crystal-desk', x: 0.258, y: 0.535, rotDeg: 9, scale: 0.88, opacity: 0.91 },
-      { id: 's2-yellow-sofa', x: 0.315, y: 0.678, rotDeg: -7, scale: 0.92, opacity: 0.91 },
-      { id: 's2-star-alcove', x: 0.352, y: 0.415, rotDeg: 12, scale: 0.86, opacity: 0.9 },
-      { id: 's2-mid-alcove', x: 0.498, y: 0.435, rotDeg: -10, scale: 0.86, opacity: 0.9 },
-      { id: 's2-helmet-wall', x: 0.625, y: 0.405, rotDeg: 15, scale: 0.88, opacity: 0.9 },
-      { id: 's2-holo-floor', x: 0.435, y: 0.655, rotDeg: -14, scale: 0.9, opacity: 0.91 },
-      { id: 's2-globe-shelf', x: 0.738, y: 0.365, rotDeg: 10, scale: 0.88, opacity: 0.9 },
-      { id: 's2-astro-alcove', x: 0.818, y: 0.468, rotDeg: -8, scale: 0.88, opacity: 0.9 },
-      { id: 's2-right-console', x: 0.918, y: 0.478, rotDeg: 12, scale: 0.9, opacity: 0.91 },
-      { id: 's2-back-lounge', x: 0.685, y: 0.595, rotDeg: -11, scale: 0.9, opacity: 0.91 },
-      { id: 's2-pit-shelf', x: 0.525, y: 0.875, rotDeg: 6, scale: 0.94, opacity: 0.92 },
-      { id: 's2-front-table', x: 0.785, y: 0.835, rotDeg: -9, scale: 0.94, opacity: 0.92 },
+      { id: 's2-back-counter', x: 0.322, y: 0.594, scale: 0.62 },
+      { id: 's2-sofa-left', x: 0.3, y: 0.705, scale: 0.85 },
+      { id: 's2-floor-holo', x: 0.43, y: 0.77, scale: 0.85 },
+      { id: 's2-pit-shelf', x: 0.495, y: 0.825, scale: 0.7 },
+      { id: 's2-wall-shelf', x: 0.69, y: 0.522, scale: 0.55 },
+      { id: 's2-right-alcove', x: 0.775, y: 0.553, scale: 0.55 },
+      { id: 's2-round-table', x: 0.705, y: 0.662, scale: 0.6 },
+      { id: 's2-back-sofa', x: 0.755, y: 0.628, scale: 0.65 },
+      { id: 's2-pouf', x: 0.672, y: 0.85, scale: 0.85 },
+      { id: 's2-front-table', x: 0.818, y: 0.84, scale: 0.75 },
+      { id: 's2-right-sofa', x: 0.905, y: 0.885, scale: 0.95 },
     ],
   },
 };
@@ -316,6 +351,33 @@ export function parseModeConfig(mode) {
 }
 
 /**
+ * Places one prop on one spot: returns the SVG transform plus the visual centre
+ * (normalised) and hit radius (scene px) used by tap tests, hints and FX.
+ */
+export function placeProp(prop, spot) {
+  const [x0, y0, x1, y1] = PROP_BOX[prop.id] || [6, 6, 42, 42];
+  const s = spot.scale * PROP_BASE_SCALE;
+  const rot = spot.rotDeg || 0;
+  const boxCx = (x0 + x1) / 2;
+  const boxCy = (y0 + y1) / 2;
+  const anchorY = spot.pinned ? boxCy : y1;
+  const baseX = spot.x * SCENE_WIDTH;
+  const baseY = spot.y * SCENE_HEIGHT;
+  const centerY = baseY - (anchorY - boxCy) * s;
+  const halfSize = (Math.max(x1 - x0, y1 - y0) / 2) * s;
+  return {
+    transform: `translate(${baseX.toFixed(1)}, ${baseY.toFixed(1)}) rotate(${rot}) scale(${s.toFixed(3)}) translate(${(-boxCx).toFixed(1)}, ${(-anchorY).toFixed(1)})`,
+    // Soft contact shadow under resting props, in the prop's own viewBox units
+    shadow: spot.pinned
+      ? ''
+      : `<ellipse class="ho-prop-shadow" cx="${boxCx}" cy="${y1}" rx="${((x1 - x0) * 0.44).toFixed(1)}" ry="${((x1 - x0) * 0.1).toFixed(1)}"/>`,
+    x: spot.x,
+    y: centerY / SCENE_HEIGHT,
+    hitRadiusPx: Math.max(26, halfSize + 12),
+  };
+}
+
+/**
  * Deterministically builds the hidden target layout using `ctx.rng`.
  * Identical `(seed, mode)` inputs always yield identical items at identical spots.
  * @param {() => number} rng
@@ -323,23 +385,28 @@ export function parseModeConfig(mode) {
  */
 export function generateStageLayout(rng, mode) {
   const config = parseModeConfig(mode);
-  const pickedProps = pickSeeded(rng, PROP_LIBRARY, config.targetCount);
-  const pickedSpots = pickDispersed(rng, config.stage.spots, config.targetCount, 0.13);
+  const { stage, targetCount } = config;
+  const stageProps = stage.props.map((id) => PROP_LIBRARY.find((p) => p.id === id)).filter(Boolean);
+  const pickedProps = pickSeeded(rng, stageProps, targetCount);
+  const pickedIds = new Set(pickedProps.map((p) => p.id));
 
-  const items = pickedProps.map((prop, index) => {
-    const spot = pickedSpots[index];
-    return {
-      ...prop,
-      spotId: spot.id,
-      x: spot.x,
-      y: spot.y,
-      rotDeg: spot.rotDeg,
-      scale: spot.scale,
-      opacity: spot.opacity,
-      hitRadiusPx: 41 * spot.scale,
-      found: false,
-    };
-  });
+  // A restricted spot (e.g. the cork board) is only eligible if a fitting prop was picked
+  const eligibleSpots = stage.spots.filter((spot) => !spot.only || spot.only.some((id) => pickedIds.has(id)));
+  const pickedSpots = pickDispersed(rng, eligibleSpots, targetCount, 0.12);
+
+  // Fill restricted spots first so a fitting prop is still available for them
+  const orderedSpots = [...pickedSpots].sort((a, b) => Number(Boolean(b.only)) - Number(Boolean(a.only)));
+  const remaining = [...pickedProps];
+  const items = [];
+  for (const spot of orderedSpots) {
+    const idx = remaining.findIndex((prop) => !spot.only || spot.only.includes(prop.id));
+    if (idx < 0) continue;
+    const [prop] = remaining.splice(idx, 1);
+    items.push({ ...prop, spotId: spot.id, ...placeProp(prop, spot), found: false });
+  }
+  // Dock order follows the seeded prop pick, not the spot fill order
+  const pickOrder = new Map(pickedProps.map((p, i) => [p.id, i]));
+  items.sort((a, b) => pickOrder.get(a.id) - pickOrder.get(b.id));
 
   return { config, items };
 }
@@ -414,20 +481,13 @@ export function mount(container, ctx) {
 
   const propGroupMarkup = (idSuffix = '') =>
     items
-      .map((item) => {
-        const cx = (item.x * SCENE_WIDTH).toFixed(1);
-        const cy = (item.y * SCENE_HEIGHT).toFixed(1);
-        const s = (item.scale * 0.92).toFixed(3);
-        return `
-          <g
-            opacity="${item.opacity}"
-            transform="translate(${cx}, ${cy}) rotate(${item.rotDeg}) scale(${s}) translate(-24, -24)"
-            style="filter: drop-shadow(1px 3px 2px rgba(10, 8, 22, 0.55));"
-          >
-            <g class="ho-prop-node" data-prop-id="${item.id}${idSuffix}">${item.svgBody}</g>
+      .map(
+        (item) => `
+          <g transform="${item.transform}">
+            <g class="ho-prop-node" data-prop-id="${item.id}${idSuffix}">${item.shadow}${item.svgBody}</g>
           </g>
-        `;
-      })
+        `
+      )
       .join('');
 
   root.innerHTML = `
@@ -459,7 +519,7 @@ export function mount(container, ctx) {
       <div class="ho-stage-frame" data-ho-frame>
         <div class="ho-scene-transform" data-ho-transform>
           <img class="ho-bg-img" src="${stage.image}" alt="${stage.title} 배경" draggable="false" />
-          <svg class="ho-props-layer" viewBox="0 0 ${SCENE_WIDTH} ${SCENE_HEIGHT}" preserveAspectRatio="none" aria-hidden="true">
+          <svg class="ho-props-layer" style="filter: ${stage.propFilter}" viewBox="0 0 ${SCENE_WIDTH} ${SCENE_HEIGHT}" preserveAspectRatio="none" aria-hidden="true">
             ${propGroupMarkup('')}
           </svg>
           <div class="ho-fx-layer" data-ho-fx></div>
@@ -470,7 +530,7 @@ export function mount(container, ctx) {
         <div class="ho-loupe" data-ho-loupe-lens hidden aria-hidden="true">
           <div class="ho-loupe__world" data-ho-loupe-world>
             <img class="ho-bg-img" src="${stage.image}" alt="" draggable="false" />
-            <svg class="ho-props-layer" viewBox="0 0 ${SCENE_WIDTH} ${SCENE_HEIGHT}" preserveAspectRatio="none">
+            <svg class="ho-props-layer" style="filter: ${stage.propFilter}" viewBox="0 0 ${SCENE_WIDTH} ${SCENE_HEIGHT}" preserveAspectRatio="none">
               ${propGroupMarkup('-loupe')}
             </svg>
           </div>
@@ -486,7 +546,7 @@ export function mount(container, ctx) {
       </div>
       <div class="ho-dock__header">
         <span class="ho-dock__title" data-ho-dock-title>찾을 물건 ${targetCount}개 · 0/${targetCount} 발견</span>
-        <span class="ho-dock__tip">모바일: 꾹 누르면 2.0x 루페 · 오답 시 +3초 페널티!</span>
+        <span class="ho-dock__tip">모바일: 꾹 누르면 2.0x 루페 · 오답 시 -${MISS_TIME_PENALTY_SEC}초 페널티!</span>
       </div>
       <div class="ho-dock__list" data-ho-dock data-count="${targetCount}">
         ${items
@@ -721,7 +781,7 @@ export function mount(container, ctx) {
     label.className = 'ho-miss-label';
     label.style.left = leftPct;
     label.style.top = topPct;
-    label.textContent = '+3초 페널티!';
+    label.textContent = `-${MISS_TIME_PENALTY_SEC}초 페널티!`;
     fxEl.appendChild(label);
     registerTimeout(() => label.remove(), 980);
 
@@ -849,7 +909,7 @@ export function mount(container, ctx) {
         }
         hideLoupe();
         ctx.ui.showToast('모든 숨은 오브젝트를 찾았습니다!', 'success', 1800);
-        finishDelayTimerId = registerTimeout(() => finishRound(true), 460);
+        finishDelayTimerId = registerTimeout(() => finishRound(true), FINISH_DELAY_MS);
       }
       return;
     }
@@ -864,10 +924,10 @@ export function mount(container, ctx) {
       }
     }
 
-    // 3. Miss penalty: +3s penalty (deducts 3.0s from remaining countdown) + 450ms cooldown
+    // 3. Miss penalty: deduct MISS_TIME_PENALTY_SEC from the countdown + shared input cooldown
     wrongTaps += 1;
     streak = 0;
-    cooldownUntil = now + MISS_COOLDOWN_MS;
+    cooldownUntil = now + WRONG_INPUT_COOLDOWN_MS;
     remainingSec = Math.max(0, remainingSec - MISS_TIME_PENALTY_SEC);
 
     ctx.audio.playError();
@@ -883,7 +943,7 @@ export function mount(container, ctx) {
   const triggerHint = () => {
     if (finished || roundLocked || foundCount >= targetCount || isPaused || unmounted) return;
     if (hintsUsed >= MAX_HINTS) {
-      ctx.ui.showToast('무료 힌트 2회를 모두 사용했습니다!', 'warn', 1600);
+      ctx.ui.showToast(`무료 힌트 ${MAX_HINTS}회를 모두 사용했습니다!`, 'warn', 1600);
       return;
     }
 
@@ -927,7 +987,7 @@ export function mount(container, ctx) {
     }
 
     window.clearTimeout(hintClearTimerId);
-    hintClearTimerId = registerTimeout(clearHintBeacon, 4000);
+    hintClearTimerId = registerTimeout(clearHintBeacon, HINT_BEACON_MS);
     ctx.ui.showToast(`레이더 힌트 발동! [${target.name}] 근처를 살펴보세요.`, 'info', 2200);
     syncHud();
   };
@@ -984,7 +1044,7 @@ export function mount(container, ctx) {
           activePointer.loupeActive = true;
           positionLoupe(activePointer.lastX, activePointer.lastY, true);
         }
-      }, 180);
+      }, LONG_PRESS_LOUPE_MS);
     }
   };
 
@@ -1064,6 +1124,9 @@ export function mount(container, ctx) {
 
   const onKeyDown = (e) => {
     if (finished || roundLocked || foundCount >= targetCount || isPaused || unmounted) return;
+    // Leave browser/OS shortcuts (Cmd+H, Ctrl+M…) alone, and ignore auto-repeat so a
+    // held H cannot burn both hints at once.
+    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
     const tag = document.activeElement?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
