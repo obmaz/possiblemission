@@ -182,6 +182,96 @@
   color: var(--fa-accent);
 }
 
+.game-anzan .fa-playmode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: min(100%, 720px);
+}
+
+.game-anzan .fa-playmode__btn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface-soft);
+  text-align: left;
+  cursor: pointer;
+}
+
+.game-anzan .fa-playmode__btn.is-active {
+  border-color: var(--fa-accent);
+  background: rgba(11, 132, 198, 0.1);
+  box-shadow: inset 0 0 0 1px var(--fa-accent);
+}
+
+.game-anzan .fa-playmode__title {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.game-anzan .fa-playmode__desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.game-anzan .fa-party-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: min(100%, 440px);
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-soft);
+  border: 1px solid var(--border-subtle);
+  text-align: center;
+}
+
+.game-anzan .fa-party-panel[hidden] {
+  display: none;
+}
+
+.game-anzan .fa-party-panel__status {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+
+.game-anzan .fa-party-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.game-anzan .fa-mc-btn {
+  flex: 1 1 150px;
+  min-height: 46px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface-deep);
+  font-size: 0.92rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.game-anzan .fa-mc-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.game-anzan .fa-mc-btn--next {
+  border-color: transparent;
+  background: var(--btn-primary);
+  color: #ffffff;
+}
+
 .game-anzan .fa-setup__body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -300,8 +390,9 @@
 }
 
 .game-anzan .fa-stepper__value {
-  min-width: 64px;
+  min-width: 96px;
   font-family: var(--font-mono);
+  font-size: 0.88rem;
   font-weight: 700;
   text-align: center;
 }
@@ -348,6 +439,12 @@
 
   .game-anzan .fa-presets {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .game-anzan .fa-playmode {
+    grid-template-columns: 1fr;
+  }
+  .game-anzan .fa-stepper__value {
+    min-width: 96px;
   }
 }
 

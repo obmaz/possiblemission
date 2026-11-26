@@ -10,6 +10,7 @@
  * shell's pause (and its start countdown) freezes everything.
  */
 import { ANZAN_DEFAULT_PRESET, ANZAN_FIELDS, ANZAN_PRESETS, anzanModeId, matchAnzanPreset, parseAnzanMode } from './flash-anzan-settings.js';
+import { renderPlayModeSwitch } from './party-kit.js';
 
 const READY_SEC = 1.1; // "문제 2 / 5" card before each problem
 const FLASH_ON_RATIO = 0.72; // share of each interval the number is visible (rest is blank)
@@ -34,10 +35,12 @@ export function generateAnzanRun(rng, settings) {
 /** Points for one correct answer: more digits, more numbers and faster flashes pay more. */
 const basePoints = (s) => Math.round((60 * s.digits * s.count) / Math.sqrt(s.intervalSec));
 
-const formatValue = (field, value) => `${value}${field.unit}`;
+const formatValue = (field, value) =>
+  field.valueLabels ? field.valueLabels[field.options.indexOf(value)] : `${value}${field.unit}`;
 
 function describe(s) {
-  return `${s.digits}자리 숫자 ${s.count}개가 ${s.intervalSec}초 간격으로 나타납니다 · ${s.problems}문제`;
+  const playTxt = s.play === 1 ? '다같이 한 화면 진행' : '혼자 합계 입력';
+  return `${playTxt} · ${s.digits}자리 숫자 ${s.count}개가 ${s.intervalSec}초 간격으로 나타납니다 · ${s.problems}문제`;
 }
 
 /**
@@ -55,7 +58,7 @@ export function mount(container, ctx) {
 function mountSetup(container, ctx) {
   const last = parseAnzanMode(ctx.storage.getPref?.(LAST_MODE_PREF, '') || '');
   const preset = ANZAN_PRESETS.find((p) => p.id === ANZAN_DEFAULT_PRESET);
-  const source = last || preset;
+  const source = last || { ...preset, play: 0 };
   let values = Object.fromEntries(ANZAN_FIELDS.map((f) => [f.key, source[f.key]]));
 
   const root = document.createElement('div');
@@ -63,8 +66,12 @@ function mountSetup(container, ctx) {
   root.innerHTML = `
     <div class="fa-setup__head">
       <h2 class="fa-setup__title">플래시 암산 · 난이도</h2>
-      <p class="fa-setup__sub">숫자가 하나씩 번쩍입니다. 머릿속으로 더해서 <b>합계</b>를 입력하세요.</p>
+      <p class="fa-setup__sub">숫자가 하나씩 번쩍입니다. 머릿속으로 더해서 <b>합계</b>를 맞히세요.</p>
     </div>
+    ${renderPlayModeSwitch(values.play, 'fa', {
+      label: ANZAN_FIELDS[0].valueLabels[0],
+      desc: '직접 합계를 입력해 맞히기',
+    })}
     <div class="fa-setup__body">
       <div class="fa-presets" role="radiogroup" aria-label="난이도 프리셋">
         ${ANZAN_PRESETS.map(
@@ -97,6 +104,11 @@ function mountSetup(container, ctx) {
 
   function render() {
     const match = matchAnzanPreset(values);
+    root.querySelectorAll('[data-playmode]').forEach((btn) => {
+      const on = Number(btn.dataset.playmode) === values.play;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-checked', String(on));
+    });
     root.querySelectorAll('[data-preset]').forEach((btn) => {
       const on = match?.id === btn.dataset.preset;
       btn.classList.toggle('is-active', on);
@@ -113,11 +125,16 @@ function mountSetup(container, ctx) {
   }
 
   const onClick = (e) => {
+    const playBtn = e.target.closest('[data-playmode]');
     const presetBtn = e.target.closest('[data-preset]');
     const stepBtn = e.target.closest('[data-step]');
-    if (presetBtn) {
+    if (playBtn) {
+      values = { ...values, play: Number(playBtn.dataset.playmode) };
+      ctx.audio.playClick();
+      render();
+    } else if (presetBtn) {
       const p = ANZAN_PRESETS.find((x) => x.id === presetBtn.dataset.preset);
-      values = Object.fromEntries(ANZAN_FIELDS.map((f) => [f.key, p[f.key]]));
+      values = { ...values, digits: p.digits, count: p.count, intervalSec: p.intervalSec, problems: p.problems };
       ctx.audio.playClick();
       render();
     } else if (stepBtn) {
@@ -153,11 +170,12 @@ function mountSetup(container, ctx) {
  * The game
  * ========================================================================== */
 function mountGame(container, ctx, settings) {
+  const isParty = settings.play === 1;
   const problems = generateAnzanRun(ctx.rng, settings);
   const points = basePoints(settings);
 
   const root = document.createElement('div');
-  root.className = 'game-root game-anzan';
+  root.className = `game-root game-anzan ${isParty ? 'is-party' : ''}`;
   root.innerHTML = `
     <div class="fa-stage" data-stage>
       <p class="fa-counter" data-counter></p>
@@ -174,6 +192,13 @@ function mountGame(container, ctx, settings) {
       </div>
       <button type="submit" class="fa-answer__ok">확인</button>
     </form>
+    <div class="fa-party-panel" data-party-panel hidden>
+      <p class="fa-party-panel__status" data-party-status>👀 가장 먼저 합계를 외치는 사람 승리!</p>
+      <div class="fa-party-panel__actions">
+        <button type="button" class="fa-mc-btn" data-mc-reveal>👁️ 정답 공개 (Space)</button>
+        <button type="button" class="fa-mc-btn fa-mc-btn--next" data-mc-next>다음 문제 → (Enter)</button>
+      </div>
+    </div>
   `;
   container.appendChild(root);
 
@@ -183,6 +208,10 @@ function mountGame(container, ctx, settings) {
   const captionEl = root.querySelector('[data-caption]');
   const answerForm = root.querySelector('[data-answer]');
   const answerInput = root.querySelector('[data-input]');
+  const partyPanel = root.querySelector('[data-party-panel]');
+  const partyStatusEl = root.querySelector('[data-party-status]');
+  const mcRevealBtn = root.querySelector('[data-mc-reveal]');
+  const mcNextBtn = root.querySelector('[data-mc-next]');
   const finePointer = !window.matchMedia?.('(pointer: coarse)').matches;
   // On touch screens the on-screen keypad replaces the native keyboard
   if (!finePointer) answerInput.readOnly = true;
@@ -197,6 +226,7 @@ function mountGame(container, ctx, settings) {
   let score = 0;
   let streak = 0;
   let shownIdx = -1;
+  let partyRevealed = false;
   let isPaused = false;
   let finished = false;
   let unmounted = false;
@@ -208,9 +238,10 @@ function mountGame(container, ctx, settings) {
   function syncHud() {
     ctx.updateHud({
       timer: { text: `${problemIdx + 1} / ${problems.length}`, state: 'normal' },
-      score,
-      progress: `정답 ${correctCount}`,
+      score: isParty ? problemIdx * 200 : score,
+      progress: isParty ? `진행 ${problemIdx} / ${problems.length}` : `정답 ${correctCount}`,
       progressRatio: problemIdx / problems.length,
+      extra: isParty ? '🎙️ 다같이 모드' : '',
     });
   }
 
@@ -226,38 +257,81 @@ function mountGame(container, ctx, settings) {
     phaseClock = 0;
     if (next === 'ready') {
       shownIdx = -1;
+      partyRevealed = false;
       answerForm.hidden = true;
+      partyPanel.hidden = true;
       stageEl.hidden = false;
       setStage(`문제 ${problemIdx + 1} / ${problems.length}`, '준비', describe(settings), 'ready');
     } else if (next === 'flash') {
+      partyPanel.hidden = true;
       setStage('', '', '');
     } else if (next === 'answer') {
-      stageEl.hidden = true;
-      answerForm.hidden = false;
-      answerInput.value = '';
       answerStartMs = activeMs;
-      if (finePointer) answerInput.focus({ preventScroll: true });
+      if (isParty) {
+        stageEl.hidden = false;
+        answerForm.hidden = true;
+        partyPanel.hidden = false;
+        if (mcRevealBtn) mcRevealBtn.disabled = false;
+        if (mcNextBtn) mcNextBtn.textContent = problemIdx + 1 >= problems.length ? '🏁 결과 보기 (Enter)' : '다음 문제 → (Enter)';
+        if (partyStatusEl) partyStatusEl.textContent = '👀 가장 먼저 합계를 외치는 사람 승리!';
+        setStage(`문제 ${problemIdx + 1} / ${problems.length}`, '?', '먼저 합계를 외치세요!', 'ready');
+      } else {
+        stageEl.hidden = true;
+        partyPanel.hidden = true;
+        answerForm.hidden = false;
+        answerInput.value = '';
+        if (finePointer) answerInput.focus({ preventScroll: true });
+      }
     }
     syncHud();
+  }
+
+  function revealPartyAnswer() {
+    if (!isParty || phase !== 'answer' || partyRevealed) return;
+    partyRevealed = true;
+    ctx.audio.playMatch(1);
+    if (mcRevealBtn) mcRevealBtn.disabled = true;
+    if (partyStatusEl) partyStatusEl.textContent = '정답이 공개되었습니다!';
+    setStage(
+      '정답 공개!',
+      problem().total.toLocaleString('en-US'),
+      problem().numbers.map((n) => n.toLocaleString('en-US')).join(' + '),
+      'correct'
+    );
+  }
+
+  function advancePartyProblem() {
+    if (!isParty || phase !== 'answer') return;
+    ctx.audio.playClick();
+    problemIdx += 1;
+    if (problemIdx >= problems.length) finish();
+    else enter('ready');
   }
 
   function finish() {
     if (finished) return;
     finished = true;
     phase = 'ended';
-    const accuracy = Math.round((correctCount / problems.length) * 100);
+    const accuracy = isParty ? 100 : Math.round((correctCount / problems.length) * 100);
     ctx.completeGame({
-      score,
+      score: isParty ? problems.length * 200 : score,
       timeMs: Math.round(activeMs),
       accuracy,
       // Clearing means getting at least 60% of the problems right
-      cleared: correctCount >= Math.ceil(problems.length * 0.6),
-      details: [
-        { value: `🧮 ${correctCount}/${problems.length} 정답` },
-        { value: `⏱ 평균 ${(answerTimeMs / problems.length / 1000).toFixed(1)}초` },
-        { value: `🔢 ${settings.digits}자리 × ${settings.count}개` },
-        { value: `⚡ ${settings.intervalSec}초 간격` },
-      ],
+      cleared: isParty ? true : correctCount >= Math.ceil(problems.length * 0.6),
+      details: isParty
+        ? [
+            { value: `🎙️ ${problems.length}문제 진행` },
+            { value: `⏱ ${(activeMs / 1000).toFixed(1)}초` },
+            { value: `🔢 ${settings.digits}자리 × ${settings.count}개` },
+            { value: `⚡ ${settings.intervalSec}초 간격` },
+          ]
+        : [
+            { value: `🧮 ${correctCount}/${problems.length} 정답` },
+            { value: `⏱ 평균 ${(answerTimeMs / problems.length / 1000).toFixed(1)}초` },
+            { value: `🔢 ${settings.digits}자리 × ${settings.count}개` },
+            { value: `⚡ ${settings.intervalSec}초 간격` },
+          ],
     });
   }
 
@@ -351,9 +425,27 @@ function mountGame(container, ctx, settings) {
     if (!isPaused) lastTs = performance.now();
   };
 
+  const onPartyClick = (e) => {
+    if (!isParty || isPaused || finished) return;
+    if (e.target.closest('[data-mc-reveal]')) revealPartyAnswer();
+    else if (e.target.closest('[data-mc-next]')) advancePartyProblem();
+  };
+  const onPartyKey = (e) => {
+    if (!isParty || isPaused || finished) return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (phase === 'answer' && !partyRevealed) revealPartyAnswer();
+    } else if (phase === 'answer' && (e.key === 'Enter' || e.key === 'ArrowRight')) {
+      e.preventDefault();
+      advancePartyProblem();
+    }
+  };
+
   answerForm.addEventListener('submit', onSubmit);
   answerForm.addEventListener('click', onKeypad);
   answerInput.addEventListener('input', onInput);
+  partyPanel.addEventListener('click', onPartyClick);
+  window.addEventListener('keydown', onPartyKey);
   window.addEventListener('pm:pausechange', onPause);
 
   enter('ready');
@@ -366,6 +458,8 @@ function mountGame(container, ctx, settings) {
       answerForm.removeEventListener('submit', onSubmit);
       answerForm.removeEventListener('click', onKeypad);
       answerInput.removeEventListener('input', onInput);
+      partyPanel.removeEventListener('click', onPartyClick);
+      window.removeEventListener('keydown', onPartyKey);
       window.removeEventListener('pm:pausechange', onPause);
       container.innerHTML = '';
     },
