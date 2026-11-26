@@ -36,12 +36,28 @@ const WRONG_PENALTY_SEC = 3;
 const LAST_MODE_PREF = 'hideSeekLastMode';
 
 // Timings (seconds, game clock — everything stops while paused)
-const END_OVERLAY_SEC = 1.3;
-const PEEK_EASE_SEC = 0.16; // how long a number takes to slide out / back in
+const END_OVERLAY_SEC = 1.6;
+const PEEK_EASE_SEC = 0.18; // how long a number takes to spring out / slide back in
 const PEEK_REST_SEC = 0.6; // a number that just hid stays hidden at least this long
-const TILE_FLASH_SEC = 0.6;
-const MESSAGE_SEC = 1.1;
 const DANGER_TIME_SEC = 10;
+
+// Game feel ("juice"): short, readable reactions — never enough to hide the wall
+const FX = {
+  introSec: 0.45, // tiles spring onto the wall in a wave from the centre
+  introSpreadSec: 0.35,
+  hoverScale: 0.07,
+  pressMs: 140,
+  popMs: 520, // a found letter's tiles bounce
+  shakeMs: 380, // a wrong tile wobbles
+  burstMs: 520, // ring that expands from a found tile
+  floaterMs: 950, // "+120", "-3초" text
+  flyMs: 430, // found letter flies from the wall into its box
+  screenShakeMs: 240,
+  screenShakePx: 7,
+  sparksPerTile: 7,
+  maxSparks: 260,
+  clearWaveMs: 600,
+};
 
 // Spinning spiral background (INSANE / GOD or the custom toggle)
 const SPIRAL_SPACING = 110; // distance between two white bands, logical px
@@ -115,16 +131,36 @@ function readPalette(el) {
   return {
     neon: pick('--neon-emerald', '#3fbf92'),
     danger: pick('--neon-crimson', '#e06767'),
+    gold: pick('--neon-gold', '#d9a21b'),
     text: pick('--text-on-image', '#f6f8fc'),
-    wall: '#121a17',
-    wallDot: 'rgba(255, 255, 255, 0.035)',
-    tile: '#e8eee9',
-    tileEdge: '#9fb3a8',
-    tileInset: 'rgba(16, 24, 20, 0.28)',
-    letter: '#101814',
-    number: '#f5f8f4',
-    pill: 'rgba(8, 12, 10, 0.9)',
+    // Deep green wall, like the reference photo: lit in the middle, darker at the edges
+    wallCenter: '#1e4a3f',
+    wallEdge: '#0e241f',
+    tile: '#e9eee9',
+    tileShade: '#d9e2dc',
+    tileRim: '#ffffff',
+    tileInset: 'rgba(60, 72, 68, 0.5)',
+    tileGlow: 'rgba(225, 255, 240, 0.32)',
+    letter: '#28302c',
+    solvedLetter: '#0f6e4f',
+    number: '#f4faf6',
+    numberGlow: 'rgba(200, 255, 230, 0.7)',
   };
+}
+
+const clamp01 = (t) => Math.max(0, Math.min(1, t));
+const easeOutCubic = (t) => 1 - (1 - t) ** 3;
+/** Overshoots a little before settling — the "spring" in pops and peeks. */
+function easeOutBack(t) {
+  const c1 = 1.70158;
+  return 1 + (c1 + 1) * (t - 1) ** 3 + c1 * (t - 1) ** 2;
+}
+
+/** `rgba()` of a hex colour, for fading feedback colours. */
+function withAlpha(hex, a) {
+  const m = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex.trim());
+  if (!m) return hex;
+  return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${a})`;
 }
 
 function roundedRect(g, x, y, w, h, r) {
@@ -266,7 +302,6 @@ function mountGame(container, ctx, settings) {
   root.className = 'game-root game-fortress';
   root.innerHTML = `
     <header class="df-console">
-      <span class="df-console__label">찾을 숫자</span>
       <div class="df-targets" data-df-targets>
         ${targets
           .map(
@@ -281,18 +316,19 @@ function mountGame(container, ctx, settings) {
       </div>
       <div class="df-timebar" aria-hidden="true"><span data-df-timebar></span></div>
     </header>
-    <div class="df-wall-wrap" data-df-wrap>
+    <div class="df-wall-wrap" data-df-wrap${settings.spiral ? ' data-spiral' : ''}>
       <canvas class="df-wall" data-df-canvas aria-label="글자 타일 벽. 숫자를 숨긴 타일을 누르세요."></canvas>
       <div class="df-overlay" data-df-overlay hidden>
         <h2 class="df-overlay__title" data-df-overlay-title></h2>
         <p class="df-overlay__body" data-df-overlay-body></p>
       </div>
     </div>
-    <p class="df-help" data-df-help>숫자 옆 칸에 그 숫자를 숨긴 타일의 글자를 한 글자 입력하세요. 순서는 상관없고, 칸을 고른 뒤 타일을 눌러도 됩니다.</p>
+    <p class="df-help">숫자 옆 칸에 그 숫자를 숨긴 글자를 입력하거나, 칸을 고르고 타일을 누르세요. 순서는 상관없어요.</p>
   `;
   container.appendChild(root);
 
   const boxes = [...root.querySelectorAll('[data-box]')];
+  const slots = boxes.map((b) => b.closest('.df-target'));
   const timebarEl = root.querySelector('[data-df-timebar]');
   const wrapEl = root.querySelector('[data-df-wrap]');
   const canvas = root.querySelector('[data-df-canvas]');
@@ -302,13 +338,15 @@ function mountGame(container, ctx, settings) {
   const g = canvas.getContext('2d');
   const color = readPalette(root);
   const finePointer = !window.matchMedia?.('(pointer: coarse)').matches;
+  const reduceMotion = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
   // --- Run state ---------------------------------------------------------------
   let phase = 'play'; // play | clear | fail | ended
   let clock = 0; // seconds since numbers appeared (drives reveal, hiding, peeking)
   let phaseClock = 0;
   let penaltySec = 0;
-  let activeMs = 0;
+  let activeMs = 0; // drives every animation; frozen while paused
+  let playMs = 0; // time actually spent playing (the result's time)
   let activeBox = 0; // the box a tapped tile answers
   let score = 0;
   let streak = 0;
@@ -316,8 +354,18 @@ function mountGame(container, ctx, settings) {
   let cooldownUntil = 0; // activeMs; blocks rapid-fire guessing after a miss
   let solved = 0;
   let spin = 0;
-  let message = null; // { text, tone, until }
-  const tileFlash = new Map(); // tileIndex -> { color, until }
+  const solvedLetters = new Set();
+
+  // --- Juice state ---------------------------------------------------------------
+  const tileAnims = new Map(); // tileIndex -> { kind: 'pop' | 'shake', t0, tint }
+  const hoverMix = new Float32Array(wall.tiles.length); // 0…1 per tile, eased
+  let hoverTile = -1;
+  let press = null; // { tile, t0 }
+  let bursts = []; // { x, y, r, t0, tint }
+  let sparks = []; // { x, y, vx, vy, life, max, tint, size }
+  let floaters = []; // { text, x, y, t0, tint, size }
+  let screenShake = null; // { t0, amp }
+  let endMix = 0; // 0 → 1 as the wall dims after a time-out
 
   let isPaused = false;
   let finished = false;
@@ -329,7 +377,8 @@ function mountGame(container, ctx, settings) {
   let logical = { w: 1600, h: WALL_SHORT_SIDE };
   let portrait = false;
   let view = { scale: 1, ox: 0, oy: 0, cssW: 1, cssH: 1, dpr: 1 };
-  let geometry = []; // tile index -> { x, y, half, angleRad, cell }
+  let geometry = []; // tile index -> { x, y, half, angleRad, cell, introDelay }
+  let gradients = null; // cached per logical size
 
   function buildGeometry() {
     const cols = portrait ? wall.rows : wall.cols;
@@ -337,20 +386,26 @@ function mountGame(container, ctx, settings) {
     const cellW = (logical.w - WALL_PAD * 2) / cols;
     const cellH = (logical.h - WALL_PAD * 2) / rows;
     const cell = Math.min(cellW, cellH);
+    const maxDist = Math.hypot(logical.w / 2, logical.h / 2);
     geometry = wall.tiles.map((tile) => {
       const i = tile.index;
       const c = portrait ? Math.floor(i / wall.cols) : i % wall.cols;
       const row = portrait ? i % wall.cols : Math.floor(i / wall.cols);
+      const x = WALL_PAD + (c + 0.5 + tile.jx) * cellW;
+      const y = WALL_PAD + (row + 0.58 + tile.jy) * cellH;
       return {
         // Sit slightly low in the cell to leave head-room for the popping number
-        x: WALL_PAD + (c + 0.5 + tile.jx) * cellW,
-        y: WALL_PAD + (row + 0.58 + tile.jy) * cellH,
+        x,
+        y,
         // A 45° tile must still fit its cell: half-diagonal ≤ half cell
         half: cell * tile.size * 0.31,
         angleRad: (tile.angle * Math.PI) / 180,
         cell,
+        // 0…1 distance from the centre: the intro and the clear wave ripple outward
+        ring: Math.hypot(x - logical.w / 2, y - logical.h / 2) / maxDist,
       };
     });
+    gradients = null;
   }
 
   function resize() {
@@ -379,6 +434,12 @@ function mountGame(container, ctx, settings) {
     canvas.height = Math.round(rect.height * dpr);
   }
 
+  /** Where logical point (x, y) is on the page — for DOM effects that leave the wall. */
+  function toClient(x, y) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: rect.left + view.ox + x * view.scale, y: rect.top + view.oy + y * view.scale };
+  }
+
   // --- DOM sync --------------------------------------------------------------------
   const remainingSec = () => Math.max(0, settings.timeSec - clock - penaltySec);
 
@@ -401,30 +462,98 @@ function mountGame(container, ctx, settings) {
     overlayEl.hidden = false;
   }
 
-  function flashMessage(text, tone) {
-    message = { text, tone, until: activeMs + MESSAGE_SEC * 1000 };
+  /** Restarts a one-shot CSS animation class. */
+  function replayClass(el, cls) {
+    el.classList.remove(cls);
+    void el.offsetWidth;
+    el.classList.add(cls);
   }
 
   const firstOpenBox = () => targets.findIndex((t) => !t.solved);
 
   function focusBox(i) {
     activeBox = i;
-    boxes.forEach((b, k) => b.closest('.df-target').classList.toggle('is-active', k === i && !targets[k].solved));
+    slots.forEach((slot, k) => slot.classList.toggle('is-active', k === i && !targets[k].solved));
     if (finePointer && i >= 0) boxes[i].focus({ preventScroll: true });
   }
 
+  // --- Effects -----------------------------------------------------------------------
+  function addFloater(text, x, y, tint, size = 40) {
+    // Keep the text on the wall even above a top-row tile (it rises ~46 px)
+    floaters.push({ text, x, y: Math.max(y, size + 60), t0: activeMs, tint, size });
+  }
+
+  function addBurst(tileIndex, tint, delayMs = 0) {
+    const p = geometry[tileIndex];
+    bursts.push({ x: p.x, y: p.y, r: p.half, t0: activeMs + delayMs, tint });
+    if (reduceMotion) return;
+    for (let k = 0; k < FX.sparksPerTile && sparks.length < FX.maxSparks; k += 1) {
+      const a = Math.random() * Math.PI * 2;
+      const v = 220 + Math.random() * 260;
+      sparks.push({
+        x: p.x,
+        y: p.y,
+        vx: Math.cos(a) * v,
+        vy: Math.sin(a) * v - 120,
+        life: 0,
+        max: 0.45 + Math.random() * 0.3,
+        delay: delayMs / 1000,
+        tint,
+        size: 3 + Math.random() * 4,
+      });
+    }
+  }
+
+  function shakeScreen(amp = FX.screenShakePx) {
+    if (!reduceMotion) screenShake = { t0: activeMs, amp };
+  }
+
+  /** The found letter flies from the wall into its answer box, which pops on landing. */
+  function flyToBox(i, tileIndex, letter) {
+    const slot = slots[i];
+    if (reduceMotion || typeof document.body.animate !== 'function') {
+      replayClass(slot, 'is-landed');
+      return;
+    }
+    const p = geometry[tileIndex];
+    const from = toClient(p.x, p.y);
+    const to = boxes[i].getBoundingClientRect();
+    const base = root.getBoundingClientRect();
+    const fly = document.createElement('span');
+    fly.className = 'df-fly';
+    fly.textContent = letter;
+    root.appendChild(fly);
+    const dx = to.left + to.width / 2 - from.x;
+    const dy = to.top + to.height / 2 - from.y;
+    fly.style.left = `${from.x - base.left}px`;
+    fly.style.top = `${from.y - base.top}px`;
+    const anim = fly.animate(
+      [
+        { transform: 'translate(-50%, -50%) scale(1.25)', opacity: 1 },
+        { transform: `translate(calc(-50% + ${dx * 0.55}px), calc(-50% + ${dy * 0.45 - 40}px)) scale(1.1)`, opacity: 1, offset: 0.55 },
+        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.8)`, opacity: 0.9 },
+      ],
+      { duration: FX.flyMs, easing: 'cubic-bezier(0.5, 0, 0.75, 0.6)' }
+    );
+    anim.onfinish = () => {
+      fly.remove();
+      if (!unmounted) replayClass(slot, 'is-landed');
+    };
+  }
+
+  // --- Flow --------------------------------------------------------------------------
   function finishRun(cleared) {
     if (finished) return;
     finished = true;
     phase = 'ended';
     ctx.completeGame({
       score,
-      timeMs: Math.round(activeMs),
+      timeMs: Math.round(playMs),
       accuracy: solved + mistakes > 0 ? Math.round((solved / (solved + mistakes)) * 100) : 0,
       cleared,
       details: [
         { value: `🔢 ${solved}/${targets.length} 숫자` },
-        { value: `⏱ ${(activeMs / 1000).toFixed(1)}초` },
+        { value: `⏱ ${(playMs / 1000).toFixed(1)}초` },
         { value: `❌ 오답 ${mistakes}회` },
         { value: `🎚 ${hideSeekModeLabel(ctx.mode)}` },
       ],
@@ -434,16 +563,25 @@ function mountGame(container, ctx, settings) {
   function endPhase(next) {
     phase = next;
     phaseClock = 0;
+    hoverTile = -1;
+    canvas.style.cursor = '';
     boxes.forEach((b) => {
       b.disabled = true;
     });
     if (next === 'clear') {
       const bonus = Math.round(remainingSec() * 60) + (mistakes === 0 ? PERFECT_BONUS : 0);
       score += bonus;
-      ctx.audio.playMatch(6);
+      ctx.audio.playClear();
+      // Celebration: every tile bounces in a wave from the centre
+      for (const tile of wall.tiles) {
+        const p = geometry[tile.index];
+        tileAnims.set(tile.index, { kind: 'pop', t0: activeMs + p.ring * FX.clearWaveMs, tint: color.neon });
+        if (solvedLetters.has(tile.letter)) addBurst(tile.index, color.neon, p.ring * FX.clearWaveMs);
+      }
       showOverlay('모두 찾았습니다!', `남은 시간 보너스 +${bonus.toLocaleString('en-US')}`, 'success');
     } else {
       ctx.audio.playAlarm();
+      shakeScreen(10);
       showOverlay('시간 초과!', `${solved}/${targets.length}개 찾음`, 'danger');
     }
     syncHud();
@@ -455,6 +593,7 @@ function mountGame(container, ctx, settings) {
     const target = targets[i];
     if (!target || target.solved) return;
     const box = boxes[i];
+    const slot = slots[i];
     if (activeMs < cooldownUntil) {
       box.value = '';
       return;
@@ -463,17 +602,28 @@ function mountGame(container, ctx, settings) {
       target.solved = true;
       solved += 1;
       streak += 1;
-      score += pts + (streak >= 2 ? 60 * Math.min(streak, 9) : 0);
+      const gained = pts + (streak >= 2 ? 60 * Math.min(streak, 9) : 0);
+      score += gained;
       ctx.audio.playMatch(streak);
       box.value = target.letter;
       box.disabled = true;
-      box.closest('.df-target').classList.add('is-solved');
+      slot.classList.add('is-solved');
+      solvedLetters.add(target.letter);
+      // Every tile with this letter bounces and bursts, nearest to the tap first
+      const origin = tileIndex >= 0 ? geometry[tileIndex] : null;
+      let flyFrom = tileIndex;
       for (const tile of wall.tiles) {
-        if (tile.letter === target.letter) {
-          tileFlash.set(tile.index, { color: color.neon, until: activeMs + TILE_FLASH_SEC * 2000 });
-        }
+        if (tile.letter !== target.letter) continue;
+        if (flyFrom < 0) flyFrom = tile.index;
+        const p = geometry[tile.index];
+        const delay = origin ? Math.min(220, Math.hypot(p.x - origin.x, p.y - origin.y) * 0.25) : 0;
+        tileAnims.set(tile.index, { kind: 'pop', t0: activeMs + delay, tint: color.neon });
+        addBurst(tile.index, color.neon, delay);
       }
-      flashMessage(`${target.number} = ${target.letter} 정답!`, 'success');
+      const at = geometry[flyFrom];
+      addFloater(`+${gained}`, at.x, at.y - at.half * 2.2, color.neon, 44);
+      if (streak >= 2) addFloater(`${streak} COMBO`, at.x, at.y - at.half * 2.2 - 46, color.gold, 28);
+      flyToBox(i, flyFrom, target.letter);
       if (solved >= targets.length) endPhase('clear');
       else focusBox(firstOpenBox());
     } else {
@@ -483,14 +633,16 @@ function mountGame(container, ctx, settings) {
       mistakes += 1;
       ctx.audio.playError();
       box.value = '';
-      const slot = box.closest('.df-target');
-      slot.classList.remove('is-wrong');
-      void slot.offsetWidth;
-      slot.classList.add('is-wrong');
+      replayClass(slot, 'is-wrong');
+      replayClass(timebarEl.parentElement, 'is-hit');
+      shakeScreen();
       if (tileIndex >= 0) {
-        tileFlash.set(tileIndex, { color: color.danger, until: activeMs + TILE_FLASH_SEC * 1000 });
+        const p = geometry[tileIndex];
+        tileAnims.set(tileIndex, { kind: 'shake', t0: activeMs, tint: color.danger });
+        addFloater(`-${WRONG_PENALTY_SEC}초`, p.x, p.y - p.half * 2.2, color.danger, 40);
+      } else {
+        addFloater(`${letter} 아님  -${WRONG_PENALTY_SEC}초`, logical.w / 2, logical.h - 80, color.danger, 40);
       }
-      flashMessage(`${letter} 아님! -${WRONG_PENALTY_SEC}초`, 'danger');
     }
     syncHud();
   }
@@ -534,103 +686,240 @@ function mountGame(container, ctx, settings) {
     g.restore();
   }
 
+  function ensureGradients() {
+    if (gradients) return gradients;
+    const cx = logical.w / 2;
+    const cy = logical.h / 2;
+    const far = Math.hypot(cx, cy);
+    const wallGrad = g.createRadialGradient(cx, cy * 0.85, 0, cx, cy, far);
+    wallGrad.addColorStop(0, color.wallCenter);
+    wallGrad.addColorStop(1, color.wallEdge);
+    const vignette = g.createRadialGradient(cx, cy, far * 0.45, cx, cy, far);
+    vignette.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vignette.addColorStop(1, 'rgba(0, 0, 0, 0.38)');
+    const danger = g.createRadialGradient(cx, cy, far * 0.5, cx, cy, far);
+    danger.addColorStop(0, withAlpha(color.danger, 0));
+    danger.addColorStop(1, withAlpha(color.danger, 0.5));
+    gradients = { wallGrad, vignette, danger };
+    return gradients;
+  }
+
   function drawWall() {
+    const grads = ensureGradients();
     if (settings.spiral) {
       drawSpiral();
     } else {
-      g.fillStyle = color.wall;
+      g.fillStyle = grads.wallGrad;
       g.fillRect(0, 0, logical.w, logical.h);
-      g.fillStyle = color.wallDot;
-      for (let y = 24; y < logical.h; y += 36) {
-        for (let x = 24; x < logical.w; x += 36) g.fillRect(x, y, 2, 2);
-      }
+    }
+  }
+
+  /** Frame, vignette and the low-time pulse — drawn over the tiles. */
+  function drawFrame() {
+    const grads = ensureGradients();
+    g.fillStyle = grads.vignette;
+    g.fillRect(0, 0, logical.w, logical.h);
+    if (phase === 'play' && remainingSec() <= DANGER_TIME_SEC) {
+      const beat = 0.5 + 0.5 * Math.sin((activeMs / 1000) * Math.PI * 2 * 1.4);
+      g.save();
+      g.globalAlpha = 0.25 + 0.35 * beat;
+      g.fillStyle = grads.danger;
+      g.fillRect(0, 0, logical.w, logical.h);
+      g.restore();
     }
     g.save();
-    g.strokeStyle = color.neon;
-    g.lineWidth = 6;
+    g.strokeStyle = withAlpha(color.neon, 0.7);
+    g.lineWidth = 3;
     g.shadowColor = color.neon;
-    g.shadowBlur = 22;
-    g.strokeRect(5, 5, logical.w - 10, logical.h - 10);
+    g.shadowBlur = 18;
+    roundedRect(g, 9, 9, logical.w - 18, logical.h - 18, 14);
+    g.stroke();
     g.restore();
   }
 
-  function drawTile(tile, p, peek) {
-    const flash = tileFlash.get(tile.index);
-    const flashing = flash && flash.until > activeMs;
+  /** Scale and extra rotation of a tile from the intro, hover, press and feedback. */
+  function tileMotion(tile, p) {
+    let scale = 1;
+    let rot = 0;
+    let tint = null;
+    let tintMix = 0;
+    if (!reduceMotion) {
+      const t = (clock - p.ring * FX.introSpreadSec) / FX.introSec;
+      if (t < 1) scale *= easeOutBack(clamp01(t));
+    }
+    scale *= 1 + FX.hoverScale * hoverMix[tile.index];
+    if (press && press.tile === tile.index) {
+      const k = (activeMs - press.t0) / FX.pressMs;
+      if (k < 1) scale *= 1 - 0.1 * (1 - k);
+    }
+    const anim = tileAnims.get(tile.index);
+    if (anim) {
+      const dur = anim.kind === 'pop' ? FX.popMs : FX.shakeMs;
+      const k = (activeMs - anim.t0) / dur;
+      if (k >= 1) {
+        tileAnims.delete(tile.index);
+      } else if (k >= 0) {
+        tint = anim.tint;
+        tintMix = 1 - k;
+        if (anim.kind === 'pop') scale *= 1 + (reduceMotion ? 0 : 0.32) * Math.sin(Math.PI * k) * (1 - k * 0.4);
+        else if (!reduceMotion) rot = Math.sin(k * Math.PI * 7) * (1 - k) * 0.2;
+      }
+    }
+    return { scale, rot, tint, tintMix };
+  }
 
-    // Number first, so the tile covers it until it slides up and out from behind
+  /**
+   * Tile + number styled after the real wall: a back-lit, light panel with a white rim
+   * and a thin inner frame, an upright light-weight letter, and a small glowing
+   * number that springs out from behind it.
+   */
+  function drawTile(tile, p, peekRaw) {
+    const m = tileMotion(tile, p);
+    if (m.scale < 0.02) return;
+    const s = p.half * m.scale;
+    const done = solvedLetters.has(tile.letter);
+    const hover = hoverMix[tile.index];
+    const peek = done ? 0 : peekRaw * clamp01(m.scale);
+
+    // Number first, so the tile covers it until it springs up and out from behind
     if (peek > 0.01) {
-      const rise = p.half * 1.5 * peek;
-      const size = Math.round(p.cell * 0.24);
+      const rise = p.half * 1.55 * easeOutBack(peek);
+      const size = Math.round(p.cell * 0.19);
       g.save();
       g.globalAlpha = Math.min(1, peek * 1.4);
-      g.font = `700 ${size}px "Space Grotesk", monospace`;
+      g.font = `600 ${size}px "Space Grotesk", "Pretendard Variable", sans-serif`;
       g.textAlign = 'center';
       g.textBaseline = 'alphabetic';
       if (settings.spiral) {
-        // A dark tag keeps the white number readable over the white spiral bands
-        const w = g.measureText(tile.number).width + size * 0.5;
+        // A dark tag keeps the light number readable over the white spiral bands
+        const w = g.measureText(tile.number).width + size * 0.6;
         g.fillStyle = 'rgba(10, 10, 10, 0.88)';
-        roundedRect(g, p.x - w / 2, p.y - rise - size * 0.95, w, size * 1.2, size * 0.3);
+        roundedRect(g, p.x - w / 2, p.y - rise - size * 0.98, w, size * 1.25, size * 0.3);
         g.fill();
       }
+      g.shadowColor = color.numberGlow;
+      g.shadowBlur = size * 0.5;
       g.fillStyle = color.number;
       g.fillText(tile.number, p.x, p.y - rise);
-      if (!settings.spiral) g.fillRect(p.x - p.cell * 0.17, p.y - rise + p.cell * 0.03, p.cell * 0.34, 2);
       g.restore();
     }
 
-    const s = p.half;
     g.save();
     g.translate(p.x, p.y);
-    g.rotate(p.angleRad);
-    g.fillStyle = color.tile;
-    g.strokeStyle = flashing ? flash.color : color.tileEdge;
-    g.lineWidth = flashing ? 6 : 2;
-    roundedRect(g, -s, -s, s * 2, s * 2, s * 0.12);
+    g.rotate(p.angleRad + m.rot);
+    // Back-lit glow: brighter under the cursor and while reacting
+    g.shadowColor = m.tint ? withAlpha(m.tint, 0.5 + 0.5 * m.tintMix) : color.tileGlow;
+    g.shadowBlur = s * (0.3 + 0.35 * hover + 0.9 * m.tintMix);
+    g.shadowOffsetY = s * 0.06;
+    // Panel with a soft top-lit shade
+    const shade = g.createLinearGradient(0, -s, 0, s);
+    shade.addColorStop(0, color.tile);
+    shade.addColorStop(1, color.tileShade);
+    g.fillStyle = shade;
+    roundedRect(g, -s, -s, s * 2, s * 2, s * 0.16);
     g.fill();
+    g.shadowColor = 'transparent';
+    // White rim, or the feedback colour while reacting
+    g.lineWidth = s * (0.09 + 0.07 * m.tintMix);
+    g.strokeStyle = m.tint && m.tintMix > 0.05 ? m.tint : color.tileRim;
     g.stroke();
-    g.strokeStyle = color.tileInset;
-    g.lineWidth = 1.5;
-    g.strokeRect(-s * 0.78, -s * 0.78, s * 1.56, s * 1.56);
+    // Thin inner frame — green once its letter is found
+    g.lineWidth = Math.max(1, s * (done ? 0.07 : 0.045));
+    g.strokeStyle = done ? color.neon : color.tileInset;
+    roundedRect(g, -s * 0.72, -s * 0.72, s * 1.44, s * 1.44, s * 0.08);
+    g.stroke();
     g.restore();
 
-    g.fillStyle = color.letter;
-    g.font = `800 ${Math.round(s * 1.05)}px Outfit, "Pretendard Variable", "Noto Sans KR", sans-serif`;
+    // Upright, light-weight letter
+    g.fillStyle = done ? color.solvedLetter : color.letter;
+    g.font = `${done ? 700 : 500} ${Math.round(s * 0.92)}px "Space Grotesk", "Pretendard Variable", "Noto Sans KR", sans-serif`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText(tile.letter, p.x, p.y + s * 0.05);
+    g.fillText(tile.letter, p.x, p.y + s * 0.04);
   }
 
-  function drawMessage() {
-    if (!message || message.until <= activeMs) return;
-    const tone = message.tone === 'danger' ? color.danger : color.neon;
-    g.font = '800 34px "Pretendard Variable", Outfit, sans-serif';
-    const w = g.measureText(message.text).width + 56;
-    const x = logical.w / 2 - w / 2;
-    g.fillStyle = color.pill;
-    g.strokeStyle = tone;
-    g.lineWidth = 3;
-    roundedRect(g, x, logical.h - 96, w, 62, 31);
-    g.fill();
-    g.stroke();
-    g.fillStyle = color.text;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(message.text, logical.w / 2, logical.h - 64);
+  function drawEffects(dt) {
+    // Rings
+    bursts = bursts.filter((b) => activeMs - b.t0 < FX.burstMs);
+    for (const b of bursts) {
+      const k = (activeMs - b.t0) / FX.burstMs;
+      if (k < 0) continue;
+      g.save();
+      g.globalAlpha = 1 - k;
+      g.strokeStyle = b.tint;
+      g.lineWidth = 2 + 6 * (1 - k);
+      g.beginPath();
+      g.arc(b.x, b.y, b.r * (1.1 + 1.8 * easeOutCubic(k)), 0, Math.PI * 2);
+      g.stroke();
+      g.restore();
+    }
+    // Sparks
+    for (const sp of sparks) {
+      if (sp.delay > 0) {
+        sp.delay -= dt;
+        continue;
+      }
+      sp.life += dt;
+      sp.vx *= 0.96;
+      sp.vy = sp.vy * 0.96 + 900 * dt;
+      sp.x += sp.vx * dt;
+      sp.y += sp.vy * dt;
+    }
+    sparks = sparks.filter((sp) => sp.life < sp.max);
+    for (const sp of sparks) {
+      if (sp.delay > 0) continue;
+      g.globalAlpha = 1 - sp.life / sp.max;
+      g.fillStyle = sp.tint;
+      g.fillRect(sp.x - sp.size / 2, sp.y - sp.size / 2, sp.size, sp.size);
+    }
+    g.globalAlpha = 1;
+    // Floating text
+    floaters = floaters.filter((f) => activeMs - f.t0 < FX.floaterMs);
+    for (const f of floaters) {
+      const k = (activeMs - f.t0) / FX.floaterMs;
+      const pop = easeOutBack(clamp01(k / 0.25));
+      g.save();
+      g.globalAlpha = k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4;
+      g.translate(f.x, f.y - 46 * easeOutCubic(k));
+      g.scale(pop, pop);
+      g.font = `800 ${f.size}px "Outfit", "Pretendard Variable", sans-serif`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.lineJoin = 'round';
+      g.lineWidth = f.size * 0.18;
+      g.strokeStyle = 'rgba(6, 18, 14, 0.85)';
+      g.strokeText(f.text, 0, 0);
+      g.fillStyle = f.tint;
+      g.fillText(f.text, 0, 0);
+      g.restore();
+    }
   }
 
-  function draw() {
+  function draw(dt) {
     const { scale, ox, oy, dpr } = view;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, view.cssW, view.cssH);
-    g.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * ox, dpr * oy);
+    let sx = 0;
+    let sy = 0;
+    if (screenShake) {
+      const k = (activeMs - screenShake.t0) / FX.screenShakeMs;
+      if (k >= 1) screenShake = null;
+      else {
+        sx = (Math.random() * 2 - 1) * screenShake.amp * (1 - k);
+        sy = (Math.random() * 2 - 1) * screenShake.amp * (1 - k);
+      }
+    }
+    g.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * (ox + sx * scale), dpr * (oy + sy * scale));
     drawWall();
     const showNumbers = phase === 'play';
+    g.save();
+    if (endMix > 0) g.globalAlpha = 1 - 0.55 * endMix;
     for (const tile of wall.tiles) {
       drawTile(tile, geometry[tile.index], showNumbers ? peekAmount(tile, clock) : 0);
     }
-    drawMessage();
+    g.restore();
+    drawFrame();
+    drawEffects(dt);
   }
 
   // --- Loop ------------------------------------------------------------------------
@@ -639,22 +928,32 @@ function mountGame(container, ctx, settings) {
     rafId = requestAnimationFrame(step);
     const dt = Math.min(0.05, Math.max(0, (now - lastTs) / 1000));
     lastTs = now;
+    const running = !isPaused && !finished;
 
-    if (!isPaused && !finished) {
+    if (running) {
       activeMs += dt * 1000;
       spin += dt * SPIRAL_SPEED;
+      for (let i = 0; i < hoverMix.length; i += 1) {
+        const goal = i === hoverTile ? 1 : 0;
+        if (hoverMix[i] !== goal) {
+          hoverMix[i] += (goal - hoverMix[i]) * Math.min(1, dt * 14);
+          if (Math.abs(goal - hoverMix[i]) < 0.01) hoverMix[i] = goal;
+        }
+      }
       if (phase === 'play') {
         clock += dt;
+        playMs += dt * 1000;
         const remaining = remainingSec();
         if (remaining <= 5 && Math.ceil(remaining) !== Math.ceil(remaining + dt)) ctx.audio.playTick();
         if (remaining <= 0) endPhase('fail');
         else syncHud();
       } else {
         phaseClock += dt;
+        if (phase === 'fail') endMix = Math.min(1, endMix + dt * 2.5);
         if (phaseClock >= END_OVERLAY_SEC) finishRun(phase === 'clear');
       }
     }
-    draw();
+    draw(running ? dt : 0);
   }
 
   // --- Input -----------------------------------------------------------------------
@@ -679,11 +978,25 @@ function mountGame(container, ctx, settings) {
 
   const onPointerDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (phase !== 'play') return;
     const idx = tileAt(e.clientX, e.clientY, e.pointerType === 'touch');
     if (idx < 0) return;
+    press = { tile: idx, t0: activeMs };
     if (targets[activeBox]?.solved) activeBox = firstOpenBox();
     if (activeBox >= 0) answer(activeBox, wall.tiles[idx].letter, idx);
     if (finePointer && activeBox >= 0) boxes[activeBox].focus({ preventScroll: true });
+  };
+
+  const onPointerMove = (e) => {
+    if (e.pointerType !== 'mouse' || phase !== 'play') return;
+    const idx = tileAt(e.clientX, e.clientY, false);
+    if (idx === hoverTile) return;
+    hoverTile = idx;
+    canvas.style.cursor = idx >= 0 ? 'pointer' : 'default';
+  };
+
+  const onPointerLeave = () => {
+    hoverTile = -1;
   };
 
   /** A box holds exactly one symbol; a finished one is checked right away. */
@@ -694,7 +1007,8 @@ function mountGame(container, ctx, settings) {
     if (!value) return;
     if (!LETTERS.includes(value) && !HANGUL.includes(value)) {
       box.value = '';
-      flashMessage('알파벳이나 가~하 한 글자만 입력하세요', 'danger');
+      replayClass(slots[i], 'is-wrong');
+      addFloater('알파벳이나 가~하 한 글자만', logical.w / 2, logical.h - 80, color.danger, 34);
       return;
     }
     answer(i, value);
@@ -706,6 +1020,7 @@ function mountGame(container, ctx, settings) {
   };
   const onBoxComposed = (e) => checkBox(Number(e.target.dataset.box));
   const onBoxFocus = (e) => focusBox(Number(e.target.dataset.box));
+  const onSlotAnimEnd = (e) => e.currentTarget.classList.remove('is-wrong', 'is-landed');
 
   const onPause = (e) => {
     isPaused = Boolean(e.detail?.paused);
@@ -717,11 +1032,14 @@ function mountGame(container, ctx, settings) {
   window.addEventListener('resize', resize);
   window.addEventListener('pm:pausechange', onPause);
   canvas.addEventListener('pointerdown', onPointerDown);
+  canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerleave', onPointerLeave);
   for (const box of boxes) {
     box.addEventListener('input', onBoxInput);
     box.addEventListener('compositionend', onBoxComposed);
     box.addEventListener('focus', onBoxFocus);
   }
+  for (const slot of slots) slot.addEventListener('animationend', onSlotAnimEnd);
 
   resize();
   focusBox(0);
@@ -736,11 +1054,14 @@ function mountGame(container, ctx, settings) {
       window.removeEventListener('resize', resize);
       window.removeEventListener('pm:pausechange', onPause);
       canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerleave', onPointerLeave);
       for (const box of boxes) {
         box.removeEventListener('input', onBoxInput);
         box.removeEventListener('compositionend', onBoxComposed);
         box.removeEventListener('focus', onBoxFocus);
       }
+      for (const slot of slots) slot.removeEventListener('animationend', onSlotAnimEnd);
       container.innerHTML = '';
     },
   };

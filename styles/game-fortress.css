@@ -1,10 +1,18 @@
 /* ==========================================================================
-   Game 4: 절망요새 숨바꼭질 — single wall screen of letter tiles
+   Game 4: 숫자 숨바꼭질 — single wall screen of letter tiles
    Everything is scoped under .game-fortress; keyframes are prefixed df-.
+   The console chips borrow the wall's look (dark green panel, glowing number,
+   light tile) so the numbers to find read as part of the attraction.
    ========================================================================== */
 
 .game-fortress {
   --df-neon: var(--neon-emerald);
+  position: relative;
+  --df-wall: #163a31;
+  --df-wall-edge: #0e241f;
+  --df-tile: #e9eee9;
+  --df-tile-frame: rgba(60, 72, 68, 0.45);
+  --df-number: #f4faf6;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
@@ -22,21 +30,13 @@
 
 /* --- Console: numbers to find, one answer box each · time ---------------- */
 .game-fortress .df-console {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 160px;
-  align-items: center;
-  gap: 16px;
-  padding: 10px 16px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 12px 16px 20px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--bg-surface-soft);
-}
-
-.game-fortress .df-console__label {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  font-weight: 800;
-  white-space: nowrap;
 }
 
 .game-fortress .df-targets {
@@ -44,72 +44,138 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .game-fortress .df-target {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px 6px 14px;
-  border: 2px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-deep);
+  gap: 14px;
+  padding: 8px 8px 8px 20px;
+  border: 2px solid transparent;
+  border-radius: 16px;
+  background: radial-gradient(120% 140% at 30% 15%, var(--df-wall), var(--df-wall-edge));
+  box-shadow: 0 6px 16px rgba(14, 36, 31, 0.2);
   cursor: text;
-  transition: border-color 140ms ease, background 140ms ease;
+  transition:
+    transform 180ms var(--ease-pop),
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 200ms ease;
+}
+
+.game-fortress .df-target:hover {
+  transform: translateY(-1px);
 }
 
 .game-fortress .df-target.is-active {
   border-color: var(--df-neon);
-  box-shadow: 0 0 0 3px rgba(22, 147, 106, 0.15);
-}
-
-.game-fortress .df-target.is-solved {
-  border-color: var(--df-neon);
-  background: rgba(22, 147, 106, 0.1);
-}
-
-.game-fortress .df-target.is-wrong {
-  animation: df-shake 320ms ease;
-  border-color: var(--neon-crimson);
+  box-shadow:
+    0 0 0 4px rgba(63, 191, 146, 0.22),
+    0 10px 22px rgba(14, 36, 31, 0.28);
+  transform: translateY(-2px);
 }
 
 .game-fortress .df-target__num {
+  color: var(--df-number);
   font-family: var(--font-mono);
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 12px rgba(200, 255, 230, 0.55);
 }
 
+/* The answer box is a small tile: light panel, white rim, thin inner frame */
 .game-fortress .df-target__box {
-  width: 48px;
-  height: 44px;
-  border: 1px solid var(--border-specular);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface-soft);
-  color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 800;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 3px solid #ffffff;
+  border-radius: 10px;
+  background: var(--df-tile);
+  box-shadow:
+    inset 0 0 0 5px var(--df-tile),
+    inset 0 0 0 6.5px var(--df-tile-frame),
+    0 0 14px rgba(225, 255, 240, 0.3);
+  color: #28302c;
+  caret-color: var(--df-neon);
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-weight: 600;
   text-align: center;
   text-transform: uppercase;
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 
 .game-fortress .df-target__box:focus {
   outline: none;
-  border-color: var(--df-neon);
+}
+
+.game-fortress .df-target.is-active .df-target__box {
+  animation: df-breathe 1.5s ease-in-out infinite;
+}
+
+/* Found: the box turns into a lit green tile with a check badge */
+.game-fortress .df-target.is-solved {
+  cursor: default;
+  opacity: 0.92;
+}
+
+.game-fortress .df-target.is-solved .df-target__num {
+  color: rgba(244, 250, 246, 0.6);
+  text-shadow: none;
 }
 
 .game-fortress .df-target.is-solved .df-target__box {
-  border-color: transparent;
   background: var(--df-neon);
   color: #ffffff;
   opacity: 1;
+  box-shadow:
+    inset 0 0 0 5px var(--df-neon),
+    inset 0 0 0 6.5px rgba(255, 255, 255, 0.55),
+    0 0 18px rgba(63, 191, 146, 0.6);
+  -webkit-text-fill-color: #ffffff;
 }
 
+.game-fortress .df-target.is-solved::after {
+  content: '✓';
+  position: absolute;
+  top: -9px;
+  right: -9px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--bg-surface-soft);
+  border-radius: 50%;
+  background: var(--df-neon);
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.game-fortress .df-target.is-landed {
+  animation: df-land 420ms var(--ease-pop);
+}
+
+.game-fortress .df-target.is-wrong {
+  animation: df-shake 340ms ease;
+  border-color: var(--neon-crimson);
+}
+
+.game-fortress .df-target.is-wrong .df-target__box {
+  background: #fde3e3;
+}
+
+/* Time: a thin bar along the console's bottom edge */
 .game-fortress .df-timebar {
-  height: 8px;
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 7px;
+  height: 5px;
   overflow: hidden;
   border-radius: var(--radius-pill);
   background: rgba(15, 23, 42, 0.08);
@@ -119,22 +185,31 @@
   display: block;
   height: 100%;
   width: calc(var(--df-time, 1) * 100%);
-  background: var(--df-neon);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--df-neon), #6ad6ae);
   transition: width 120ms linear;
 }
 
 .game-fortress .df-timebar span[data-state='danger'] {
   background: var(--neon-crimson);
+  animation: df-pulse 0.7s ease-in-out infinite;
+}
+
+.game-fortress .df-timebar.is-hit {
+  animation: df-hit 420ms ease;
 }
 
 /* --- Wall screen ----------------------------------------------------------- */
 .game-fortress .df-wall-wrap {
   position: relative;
   min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--df-wall-edge);
 }
 
-.game-fortress .df-wall-wrap.is-shake {
-  animation: df-shake 320ms ease;
+.game-fortress .df-wall-wrap[data-spiral] {
+  background: #0b0b0b;
 }
 
 .game-fortress .df-wall {
@@ -143,7 +218,6 @@
   display: block;
   width: 100%;
   height: 100%;
-  cursor: pointer;
   touch-action: manipulation;
 }
 
@@ -152,16 +226,16 @@
   left: 50%;
   top: 50%;
   min-width: min(440px, 86%);
-  padding: 22px 28px;
+  padding: 24px 30px;
   border: 1px solid var(--df-neon);
   border-radius: var(--radius-lg);
-  background: rgba(8, 12, 10, 0.92);
+  background: rgba(8, 18, 14, 0.9);
   color: var(--text-on-image);
-  box-shadow: var(--shadow-floating);
+  box-shadow: 0 0 40px rgba(63, 191, 146, 0.35), var(--shadow-floating);
   text-align: center;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  animation: df-pop 260ms var(--ease-pop);
+  animation: df-pop 380ms var(--ease-pop);
 }
 
 .game-fortress .df-overlay[hidden] {
@@ -170,28 +244,49 @@
 
 .game-fortress .df-overlay[data-tone='danger'] {
   border-color: var(--neon-crimson);
+  box-shadow: 0 0 40px rgba(224, 103, 103, 0.35), var(--shadow-floating);
 }
 
 .game-fortress .df-overlay__title {
   margin: 0 0 8px;
   font-family: var(--font-display);
-  font-size: clamp(1.3rem, 2.4vw, 2rem);
+  font-size: clamp(1.4rem, 2.6vw, 2.2rem);
   font-weight: 800;
 }
 
 .game-fortress .df-overlay__body {
   margin: 0;
   color: rgba(246, 248, 252, 0.82);
-  font-size: 0.95rem;
+  font-size: 1rem;
   word-break: keep-all;
 }
 
 .game-fortress .df-help {
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   text-align: center;
   word-break: keep-all;
+}
+
+/* The found letter flying from the wall into its box (positioned in the game root) */
+.game-fortress .df-fly {
+  position: absolute;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border: 3px solid #ffffff;
+  border-radius: 10px;
+  background: var(--df-neon);
+  box-shadow: 0 0 24px rgba(63, 191, 146, 0.8);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
 }
 
 /* --- Small screens ------------------------------------------------------- */
@@ -202,35 +297,60 @@
     gap: 8px;
   }
 
-  .game-fortress .df-console {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 8px 10px;
-  }
-
-  .game-fortress .df-console__label { display: none; }
-  .game-fortress .df-target__num { font-size: 1.1rem; }
-  .game-fortress .df-target__box { width: 40px; height: 38px; }
+  .game-fortress .df-console { padding: 8px 8px 16px; }
+  .game-fortress .df-targets { flex-wrap: nowrap; gap: 6px; }
+  .game-fortress .df-target { gap: 6px; padding: 4px 4px 4px 9px; border-radius: 12px; }
+  .game-fortress .df-target__num { font-size: 1rem; letter-spacing: 0.02em; }
+  .game-fortress .df-target__box { width: 36px; height: 36px; border-width: 2px; border-radius: 8px; font-size: 1.15rem; }
+  .game-fortress .df-target.is-solved::after { top: -7px; right: -7px; width: 18px; height: 18px; font-size: 0.65rem; }
+  .game-fortress .df-help { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .game-fortress .df-target,
   .game-fortress .df-target.is-wrong,
-  .game-fortress .df-wall-wrap.is-shake,
+  .game-fortress .df-target.is-landed,
+  .game-fortress .df-target.is-active .df-target__box,
+  .game-fortress .df-timebar.is-hit,
+  .game-fortress .df-timebar span[data-state='danger'],
   .game-fortress .df-overlay {
     animation: none;
+    transition: none;
   }
 }
 
-
 @keyframes df-shake {
   0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-6px); }
-  75% { transform: translateX(6px); }
+  20% { transform: translateX(-7px) rotate(-1deg); }
+  40% { transform: translateX(6px) rotate(1deg); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+}
+
+@keyframes df-land {
+  0% { transform: translateY(-2px) scale(1); }
+  35% { transform: translateY(-4px) scale(1.12); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes df-breathe {
+  0%, 100% { box-shadow: inset 0 0 0 5px var(--df-tile), inset 0 0 0 6.5px var(--df-tile-frame), 0 0 10px rgba(63, 191, 146, 0.25); }
+  50% { box-shadow: inset 0 0 0 5px var(--df-tile), inset 0 0 0 6.5px var(--df-neon), 0 0 20px rgba(63, 191, 146, 0.7); }
+}
+
+@keyframes df-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@keyframes df-hit {
+  0% { box-shadow: 0 0 0 0 rgba(224, 103, 103, 0.7); background: rgba(224, 103, 103, 0.45); }
+  100% { box-shadow: 0 0 0 6px rgba(224, 103, 103, 0); background: rgba(15, 23, 42, 0.08); }
 }
 
 @keyframes df-pop {
-  from { opacity: 0; transform: translate(-50%, -46%) scale(0.96); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 /* --- Setup screen (mode `setup`): presets + custom values --------------- */
