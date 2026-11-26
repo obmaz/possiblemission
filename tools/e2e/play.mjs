@@ -316,7 +316,7 @@ out.deterministic = await page.evaluate(async () => {
   return a === b && pick() === pick();
 });
 
-/* ---------- Hide & Seek invariant: non-overlapping waves, hidden count never exceeds hideBatch ---------- */
+/* ---------- Hide & Seek invariant: staggered hiding, hidden count <= hideBatch, never all at once ---------- */
 out.hideSeekWaveInvariant = await page.evaluate(async () => {
   const { createRng } = await import('/js/core/seed.js');
   const { PRESETS, parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
@@ -325,28 +325,35 @@ out.hideSeekWaveInvariant = await page.evaluate(async () => {
   for (const preset of PRESETS) {
     const settings = parseHideSeekMode(preset.id);
     const wall = generateFortressRun(createRng(`WAVE-TEST::despair-fortress::${preset.id}`), settings);
-    const seenFullRevealBetweenWaves = new Map();
+    const seenHiddenCount = new Array(wall.tiles.length).fill(0);
     const fullyVisibleCount = new Array(wall.tiles.length).fill(0);
 
+    // Immediately after revealSec, only 1 tile should begin hiding (never all hideBatch at once)
+    let startHidden = 0;
+    for (let i = 0; i < wall.tiles.length; i++) {
+      if (tilePeekAt(wall, settings, wall.tiles[i], settings.revealSec + 0.05) < 0.999) startHidden++;
+    }
+    if (startHidden > 1) {
+      return `${preset.id}: ${startHidden} tiles hid immediately after revealSec`;
+    }
+
     for (let t = settings.revealSec; t <= settings.timeSec; t += 0.05) {
-      const waveIdx = Math.floor((t - settings.revealSec) / (settings.hideSec + settings.peekSec));
       let hiddenCount = 0;
       for (let i = 0; i < wall.tiles.length; i++) {
         const v = tilePeekAt(wall, settings, wall.tiles[i], t);
-        if (v < 0.999) hiddenCount++;
-        else fullyVisibleCount[i]++;
+        if (v < 0.999) {
+          hiddenCount++;
+          seenHiddenCount[i]++;
+        } else {
+          fullyVisibleCount[i]++;
+        }
       }
       if (hiddenCount > settings.hideBatch) {
         return `${preset.id}: hiddenCount ${hiddenCount} > hideBatch ${settings.hideBatch} at t=${t.toFixed(2)}`;
       }
-      if (hiddenCount === 0) seenFullRevealBetweenWaves.set(waveIdx, true);
     }
-    const maxWave = Math.floor((settings.timeSec - settings.revealSec) / (settings.hideSec + settings.peekSec));
-    for (let w = 0; w < maxWave; w++) {
-      if (!seenFullRevealBetweenWaves.get(w)) return `${preset.id}: wave ${w} never returned before next wave`;
-    }
-    if (fullyVisibleCount.some((c) => c === 0)) {
-      return `${preset.id}: some tiles never returned during round`;
+    if (seenHiddenCount.some((c) => c === 0) || fullyVisibleCount.some((c) => c === 0)) {
+      return `${preset.id}: some tiles never hid or never returned during round`;
     }
   }
   return 'ok';
@@ -515,7 +522,7 @@ if (out.resultButtons?.labels?.join(',') !== '로비,난이도 변경,재도전'
 }
 if (!out.deterministic) failures.push('determinism');
 if (out.hideSeekPresets !== 'easy,medium,hard,extreme,insane,god') failures.push('hide & seek presets');
-if (!/^custom-60-40-30-20-11-60-0-0$/.test(out.hideSeekMode || '')) failures.push(`hide & seek custom mode: ${out.hideSeekMode}`);
+if (!/^custom-60-40-4-20-11-60-0-0$/.test(out.hideSeekMode || '')) failures.push(`hide & seek custom mode: ${out.hideSeekMode}`);
 if (out.hideSeekWaveInvariant !== 'ok') failures.push(`hide & seek wave invariant: ${out.hideSeekWaveInvariant}`);
 if (!out.hideSeekRemembersLast) failures.push('hide & seek setup does not remember the last settings');
 if (!cleared(out.colorTrapSolo) || !out.colorTrapParty) failures.push(`color-trap: ${out.colorTrapSolo} / party=${out.colorTrapParty}`);

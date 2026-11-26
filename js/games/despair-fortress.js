@@ -75,7 +75,7 @@ const TILE_ANGLES = [45, 45, 38, 30, 20, 12, 0, -12, -20, -30, -38];
 function basePoints(settings) {
   const density = settings.tiles / 24; // 1 … 5.25
   const speed = 5 / settings.revealSec; // 1 … 3.3
-  const hiddenRatio = settings.hideBatch / settings.tiles; // 0.25 … 0.76
+  const hiddenRatio = settings.hideBatch / 9; // 0.11 … 1.0
   const duty = settings.hideSec / (settings.hideSec + settings.peekSec);
   return Math.round((200 + 60 * density + 60 * speed) * (1 + hiddenRatio * duty) * (settings.spiral ? 1.2 : 1));
 }
@@ -123,29 +123,30 @@ export function generateFortressRun(rng, settings) {
 
 /**
  * Returns 0 (hidden behind tile) … 1 (fully visible) at time `t`.
- * Enforces non-overlapping waves: batch `waveIdx` hides for `hideSec`, then ALL tiles
- * stay visible for `peekSec` before batch `waveIdx + 1` disappears — so the number of
- * simultaneously hidden tiles never exceeds `wall.hideBatch`.
+ * Tiles hide in a staggered rolling cadence so they never disappear all at once
+ * when `revealSec` ends, and at most `wall.hideBatch` tiles are hidden simultaneously.
  */
 export function tilePeekAt(wall, settings, tile, t) {
   if (t < PEEK_EASE_SEC) return Math.max(0, Math.min(1, t / PEEK_EASE_SEC));
   if (t < settings.revealSec) return 1;
-  const hideSec = settings.hideSec;
-  const cycleSec = hideSec + settings.peekSec;
-  const elapsed = t - settings.revealSec;
-  const waveIdx = Math.floor(elapsed / cycleSec);
-  const waveTime = elapsed - waveIdx * cycleSec;
-  if (waveTime >= hideSec) return 1;
 
+  const hideSec = settings.hideSec;
   const n = wall.tiles.length;
   const b = Math.min(wall.hideBatch, Math.max(1, n - 1));
-  const start = (waveIdx * b) % n;
-  const rel = (tile.hideRank - start + n) % n;
-  if (rel >= b) return 1;
+  const step = b === 1 ? hideSec + settings.peekSec : (hideSec + settings.peekSec * 0.5) / b;
+  const cycle = n * step;
+  const elapsed = t - settings.revealSec;
+
+  // Before a tile's first scheduled turn, keep it visible (never hide all `b` on start)
+  const firstStart = tile.hideRank * step;
+  if (elapsed <= firstStart) return 1;
+
+  const localT = (elapsed - firstStart) % cycle;
+  if (localT >= hideSec) return 1;
 
   const ease = Math.min(PEEK_EASE_SEC, hideSec * 0.4);
-  if (waveTime < ease) return 1 - waveTime / ease;
-  if (waveTime > hideSec - ease) return 1 - (hideSec - waveTime) / ease;
+  if (localT < ease) return 1 - localT / ease;
+  if (localT > hideSec - ease) return 1 - (hideSec - localT) / ease;
   return 0;
 }
 
@@ -199,7 +200,7 @@ const formatValue = (field, value) => (field.valueLabels ? field.valueLabels[val
 /** One-line plain-language summary of a set of values. */
 function describe(s) {
   const extras = [s.hangul ? '한글 포함' : '', s.spiral ? '회오리 배경' : ''].filter(Boolean).join(' · ');
-  return `타일 ${s.tiles}개 · 처음 ${s.revealSec}초 뒤 ${s.hideBatch}개씩 ${s.hideSec}초 동안 숨고, ${s.peekSec}초간 모두 다시 보인 뒤 교대 · 제한 ${s.timeSec}초${extras ? ` · ${extras}` : ''}`;
+  return `타일 ${s.tiles}개 · 처음 ${s.revealSec}초 뒤 순차로 최대 ${s.hideBatch}개까지 ${s.hideSec}초씩 숨음 · 제한 ${s.timeSec}초${extras ? ` · ${extras}` : ''}`;
 }
 
 /**
@@ -236,7 +237,7 @@ function mountSetup(container, ctx) {
           <button type="button" class="df-preset df-preset--${p.id}" role="radio" data-preset="${p.id}">
             <span class="df-preset__name">${p.label}</span>
             <span class="df-preset__ko">${p.ko}</span>
-            <span class="df-preset__meta">타일 ${p.tiles} · 동시숨김 ${p.hideBatch}개</span>
+            <span class="df-preset__meta">타일 ${p.tiles} · 최대 숨김 ${p.hideBatch}개</span>
           </button>`
         ).join('')}
       </div>
