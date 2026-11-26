@@ -24,6 +24,7 @@ import {
   hideSeekModeId,
   matchPreset,
   hideSeekModeLabel,
+  maxHideBatchForTiles,
   parseHideSeekMode,
 } from './hide-seek-settings.js';
 
@@ -38,7 +39,6 @@ const LAST_MODE_PREF = 'hideSeekLastMode';
 // Timings (seconds, game clock — everything stops while paused)
 const END_OVERLAY_SEC = 1.6;
 const PEEK_EASE_SEC = 0.18; // how long a number takes to spring out / slide back in
-const PEEK_REST_SEC = 0.6; // a number that just hid stays hidden at least this long
 const DANGER_TIME_SEC = 10;
 
 // Game feel ("juice"): short, readable reactions — never enough to hide the wall
@@ -71,27 +71,25 @@ const WALL_PAD = 46;
 
 const TILE_ANGLES = [45, 45, 38, 30, 20, 12, 0, -12, -20, -30, -38];
 
-/** Peek cycle for hidden numbers: longer peeks also come back less often. */
-const peekCycleSec = (settings) => settings.peekSec * 3 + 2;
-
-/** Points per found number grow with how hard the settings are. */
+/** Points per found number grow with tile density, shorter reveal, and hidden ratio. */
 function basePoints(settings) {
   const density = settings.tiles / 24; // 1 … 5.25
   const speed = 5 / settings.revealSec; // 1 … 3.3
-  const batch = 1 + settings.hideBatch / 5; // 1.2 … 2
-  return Math.round((200 + 60 * density + 60 * speed) * batch * (settings.spiral ? 1.2 : 1));
+  const hiddenRatio = settings.hideBatch / settings.tiles; // 0.25 … 0.76
+  const duty = settings.hideSec / (settings.hideSec + settings.peekSec);
+  return Math.round((200 + 60 * density + 60 * speed) * (1 + hiddenRatio * duty) * (settings.spiral ? 1.2 : 1));
 }
 
 /**
  * Pure deterministic generator: same rng seed + settings → same letters, numbers,
- * tilts, hide order, peek timing and targets on every device. One wall per game.
+ * tilts, rotation order and targets on every device. One wall per game.
  * @param {() => number} rng
  * @param {object} settings - parsed values from parseHideSeekMode()
  */
 export function generateFortressRun(rng, settings) {
   const [cols, rows] = TILE_GRID[settings.tiles];
   const count = cols * rows;
-  const cycleSec = peekCycleSec(settings);
+  const hideBatch = Math.min(settings.hideBatch, maxHideBatchForTiles(count));
   const symbols = settings.hangul ? [...LETTERS, ...HANGUL] : LETTERS;
   // Every symbol owns exactly one number, so duplicate letters hide the same number
   const numberPool = shuffleSeeded(
@@ -108,12 +106,11 @@ export function generateFortressRun(rng, settings) {
     size: 0.74 + rng() * 0.26, // fraction of the cell
     jx: (rng() - 0.5) * 0.14, // jitter inside the cell
     jy: (rng() - 0.5) * 0.1,
-    peekOffset: rng() * cycleSec,
-    hideAt: settings.revealSec,
+    hideRank: tile.index,
   }));
-  // Numbers disappear a batch at a time, in a seeded order
+  // Numbers disappear in non-overlapping round-robin batches of `hideBatch`, in a seeded order
   shuffleSeeded(rng, tiles).forEach((tile, rank) => {
-    tile.hideAt = settings.revealSec + Math.floor(rank / settings.hideBatch) * settings.hideIntervalSec;
+    tile.hideRank = rank;
   });
   // Three different symbols to find
   const seen = new Set();
@@ -121,7 +118,35 @@ export function generateFortressRun(rng, settings) {
     .filter((tile) => !seen.has(tile.letter) && seen.add(tile.letter))
     .slice(0, TARGET_COUNT)
     .map((tile) => ({ number: tile.number, letter: tile.letter, solved: false }));
-  return { cols, rows, cycleSec, tiles, targets };
+  return { cols, rows, count, hideBatch, tiles, targets };
+}
+
+/**
+ * Returns 0 (hidden behind tile) … 1 (fully visible) at time `t`.
+ * Enforces non-overlapping waves: batch `waveIdx` hides for `hideSec`, then ALL tiles
+ * stay visible for `peekSec` before batch `waveIdx + 1` disappears — so the number of
+ * simultaneously hidden tiles never exceeds `wall.hideBatch`.
+ */
+export function tilePeekAt(wall, settings, tile, t) {
+  if (t < PEEK_EASE_SEC) return Math.max(0, Math.min(1, t / PEEK_EASE_SEC));
+  if (t < settings.revealSec) return 1;
+  const hideSec = settings.hideSec;
+  const cycleSec = hideSec + settings.peekSec;
+  const elapsed = t - settings.revealSec;
+  const waveIdx = Math.floor(elapsed / cycleSec);
+  const waveTime = elapsed - waveIdx * cycleSec;
+  if (waveTime >= hideSec) return 1;
+
+  const n = wall.tiles.length;
+  const b = Math.min(wall.hideBatch, Math.max(1, n - 1));
+  const start = (waveIdx * b) % n;
+  const rel = (tile.hideRank - start + n) % n;
+  if (rel >= b) return 1;
+
+  const ease = Math.min(PEEK_EASE_SEC, hideSec * 0.4);
+  if (waveTime < ease) return 1 - waveTime / ease;
+  if (waveTime > hideSec - ease) return 1 - (hideSec - waveTime) / ease;
+  return 0;
 }
 
 /** Canvas colours come from the shared design tokens so the wall matches the shell. */
@@ -174,7 +199,7 @@ const formatValue = (field, value) => (field.valueLabels ? field.valueLabels[val
 /** One-line plain-language summary of a set of values. */
 function describe(s) {
   const extras = [s.hangul ? '한글 포함' : '', s.spiral ? '회오리 배경' : ''].filter(Boolean).join(' · ');
-  return `타일 ${s.tiles}개 · 처음 ${s.revealSec}초 뒤 ${s.hideBatch}개씩 ${s.hideIntervalSec}초마다 사라지고, 이후 ${s.peekSec}초씩 다시 보입니다 · 제한 ${s.timeSec}초${extras ? ` · ${extras}` : ''}`;
+  return `타일 ${s.tiles}개 · 처음 ${s.revealSec}초 뒤 ${s.hideBatch}개씩 ${s.hideSec}초 동안 숨고, ${s.peekSec}초간 모두 다시 보인 뒤 교대 · 제한 ${s.timeSec}초${extras ? ` · ${extras}` : ''}`;
 }
 
 /**
@@ -211,7 +236,7 @@ function mountSetup(container, ctx) {
           <button type="button" class="df-preset df-preset--${p.id}" role="radio" data-preset="${p.id}">
             <span class="df-preset__name">${p.label}</span>
             <span class="df-preset__ko">${p.ko}</span>
-            <span class="df-preset__meta">타일 ${p.tiles} · 공개 ${p.revealSec}초</span>
+            <span class="df-preset__meta">타일 ${p.tiles} · 동시숨김 ${p.hideBatch}개</span>
           </button>`
         ).join('')}
       </div>
@@ -241,14 +266,14 @@ function mountSetup(container, ctx) {
       btn.classList.toggle('is-active', on);
       btn.setAttribute('aria-checked', String(on));
     });
+    const maxBatch = maxHideBatchForTiles(values.tiles);
     for (const f of SETTING_FIELDS) {
       const row = root.querySelector(`[data-field="${f.key}"]`);
       const idx = f.options.indexOf(values[f.key]);
       row.querySelector('[data-value]').textContent = formatValue(f, values[f.key]);
       row.querySelector('[data-step="-1"]').disabled = idx <= 0;
-      row.querySelector('[data-step="1"]').disabled = idx >= f.options.length - 1;
-      // The interval only matters when numbers hide in batches
-      row.classList.toggle('is-muted', f.key === 'hideIntervalSec' && values.hideBatch === 0);
+      const nextOverLimit = f.key === 'hideBatch' && idx + 1 < f.options.length && f.options[idx + 1] > maxBatch;
+      row.querySelector('[data-step="1"]').disabled = idx >= f.options.length - 1 || nextOverLimit;
     }
     root.querySelector('[data-summary]').textContent = `${match ? `${match.label} · ` : '커스텀 · '}${describe(values)}`;
   }
@@ -266,7 +291,13 @@ function mountSetup(container, ctx) {
       const field = SETTING_FIELDS.find((f) => f.key === key);
       const idx = field.options.indexOf(values[key]) + Number(stepBtn.dataset.step);
       if (idx < 0 || idx >= field.options.length) return;
-      values = { ...values, [key]: field.options[idx] };
+      const nextValues = { ...values, [key]: field.options[idx] };
+      const maxBatch = maxHideBatchForTiles(nextValues.tiles);
+      if (nextValues.hideBatch > maxBatch) {
+        const batchOpts = SETTING_FIELDS.find((f) => f.key === 'hideBatch').options;
+        nextValues.hideBatch = batchOpts.filter((v) => v <= maxBatch).pop() ?? batchOpts[0];
+      }
+      values = nextValues;
       ctx.audio.playClick();
       render();
     } else if (e.target.closest('[data-start]')) {
@@ -650,15 +681,7 @@ function mountGame(container, ctx, settings) {
   // --- Drawing ---------------------------------------------------------------------
   /** 0 (hidden behind the tile) … 1 (fully out above it) at time `t`. */
   function peekAmount(tile, t) {
-    if (t < tile.hideAt) {
-      // Opening reveal: pop out, then slide back in when this tile's batch hides
-      return Math.max(0, Math.min(1, t / PEEK_EASE_SEC, (tile.hideAt - t) / PEEK_EASE_SEC));
-    }
-    const since = t - tile.hideAt;
-    if (since < PEEK_REST_SEC) return 0;
-    const p = (since + tile.peekOffset) % wall.cycleSec;
-    if (p >= settings.peekSec) return 0;
-    return Math.min(1, Math.min(p, settings.peekSec - p) / PEEK_EASE_SEC);
+    return tilePeekAt(wall, settings, tile, t);
   }
 
   /** Black-and-white spiral turning so the bands flow toward the centre. */

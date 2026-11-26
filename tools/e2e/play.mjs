@@ -274,10 +274,11 @@ out.hideSeekRules = await page.evaluate(async () => {
   const hangul = run.tiles.some((t) => /[가-힣]/.test(t.letter));
   const easy = generateFortressRun(createRng('X::despair-fortress::easy'), parseHideSeekMode('easy'));
   const noHangulOnEasy = easy.tiles.every((t) => /[A-Z]/.test(t.letter));
-  // Humanly winnable: never more than 5 hide at once and never sooner than 1.5 s
-  const byTime = new Map();
-  run.tiles.forEach((t) => byTime.set(t.hideAt, (byTime.get(t.hideAt) || 0) + 1));
-  const paced = Math.max(...byTime.values()) <= 5 && Math.min(...byTime.keys()) >= 1.5;
+  const { tilePeekAt } = await import('/js/games/despair-fortress.js');
+  const godCfg = parseHideSeekMode('god');
+  const ranks = new Set(run.tiles.map((t) => t.hideRank));
+  const fullReveal = run.tiles.every((t) => tilePeekAt(run, godCfg, t, 0.5) === 1);
+  const paced = ranks.size === run.tiles.length && godCfg.revealSec >= 1.5 && run.hideBatch === godCfg.hideBatch && run.hideBatch < run.tiles.length && fullReveal;
   return consistent && hangul && noHangulOnEasy && paced;
 });
 // Starting again from the lobby shows the setup screen again (it used to skip it)
@@ -299,6 +300,42 @@ out.deterministic = await page.evaluate(async () => {
   const cfg = sd.parseModeConfig('cafe-hard');
   const pick = () => JSON.stringify(sd.resolveRoundData(createRng('X::spot-difference::cafe-hard'), cfg.stage, 9, 'hard').anomalies.map((s) => s.id));
   return a === b && pick() === pick();
+});
+
+/* ---------- Hide & Seek invariant: non-overlapping waves, hidden count never exceeds hideBatch ---------- */
+out.hideSeekWaveInvariant = await page.evaluate(async () => {
+  const { createRng } = await import('/js/core/seed.js');
+  const { PRESETS, parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
+  const { generateFortressRun, tilePeekAt } = await import('/js/games/despair-fortress.js');
+
+  for (const preset of PRESETS) {
+    const settings = parseHideSeekMode(preset.id);
+    const wall = generateFortressRun(createRng(`WAVE-TEST::despair-fortress::${preset.id}`), settings);
+    const seenFullRevealBetweenWaves = new Map();
+    const fullyVisibleCount = new Array(wall.tiles.length).fill(0);
+
+    for (let t = settings.revealSec; t <= settings.timeSec; t += 0.05) {
+      const waveIdx = Math.floor((t - settings.revealSec) / (settings.hideSec + settings.peekSec));
+      let hiddenCount = 0;
+      for (let i = 0; i < wall.tiles.length; i++) {
+        const v = tilePeekAt(wall, settings, wall.tiles[i], t);
+        if (v < 0.999) hiddenCount++;
+        else fullyVisibleCount[i]++;
+      }
+      if (hiddenCount > settings.hideBatch) {
+        return `${preset.id}: hiddenCount ${hiddenCount} > hideBatch ${settings.hideBatch} at t=${t.toFixed(2)}`;
+      }
+      if (hiddenCount === 0) seenFullRevealBetweenWaves.set(waveIdx, true);
+    }
+    const maxWave = Math.floor((settings.timeSec - settings.revealSec) / (settings.hideSec + settings.peekSec));
+    for (let w = 0; w < maxWave; w++) {
+      if (!seenFullRevealBetweenWaves.get(w)) return `${preset.id}: wave ${w} never returned before next wave`;
+    }
+    if (fullyVisibleCount.some((c) => c === 0)) {
+      return `${preset.id}: some tiles never returned during round`;
+    }
+  }
+  return 'ok';
 });
 
 out.consoleErrors = errors;
@@ -332,7 +369,8 @@ if (out.resultButtons?.labels?.join(',') !== '로비,난이도 변경,재도전'
 }
 if (!out.deterministic) failures.push('determinism');
 if (out.hideSeekPresets !== 'easy,medium,hard,extreme,insane,god') failures.push('hide & seek presets');
-if (!/^custom-60-40-2-8-15-60-0-0$/.test(out.hideSeekMode || '')) failures.push(`hide & seek custom mode: ${out.hideSeekMode}`);
+if (!/^custom-60-40-30-20-11-60-0-0$/.test(out.hideSeekMode || '')) failures.push(`hide & seek custom mode: ${out.hideSeekMode}`);
+if (out.hideSeekWaveInvariant !== 'ok') failures.push(`hide & seek wave invariant: ${out.hideSeekWaveInvariant}`);
 if (!out.hideSeekRemembersLast) failures.push('hide & seek setup does not remember the last settings');
 if (out.consoleErrors.length) failures.push(`console errors: ${out.consoleErrors.length}`);
 if (failures.length) {
