@@ -55,7 +55,7 @@ const GAME_CATALOG = [
     art: 'dobble',
     tag: '순발력',
     timeHint: '45~75초',
-    hook: '· 두 카드 속 공통 그림 1개 찾기\n· 겹치는 아이콘 빠르게 터치',
+    hook: '· 공통 그림 1개 찾기\n· 겹치는 아이콘 빠르게 터치',
     defaultMode: DOBBLE_SETUP_MODE,
     modes: dobbleCatalogModes(),
     resolveMode: (id) => (parseDobbleMode(id) ? { id, label: dobbleModeLabel(id), thumb: null } : null),
@@ -574,6 +574,10 @@ function renderGameGrid() {
     const mediaHtml =
       CARD_ART[game.art] ||
       `<img class="game-card__img" src="${thumb}" alt="${escapeHtml(game.title)} 미리보기" loading="lazy" />`;
+    const firstSummary = String(game.hook || '')
+      .split('\n')[0]
+      .replace(/^·\s*/, '')
+      .trim();
 
     card.innerHTML = `
       <div class="game-card__media">
@@ -583,12 +587,13 @@ function renderGameGrid() {
           <span class="game-card__tag">${game.tag}</span>
           <span class="game-card__time">⏱ ${game.timeHint}</span>
         </div>
-        <div class="game-card__pb-bar">
-          <h2 class="game-card__title">${game.title}</h2>
-        </div>
       </div>
 
       <div class="game-card__body">
+        <div class="game-card__pb-bar">
+          <h2 class="game-card__title">${game.title}</h2>
+          <span class="game-card__summary">${escapeHtml(firstSummary)}</span>
+        </div>
         <button type="button" class="game-card__play" data-launch-game>
           <span>시작하기</span>
           <span aria-hidden="true">→</span>
