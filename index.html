@@ -43,8 +43,8 @@
   <section id="game-view" class="game-view" hidden aria-label="게임 플레이 화면">
     <header id="game-hud" class="game-hud" role="banner">
       <div class="game-hud__left">
-        <button id="hud-exit-btn" class="hud-btn hud-btn--ghost" type="button" aria-label="로비로 나가기">
-          <span aria-hidden="true">←</span>
+        <button id="hud-exit-btn" class="hud-btn hud-btn--ghost" type="button" aria-label="로비로 나가기" title="로비로 나가기">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
           <span class="game-hud__back-label">로비로</span>
         </button>
         <div class="game-hud__identity">
@@ -65,12 +65,22 @@
           <div id="hud-score" class="hud-score">0 PTS</div>
         </div>
         <div class="game-hud__actions">
-          <button id="hud-pause-btn" class="hud-btn hud-btn--icon" type="button" aria-label="일시정지" title="일시정지">⏸</button>
+          <button id="hud-pause-btn" class="hud-btn hud-btn--icon" type="button" aria-label="일시정지" title="일시정지">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/></svg>
+          </button>
           <div class="hud-more">
-            <button id="hud-more-btn" class="hud-btn hud-btn--icon" type="button" aria-label="더 보기" title="더 보기" aria-expanded="false">⋯</button>
+            <button id="hud-more-btn" class="hud-btn hud-btn--icon" type="button" aria-label="더 보기" title="더 보기" aria-expanded="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5.5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18.5" r="2"/></svg>
+            </button>
             <div id="hud-menu" class="hud-menu" hidden>
-              <button id="hud-restart-btn" class="hud-menu__item" type="button">↻ 다시 시작</button>
-              <button id="hud-mute-btn" class="hud-menu__item" type="button" aria-pressed="false">🔊 사운드 켜짐</button>
+              <button id="hud-restart-btn" class="hud-menu__item" type="button">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                <span>다시 시작</span>
+              </button>
+              <button id="hud-mute-btn" class="hud-menu__item" type="button" aria-pressed="false">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+                <span>사운드 켜짐</span>
+              </button>
             </div>
           </div>
         </div>

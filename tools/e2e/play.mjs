@@ -137,6 +137,11 @@ out.heroToolsInBanner = await page.evaluate(() => Boolean(
   document.querySelector('#hero-banner #lobby-mute-btn svg')
   && document.querySelector('#hero-banner .workshop-more summary svg')
 ));
+out.compactCards = await page.evaluate(() => {
+  const noOldText = !document.querySelector('.game-card__sub-en, .game-card__hook');
+  const titlesInOverlay = document.querySelectorAll('.game-card__pb-bar .game-card__title').length === 5;
+  return noOldText && titlesInOverlay;
+});
 await page.click('.game-card[data-game-id="dobble"] [data-launch-game]');
 await page.waitForSelector('.db-setup');
 out.dobbleMathValid = await page.evaluate(async () => {
@@ -338,6 +343,37 @@ out.hideSeekWaveInvariant = await page.evaluate(async () => {
   return 'ok';
 });
 
+/* ---------- Short mobile & landscape viewports: HUD does not overlap stage + SVG icons ---------- */
+{
+  const checkViewport = async (width, height, gameId, titleSel) => {
+    await page.setViewportSize({ width, height });
+    await page.goto(`${base}/?seed=${SEED}`);
+    await page.click(`.game-card[data-game-id="${gameId}"] [data-launch-game]`);
+    await page.waitForSelector(titleSel);
+    return page.evaluate((sel) => {
+      const hud = document.getElementById('game-hud').getBoundingClientRect();
+      const root = document.querySelector('#game-stage .game-root').getBoundingClientRect();
+      const title = document.querySelector(sel).getBoundingClientRect();
+      const hasIcons = Boolean(
+        document.querySelector('#hud-exit-btn svg')
+        && document.querySelector('#hud-pause-btn svg')
+        && document.querySelector('#hud-more-btn svg')
+      );
+      return {
+        ok: hasIcons && root.top >= hud.bottom - 1 && title.top >= hud.bottom - 1,
+        hasIcons,
+        hudBottom: Math.round(hud.bottom),
+        rootTop: Math.round(root.top),
+        titleTop: Math.round(title.top),
+      };
+    }, titleSel);
+  };
+  const mob = await checkViewport(375, 580, 'despair-fortress', '.df-setup__title');
+  const land = await checkViewport(667, 375, 'flash-anzan', '.fa-setup__title');
+  out.mobileHudNoOverlap = { ok: mob.ok && land.ok, mob, land };
+  await page.setViewportSize({ width: 1440, height: 900 });
+}
+
 out.consoleErrors = errors;
 console.log(JSON.stringify(out, null, 2));
 await browser.close();
@@ -363,7 +399,8 @@ if (!/^성공 · 🧮 5\/5 정답/.test(out.anzan || '')) failures.push(`flash a
 if (out.spotCardHasSelect || out.pickerCards !== 2 || !out.pickerExitNoConfirm) failures.push('spot picker flow');
 if (!out.spotCafeEasyExact) failures.push('spot cafe-easy 1:1 visual/logic match');
 if (!out.dobbleMathValid || !cleared(out.dobble)) failures.push(`dobble: ${out.dobbleMathValid} / ${out.dobble}`);
-if (!out.noInviteCopyBtn || !out.heroToolsInBanner) failures.push('lobby hero tools / invite copy removal');
+if (!out.noInviteCopyBtn || !out.heroToolsInBanner || !out.compactCards) failures.push('lobby hero tools / compact cards');
+if (!out.mobileHudNoOverlap?.ok) failures.push(`mobile HUD overlap or icons: ${JSON.stringify(out.mobileHudNoOverlap)}`);
 if (out.resultButtons?.labels?.join(',') !== '로비,난이도 변경,재도전' || !out.resultButtons?.sameRow || !out.resultButtons?.sameSize) {
   failures.push(`resultButtons: ${JSON.stringify(out.resultButtons)}`);
 }

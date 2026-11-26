@@ -251,13 +251,15 @@ function syncSeedFromInput({ rerender = true, announce = false } = {}) {
 const ICON_SOUND_ON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.8 5.8a9 9 0 0 1 0 12.4"/></svg>`;
 const ICON_SOUND_OFF = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>`;
 const ICON_SETTINGS = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+const ICON_PAUSE = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/></svg>`;
+const ICON_PLAY = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="6 4 20 12 6 20 6 4"/></svg>`;
 
 /* === Mute Icon Sync === */
 function syncMuteButtons() {
   const muted = audio.isMuted();
-  const icon = muted ? '🔇' : '🔊';
+  const iconSmall = (muted ? ICON_SOUND_OFF : ICON_SOUND_ON).replace('width="20" height="20"', 'width="16" height="16"');
   if (dom.hudMuteBtn) {
-    dom.hudMuteBtn.textContent = `${icon} 사운드 ${muted ? '꺼짐' : '켜짐'}`;
+    dom.hudMuteBtn.innerHTML = `${iconSmall}<span>사운드 ${muted ? '꺼짐' : '켜짐'}</span>`;
     dom.hudMuteBtn.setAttribute('aria-pressed', String(muted));
   }
   const lobbyMuteBtn = document.getElementById('lobby-mute-btn');
@@ -513,13 +515,11 @@ function renderGameGrid() {
           <span class="game-card__time">⏱ ${game.timeHint}</span>
         </div>
         <div class="game-card__pb-bar">
-          <span class="game-card__sub-en">${game.subEn}</span>
+          <h2 class="game-card__title">${game.title}</h2>
         </div>
       </div>
 
       <div class="game-card__body">
-        <h2 class="game-card__title">${game.title}</h2>
-        <p class="game-card__hook">${game.hook}</p>
         <button type="button" class="game-card__play" data-launch-game>
           <span>시작하기</span>
           <span aria-hidden="true">→</span>
@@ -661,7 +661,7 @@ function resetHud() {
   if (dom.hudPauseBtn) {
     dom.hudPauseBtn.disabled = false;
     dom.hudPauseBtn.hidden = false;
-    dom.hudPauseBtn.textContent = '⏸';
+    dom.hudPauseBtn.innerHTML = ICON_PAUSE;
     dom.hudPauseBtn.setAttribute('aria-label', '일시정지');
     dom.hudPauseBtn.setAttribute('title', '일시정지');
   }
@@ -701,7 +701,7 @@ function setPaused(paused) {
     dom.pauseCurtain.hidden = !next;
   }
   if (dom.hudPauseBtn) {
-    dom.hudPauseBtn.textContent = next ? '▶' : '⏸';
+    dom.hudPauseBtn.innerHTML = next ? ICON_PLAY : ICON_PAUSE;
     dom.hudPauseBtn.setAttribute('aria-label', next ? '재개' : '일시정지');
   }
 
@@ -915,7 +915,7 @@ async function launchGame(gameId, requestedMode) {
   if (dom.hudModeLabel) dom.hudModeLabel.textContent = validMode.label;
   if (dom.hudSeedBadge) dom.hudSeedBadge.textContent = `#${state.seed}`;
   if (dom.hudPauseBtn) {
-    dom.hudPauseBtn.textContent = '⏸';
+    dom.hudPauseBtn.innerHTML = ICON_PAUSE;
     dom.hudPauseBtn.setAttribute('aria-label', '일시정지');
   }
 

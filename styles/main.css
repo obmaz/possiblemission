@@ -676,7 +676,7 @@ textarea:focus-visible {
 
 .game-card__media {
   position: relative;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
   background: #e9edf4;
 }
@@ -701,7 +701,7 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 16px;
+  padding: 20px 16px 32px;
   background: radial-gradient(circle at 50% 45%, #fffdf5 0%, #f5ebd2 80%);
 }
 
@@ -741,7 +741,7 @@ textarea:focus-visible {
     radial-gradient(circle at 25% 25%, rgba(168, 85, 247, 0.35), transparent 55%),
     radial-gradient(circle at 80% 75%, rgba(34, 211, 238, 0.28), transparent 55%),
     linear-gradient(135deg, #eef0fb 0%, #e7e2f8 100%);
-  padding: 16px;
+  padding: 20px 16px 34px;
 }
 
 .memory-preview-tile {
@@ -776,14 +776,15 @@ textarea:focus-visible {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
+  padding: 26px 12px 24px;
   background: radial-gradient(circle at 50% 45%, #ffffff 0%, #e3f1fa 70%);
 }
 
 .anzan-preview__count {
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -791,7 +792,7 @@ textarea:focus-visible {
 .anzan-preview__number {
   color: var(--text-primary);
   font-family: var(--font-display);
-  font-size: 4.2rem;
+  font-size: 3.4rem;
   font-weight: 800;
   line-height: 1;
 }
@@ -801,10 +802,10 @@ textarea:focus-visible {
   width: 100%;
   height: 100%;
   display: grid;
-  grid-template-columns: repeat(4, 56px);
+  grid-template-columns: repeat(4, 42px);
   place-content: center;
-  gap: 18px;
-  padding: 52px 16px 30px;
+  gap: 10px;
+  padding: 54px 12px 28px;
   background:
     radial-gradient(circle at 50% 40%, rgba(63, 191, 146, 0.18), transparent 65%),
     #101815;
@@ -815,8 +816,8 @@ textarea:focus-visible {
   position: relative;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   justify-self: center;
 }
 
@@ -839,16 +840,16 @@ textarea:focus-visible {
   position: relative;
   color: #101814;
   font-family: var(--font-display);
-  font-size: 1.15rem;
+  font-size: 0.96rem;
   font-weight: 800;
 }
 
 .tile-preview i {
   position: absolute;
-  top: -28px;
+  top: -18px;
   color: #f5f8f4;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   font-style: normal;
   font-weight: 700;
   text-decoration: underline;
@@ -857,7 +858,7 @@ textarea:focus-visible {
 .game-card__media-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(7, 9, 20, 0.12) 0%, rgba(7, 9, 20, 0.88) 100%);
+  background: linear-gradient(180deg, rgba(7, 9, 20, 0.08) 0%, rgba(7, 9, 20, 0.26) 45%, rgba(7, 9, 20, 0.9) 100%);
   pointer-events: none;
 }
 
@@ -875,9 +876,9 @@ textarea:focus-visible {
 
 .game-card__tag,
 .game-card__time {
-  padding: 6px 13px;
+  padding: 5px 11px;
   border-radius: var(--radius-pill);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: 0;
   background: rgba(15, 23, 42, 0.72);
@@ -889,59 +890,41 @@ textarea:focus-visible {
 .game-card__pb-bar {
   position: absolute;
   bottom: 10px;
-  left: 12px;
-  right: 12px;
+  left: 14px;
+  right: 14px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   z-index: 2;
-  font-size: var(--text-caption);
-  font-weight: 700;
 }
 
-.game-card__sub-en {
-  font-family: var(--font-mono);
-  font-size: var(--text-micro);
-  letter-spacing: 0.12em;
-  color: var(--text-on-image);
-  text-transform: uppercase;
+.game-card__pb-bar .game-card__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.02rem, 0.9vw + 0.6rem, 1.2rem);
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-shadow: 0 2px 8px rgba(7, 9, 20, 0.6);
 }
 
 .game-card__body {
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  flex: 1;
-}
-
-.game-card__title {
-  font-family: var(--font-display);
-  font-size: var(--text-h3);
-  font-weight: 800;
-  color: var(--text-primary);
-  letter-spacing: -0.02em;
-}
-
-.game-card__hook {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  line-height: 1.5;
-  min-height: 3em;
-  white-space: pre-line;
 }
 
 .game-card__play {
-  margin-top: auto;
   width: 100%;
-  min-height: 46px;
-  padding: 10px 16px;
+  min-height: 42px;
+  padding: 9px 14px;
   border-radius: var(--radius-md);
   background: var(--btn-primary);
   color: #ffffff;
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   letter-spacing: 0.02em;
   display: flex;
   align-items: center;
@@ -967,17 +950,18 @@ textarea:focus-visible {
 .game-view {
   position: relative;
   z-index: var(--z-content);
-  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .game-hud {
-  position: sticky;
-  top: 0;
+  position: relative;
+  flex-shrink: 0;
   z-index: var(--z-hud);
-  height: var(--hud-height);
-  padding: 0 clamp(10px, 2vw, 20px);
+  min-height: var(--hud-height);
+  padding: 6px clamp(10px, 2vw, 20px);
   background: var(--bg-hud);
   backdrop-filter: var(--hud-blur);
   -webkit-backdrop-filter: var(--hud-blur);
@@ -1018,26 +1002,27 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 40px;
-  min-width: 40px;
-  padding: 6px 12px;
+  min-height: 38px;
+  min-width: 38px;
+  padding: 6px 11px;
   border-radius: var(--radius-sm);
-  background: rgba(15, 23, 42, 0.07);
-  border: 1px solid var(--border-subtle);
+  background: #ffffff;
+  border: 1px solid var(--border-specular);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
   color: var(--text-primary);
   font-weight: 700;
   font-size: 0.85rem;
-  transition: background-color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast);
 }
 
-.hud-btn:hover {
-  background: rgba(15, 23, 42, 0.14);
-  border-color: var(--border-specular);
+.hud-btn svg {
+  display: block;
+  flex-shrink: 0;
 }
 
 .hud-btn--icon {
-  padding: 6px;
-  width: 40px;
+  padding: 0;
+  width: 38px;
+  height: 38px;
 }
 
 .game-hud__identity {
@@ -1193,12 +1178,20 @@ textarea:focus-visible {
 
 .game-stage {
   position: relative;
+  flex: 1 1 0;
+  min-height: 0;
   width: 100%;
-  height: calc(100dvh - var(--hud-height));
-  padding: clamp(8px, 1.6vh, 20px);
-  display: grid;
-  place-items: center;
-  overflow: auto;
+  padding: clamp(6px, 1.4vh, 18px);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.game-stage > .game-root {
+  margin: auto;
+  flex-shrink: 0;
 }
 
 /*
@@ -1207,10 +1200,10 @@ textarea:focus-visible {
  */
 @media (min-width: 900px) {
   .game-stage > .game-root {
-    width: min(100%, calc((100dvh - var(--hud-height) - 2 * clamp(8px, 1.6vh, 20px)) * 16 / 9));
+    width: min(100%, calc((100dvh - var(--hud-height) - 2 * clamp(6px, 1.4vh, 18px)) * 16 / 9));
     height: auto;
     aspect-ratio: 16 / 9;
-    margin-inline: auto;
+    margin: auto;
   }
 }
 
@@ -1671,12 +1664,12 @@ textarea:focus-visible {
 
 @media (max-width: 639px), (pointer: coarse) {
   .hud-btn {
-    min-height: 44px;
-    min-width: 44px;
+    min-height: 40px;
+    min-width: 40px;
   }
   .hud-btn--icon {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
   }
   .seed-chip {
     display: inline-flex;
@@ -1697,17 +1690,16 @@ textarea:focus-visible {
 
 @media (max-width: 639px) {
   :root {
-    --hud-height: 98px;
+    --hud-height: 85px;
   }
   .game-grid {
     grid-template-columns: 1fr;
   }
   .game-hud {
-    height: var(--hud-height);
-    padding: 6px 10px 8px;
+    padding: 5px 10px 6px;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: 44px 36px;
-    gap: 4px 8px;
+    grid-template-rows: 40px 30px;
+    gap: 3px 8px;
   }
   .game-hud__left {
     grid-column: 1;
@@ -1735,16 +1727,16 @@ textarea:focus-visible {
     gap: 6px;
   }
   .hud-timer {
-    min-width: 64px;
-    padding: 3px 9px;
-    font-size: 0.95rem;
+    min-width: 60px;
+    padding: 2px 9px;
+    font-size: 0.92rem;
   }
   .hud-pill {
-    padding: 3px 8px;
+    padding: 2px 8px;
     font-size: var(--text-micro);
   }
   .hud-score {
-    font-size: 0.85rem;
+    font-size: 0.84rem;
   }
 }
 
@@ -1752,6 +1744,11 @@ textarea:focus-visible {
   .game-hud__back-label,
   .game-hud__mode {
     display: none;
+  }
+  #hud-exit-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
   }
   .workshop-bar__row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1768,6 +1765,38 @@ textarea:focus-visible {
   }
   .result-actions .btn-neon-primary {
     grid-column: span 1;
+  }
+}
+
+@media (max-height: 520px) and (max-width: 899px) {
+  :root {
+    --hud-height: 50px;
+  }
+  .game-hud {
+    padding: 4px 10px;
+    grid-template-columns: 1fr auto 1fr;
+    grid-template-rows: auto;
+    gap: 6px;
+  }
+  .game-hud__left,
+  .game-hud__center,
+  .game-hud__right {
+    display: flex;
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .game-hud__back-label,
+  .game-hud__mode {
+    display: none;
+  }
+  .hud-btn,
+  .hud-btn--icon,
+  #hud-exit-btn {
+    min-height: 36px;
+    min-width: 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
   }
 }
 

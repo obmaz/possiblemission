@@ -342,7 +342,7 @@
 @media (max-width: 899px) {
   .game-dobble {
     height: auto;
-    min-height: calc(100dvh - var(--hud-height, 64px) - 16px);
+    min-height: 100%;
   }
 
   .game-dobble .db-setup__body {

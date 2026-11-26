@@ -426,6 +426,12 @@
 
 /* === Responsive (< 900px Stacked & Mobile Tabs) === */
 @media (max-width: 899px) {
+  .game-spot.sd-picker {
+    justify-content: flex-start;
+    height: auto;
+    min-height: 100%;
+  }
+
   .game-spot .sd-view-tabs {
     display: inline-flex;
     max-width: 100%;

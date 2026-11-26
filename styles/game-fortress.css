@@ -292,7 +292,8 @@
 /* --- Small screens ------------------------------------------------------- */
 @media (max-width: 720px) {
   .game-fortress {
-    height: calc(100dvh - var(--hud-height, 64px));
+    height: 100%;
+    min-height: 320px;
     padding: 8px;
     gap: 8px;
   }
@@ -551,7 +552,7 @@
 @media (max-width: 899px) {
   .game-fortress.df-setup {
     height: auto;
-    min-height: calc(100dvh - var(--hud-height, 64px));
+    min-height: 100%;
   }
 
   .game-fortress .df-setup__body {

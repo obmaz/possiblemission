@@ -338,7 +338,8 @@
 
 @media (max-width: 899px) {
   .game-anzan {
-    min-height: calc(100dvh - var(--hud-height, 64px));
+    height: auto;
+    min-height: 100%;
   }
 
   .game-anzan .fa-setup__body {
