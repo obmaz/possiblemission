@@ -10,6 +10,7 @@
  */
 import { bindClock, bindScore } from '../../js/core/clock.js';
 import { shuffleSeeded } from '../../js/core/seed.js';
+import { mountSetupScreen } from '../../js/core/setup-screen.js';
 import { WRONG_INPUT_COOLDOWN_MS } from '../../js/core/rules.js';
 import { DOBBLE_SYMBOLS } from './symbols.js';
 import {
@@ -230,9 +231,6 @@ export function generateDobbleRun(rng, settings) {
   return rounds;
 }
 
-const formatValue = (field, value) =>
-  field.valueLabels ? field.valueLabels[field.options.indexOf(value)] : `${value}${field.unit}`;
-
 function describe(s) {
   return `카드당 아이콘 ${s.symbolsPerCard}개 · ${s.rounds}라운드 · ${s.timeSec}초${s.rotate ? '' : ' · 회전 없음'}`;
 }
@@ -242,103 +240,21 @@ export function mount(container, ctx) {
   return settings ? mountGame(container, ctx, settings) : mountSetup(container, ctx);
 }
 
-/* ============================================================================
- * Setup Screen
- * ========================================================================== */
 function mountSetup(container, ctx) {
-  const last = parseDobbleMode(ctx.storage.getPref?.(LAST_MODE_PREF, '') || '');
-  const preset = DOBBLE_PRESETS.find((p) => p.id === DOBBLE_DEFAULT_PRESET);
-  const source = last || preset;
-  let values = Object.fromEntries(DOBBLE_FIELDS.map((f) => [f.key, source[f.key]]));
-
-  const root = document.createElement('div');
-  root.className = 'game-root game-dobble db-setup';
-  root.innerHTML = `
-    <div class="db-setup__head">
-      <h2 class="db-setup__title">도블 스피드 매치 · 난이도</h2>
-      <p class="db-setup__sub">두 원형 카드에 <b>딱 하나</b> 겹치는 같은 그림을 빠르게 찾으세요!</p>
-    </div>
-    <div class="db-setup__body">
-      <div class="db-presets" role="radiogroup" aria-label="난이도 프리셋">
-        ${DOBBLE_PRESETS.map(
-          (p) => `
-          <button type="button" class="db-preset db-preset--${p.id}" role="radio" data-preset="${p.id}">
-            <span class="db-preset__name">${p.label}</span>
-            <span class="db-preset__ko">${p.ko}</span>
-            <span class="db-preset__meta">${p.symbolsPerCard}개/카드 · ${p.rounds}판 · ${p.timeSec}초</span>
-          </button>`
-        ).join('')}
-      </div>
-      <div class="db-fields">
-        ${DOBBLE_FIELDS.map(
-          (f) => `
-          <div class="db-field" data-field="${f.key}">
-            <span class="db-field__label">${f.label}</span>
-            <div class="db-stepper">
-              <button type="button" class="db-stepper__btn" data-step="-1" aria-label="${f.label} 줄이기">−</button>
-              <output class="db-stepper__value" data-value></output>
-              <button type="button" class="db-stepper__btn" data-step="1" aria-label="${f.label} 늘리기">+</button>
-            </div>
-          </div>`
-        ).join('')}
-        <p class="db-fields__summary" data-summary></p>
-      </div>
-    </div>
-    <button type="button" class="db-setup__start" data-start>시작하기 <span aria-hidden="true">→</span></button>
-  `;
-  container.appendChild(root);
-
-  function render() {
-    const match = matchDobblePreset(values);
-    root.querySelectorAll('[data-preset]').forEach((btn) => {
-      const on = match?.id === btn.dataset.preset;
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-checked', String(on));
-    });
-    for (const f of DOBBLE_FIELDS) {
-      const row = root.querySelector(`[data-field="${f.key}"]`);
-      const idx = f.options.indexOf(values[f.key]);
-      row.querySelector('[data-value]').textContent = formatValue(f, values[f.key]);
-      row.querySelector('[data-step="-1"]').disabled = idx <= 0;
-      row.querySelector('[data-step="1"]').disabled = idx >= f.options.length - 1;
-    }
-    root.querySelector('[data-summary]').textContent = `${match ? `${match.label} · ` : '커스텀 · '}${describe(values)}`;
-  }
-
-  const onClick = (e) => {
-    const presetBtn = e.target.closest('[data-preset]');
-    const stepBtn = e.target.closest('[data-step]');
-    if (presetBtn) {
-      const p = DOBBLE_PRESETS.find((x) => x.id === presetBtn.dataset.preset);
-      values = Object.fromEntries(DOBBLE_FIELDS.map((f) => [f.key, p[f.key]]));
-      ctx.audio.playClick();
-      render();
-    } else if (stepBtn) {
-      const key = stepBtn.closest('[data-field]').dataset.field;
-      const field = DOBBLE_FIELDS.find((f) => f.key === key);
-      const idx = field.options.indexOf(values[key]) + Number(stepBtn.dataset.step);
-      if (idx < 0 || idx >= field.options.length) return;
-      values = { ...values, [key]: field.options[idx] };
-      ctx.audio.playClick();
-      render();
-    } else if (e.target.closest('[data-start]')) {
-      ctx.audio.playClick();
-      const mode = dobbleModeId(values);
-      ctx.storage.setPref?.(LAST_MODE_PREF, mode);
-      ctx.switchMode(mode);
-    }
-  };
-  root.addEventListener('click', onClick);
-  render();
-  root.querySelector('[data-start]')?.focus({ preventScroll: true });
-
-  return {
-    idle: true,
-    unmount() {
-      root.removeEventListener('click', onClick);
-      container.innerHTML = '';
-    },
-  };
+  return mountSetupScreen(container, ctx, {
+    gameId: 'dobble',
+    title: '도블 스피드 매치 · 난이도',
+    intro: '두 원형 카드에 <b>딱 하나</b> 겹치는 같은 그림을 빠르게 찾으세요!',
+    fields: DOBBLE_FIELDS,
+    presets: DOBBLE_PRESETS,
+    defaultPreset: DOBBLE_DEFAULT_PRESET,
+    presetMeta: (p) => `${p.symbolsPerCard}개/카드 · ${p.rounds}판 · ${p.timeSec}초`,
+    describe,
+    parseMode: parseDobbleMode,
+    modeId: dobbleModeId,
+    matchPreset: matchDobblePreset,
+    prefKey: LAST_MODE_PREF,
+  });
 }
 
 /* ============================================================================

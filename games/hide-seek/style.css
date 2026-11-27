@@ -6,6 +6,8 @@
    ========================================================================== */
 
 .game-hide-seek {
+  --setup-accent: var(--neon-emerald);
+  --setup-accent-soft: rgba(63, 191, 146, 0.16);
   --df-neon: var(--neon-emerald);
   position: relative;
   --df-wall: #163a31;
@@ -29,6 +31,7 @@
 }
 
 /* --- Console: numbers to find, one answer box each · time ---------------- */
+
 .game-hide-seek .df-console {
   position: relative;
   display: flex;
@@ -98,6 +101,7 @@
 }
 
 /* The answer box is a small tile: light panel, white rim, thin inner frame */
+
 .game-hide-seek .df-target__box {
   width: 52px;
   height: 52px;
@@ -128,6 +132,7 @@
 }
 
 /* Found: the box turns into a lit green tile with a check badge */
+
 .game-hide-seek .df-target.is-solved {
   cursor: default;
   opacity: 0.92;
@@ -180,6 +185,7 @@
 }
 
 /* Time: a thin bar along the console's bottom edge */
+
 .game-hide-seek .df-timebar {
   position: absolute;
   left: 16px;
@@ -210,6 +216,7 @@
 }
 
 /* --- Wall screen ----------------------------------------------------------- */
+
 .game-hide-seek .df-wall-wrap {
   position: relative;
   min-height: 0;
@@ -280,6 +287,7 @@
 }
 
 /* The found letter flying from the wall into its box (positioned in the game root) */
+
 .game-hide-seek .df-fly {
   position: absolute;
   z-index: 5;
@@ -300,6 +308,7 @@
 }
 
 /* --- Small screens ------------------------------------------------------- */
+
 @media (max-width: 720px) {
   .game-hide-seek {
     height: 100%;
@@ -309,11 +318,17 @@
   }
 
   .game-hide-seek .df-console { padding: 8px 8px 16px; }
+
   .game-hide-seek .df-targets { flex-wrap: nowrap; gap: 6px; }
+
   .game-hide-seek .df-target { gap: 6px; padding: 4px 4px 4px 9px; border-radius: 12px; }
+
   .game-hide-seek .df-target__num { font-size: 1rem; letter-spacing: 0.02em; }
+
   .game-hide-seek .df-target__box { width: 36px; height: 36px; border-width: 2px; border-radius: 8px; font-size: 1.15rem; }
+
   .game-hide-seek .df-target.is-solved::after { top: -7px; right: -7px; width: 18px; height: 18px; font-size: 0.65rem; }
+
   .game-hide-seek .df-help { display: none; }
 }
 
@@ -365,13 +380,6 @@
 }
 
 /* --- Setup screen (mode `setup`): presets + custom values --------------- */
-.game-hide-seek.df-setup {
-  grid-template-rows: auto auto auto;
-  align-content: center;
-  gap: 20px;
-  padding: 18px 22px;
-  overflow-y: auto;
-}
 
 .game-hide-seek .df-setup__head {
   text-align: center;
@@ -403,53 +411,12 @@
   min-height: 0;
 }
 
-.game-hide-seek .df-presets {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.game-hide-seek .df-preset {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-deep);
-  color: var(--text-primary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 160ms ease, background 160ms ease;
-}
-
-.game-hide-seek .df-preset:hover,
-.game-hide-seek .df-preset:focus-visible {
-  border-color: rgba(63, 191, 146, 0.6);
-  outline: none;
-}
-
-.game-hide-seek .df-preset.is-active {
-  border-color: var(--df-neon);
-  background: rgba(63, 191, 146, 0.16);
-  box-shadow: inset 0 0 0 1px var(--df-neon);
-}
-
 .game-hide-seek .df-preset__name {
   font-family: var(--font-mono);
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.06em;
 }
-
-.game-hide-seek .df-preset--easy .df-preset__name { color: var(--neon-emerald); }
-.game-hide-seek .df-preset--medium .df-preset__name { color: var(--neon-cyan); }
-.game-hide-seek .df-preset--hard .df-preset__name { color: var(--neon-gold); }
-.game-hide-seek .df-preset--extreme .df-preset__name { color: #d9692c; }
-.game-hide-seek .df-preset--insane .df-preset__name { color: var(--neon-crimson); }
-.game-hide-seek .df-preset--god .df-preset__name { color: var(--neon-violet); }
 
 .game-hide-seek .df-preset__ko {
   color: var(--text-secondary);
@@ -462,38 +429,10 @@
   font-size: 0.76rem;
 }
 
-.game-hide-seek .df-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-soft);
-}
-
-.game-hide-seek .df-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  transition: opacity 160ms ease;
-}
-
-.game-hide-seek .df-field.is-muted {
-  opacity: 0.4;
-}
-
 .game-hide-seek .df-field__label {
   color: var(--text-secondary);
   font-size: 0.9rem;
   font-weight: 600;
-}
-
-.game-hide-seek .df-stepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .game-hide-seek .df-stepper__btn {
@@ -560,24 +499,17 @@
 }
 
 @media (max-width: 899px) {
-  .game-hide-seek.df-setup {
-    height: auto;
-    min-height: 100%;
-  }
-
   .game-hide-seek .df-setup__body {
     grid-template-columns: 1fr;
-  }
-
-  .game-hide-seek .df-presets {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 /* === Lobby card artwork === */
+
 /* Shared Party Mode helper removed (no team scoreboard) */
 
 /* Letter-tile wall preview for the Despair Fortress card */
+
 .game-card__tile-art {
   width: 100%;
   height: 100%;
@@ -602,6 +534,7 @@
 }
 
 /* The tile square tilts; the letter stays upright, like the in-game wall */
+
 .tile-preview::before {
   content: '';
   position: absolute;

@@ -10,7 +10,7 @@
 import { bindScore } from '../../js/core/clock.js';
 import { pickSeeded, shuffleSeeded } from '../../js/core/seed.js';
 import { WRONG_INPUT_COOLDOWN_MS } from '../../js/core/rules.js';
-import { renderPlayModeSwitch } from '../../js/core/party-kit.js';
+import { mountSetupScreen } from '../../js/core/setup-screen.js';
 import {
   FLASH_COUNT_DEFAULT_PRESET,
   FLASH_COUNT_FIELDS,
@@ -151,8 +151,6 @@ export function generateFlashCountRun(rng, settings) {
   return problems;
 }
 
-const formatValue = (f, v) => (f.valueLabels ? f.valueLabels[f.options.indexOf(v)] : `${v}${f.unit}`);
-
 function describe(s) {
   const playTxt = s.play === 1 ? '다같이 한 화면 진행' : '혼자 선택지 도전';
   return `${playTxt} · ${s.rounds}문제 · ${s.totalIcons}개 (${s.kinds}종류) · ${s.flashSec}초 노출`;
@@ -163,114 +161,22 @@ export function mount(container, ctx) {
   return settings ? mountGame(container, ctx, settings) : mountSetup(container, ctx);
 }
 
-/* ============================================================================
- * Setup Screen
- * ========================================================================== */
 function mountSetup(container, ctx) {
-  const last = parseFlashCountMode(ctx.storage.getPref?.(LAST_MODE_PREF, '') || '');
-  const preset = FLASH_COUNT_PRESETS.find((p) => p.id === FLASH_COUNT_DEFAULT_PRESET);
-  const source = last || { ...preset, play: 0 };
-  let values = Object.fromEntries(FLASH_COUNT_FIELDS.map((f) => [f.key, source[f.key]]));
-
-  const root = document.createElement('div');
-  root.className = 'game-root game-flash-count fc-setup';
-  root.innerHTML = `
-    <div class="fc-setup__head">
-      <h2 class="fc-setup__title">찰나의 카운팅 · 난이도</h2>
-      <p class="fc-setup__sub">잠깐 나타났다가 사라지는 아이콘 중 <b>목표 그림이 몇 개였는지</b> 기억하세요!</p>
-    </div>
-    ${renderPlayModeSwitch(values.play, 'fc')}
-    <div class="fc-setup__body">
-      <div class="fc-presets" role="radiogroup" aria-label="난이도 프리셋">
-        ${FLASH_COUNT_PRESETS.map(
-          (p) => `
-          <button type="button" class="fc-preset fc-preset--${p.id}" role="radio" data-preset="${p.id}">
-            <span class="fc-preset__name">${p.label}</span>
-            <span class="fc-preset__ko">${p.ko}</span>
-            <span class="fc-preset__meta">${p.totalIcons}개(${p.kinds}종) · ${p.flashSec}초</span>
-          </button>`
-        ).join('')}
-      </div>
-      <div class="fc-fields">
-        ${FLASH_COUNT_FIELDS.map(
-          (f) => `
-          <div class="fc-field" data-field="${f.key}">
-            <span class="fc-field__label">${f.label}</span>
-            <div class="fc-stepper">
-              <button type="button" class="fc-stepper__btn" data-step="-1" aria-label="${f.label} 줄이기">−</button>
-              <output class="fc-stepper__value" data-value></output>
-              <button type="button" class="fc-stepper__btn" data-step="1" aria-label="${f.label} 늘리기">+</button>
-            </div>
-          </div>`
-        ).join('')}
-        <p class="fc-fields__summary" data-summary></p>
-      </div>
-    </div>
-    <button type="button" class="fc-setup__start" data-start>시작하기 <span aria-hidden="true">→</span></button>
-  `;
-  container.appendChild(root);
-
-  function render() {
-    const match = matchFlashCountPreset(values);
-    root.querySelectorAll('[data-playmode]').forEach((btn) => {
-      const on = Number(btn.dataset.playmode) === values.play;
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-checked', String(on));
-    });
-    root.querySelectorAll('[data-preset]').forEach((btn) => {
-      const on = match?.id === btn.dataset.preset;
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-checked', String(on));
-    });
-    for (const f of FLASH_COUNT_FIELDS) {
-      const row = root.querySelector(`[data-field="${f.key}"]`);
-      const idx = f.options.indexOf(values[f.key]);
-      row.querySelector('[data-value]').textContent = formatValue(f, values[f.key]);
-      row.querySelector('[data-step="-1"]').disabled = idx <= 0;
-      row.querySelector('[data-step="1"]').disabled = idx >= f.options.length - 1;
-    }
-    root.querySelector('[data-summary]').textContent = `${match ? `${match.label} · ` : '커스텀 · '}${describe(values)}`;
-  }
-
-  const onClick = (e) => {
-    const playBtn = e.target.closest('[data-playmode]');
-    const presetBtn = e.target.closest('[data-preset]');
-    const stepBtn = e.target.closest('[data-step]');
-    if (playBtn) {
-      values = { ...values, play: Number(playBtn.dataset.playmode) };
-      ctx.audio.playClick();
-      render();
-    } else if (presetBtn) {
-      const p = FLASH_COUNT_PRESETS.find((x) => x.id === presetBtn.dataset.preset);
-      values = { ...values, rounds: p.rounds, flashSec: p.flashSec, totalIcons: p.totalIcons, kinds: p.kinds };
-      ctx.audio.playClick();
-      render();
-    } else if (stepBtn) {
-      const key = stepBtn.closest('[data-field]').dataset.field;
-      const field = FLASH_COUNT_FIELDS.find((f) => f.key === key);
-      const idx = field.options.indexOf(values[key]) + Number(stepBtn.dataset.step);
-      if (idx < 0 || idx >= field.options.length) return;
-      values = { ...values, [key]: field.options[idx] };
-      ctx.audio.playClick();
-      render();
-    } else if (e.target.closest('[data-start]')) {
-      ctx.audio.playClick();
-      const mode = flashCountModeId(values);
-      ctx.storage.setPref?.(LAST_MODE_PREF, mode);
-      ctx.switchMode(mode);
-    }
-  };
-
-  root.addEventListener('click', onClick);
-  render();
-
-  return {
-    idle: true,
-    unmount() {
-      root.removeEventListener('click', onClick);
-      container.innerHTML = '';
-    },
-  };
+  return mountSetupScreen(container, ctx, {
+    gameId: 'flash-count',
+    title: '찰나의 카운팅 · 난이도',
+    intro: '잠깐 나타났다가 사라지는 아이콘 중 <b>목표 그림이 몇 개였는지</b> 기억하세요!',
+    fields: FLASH_COUNT_FIELDS,
+    presets: FLASH_COUNT_PRESETS,
+    defaultPreset: FLASH_COUNT_DEFAULT_PRESET,
+    presetMeta: (p) => `${p.totalIcons}개(${p.kinds}종) · ${p.flashSec}초`,
+    describe,
+    parseMode: parseFlashCountMode,
+    modeId: flashCountModeId,
+    matchPreset: matchFlashCountPreset,
+    prefKey: LAST_MODE_PREF,
+    playSwitch: true,
+  });
 }
 
 /* ============================================================================

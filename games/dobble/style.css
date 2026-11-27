@@ -4,6 +4,8 @@
    ========================================================================== */
 
 .game-dobble {
+  --setup-accent: var(--neon-gold);
+  --setup-accent-soft: rgba(192, 132, 25, 0.09);
   --db-accent: var(--neon-gold, #c08419);
   width: 100%;
   height: 100%;
@@ -25,11 +27,6 @@
 }
 
 /* === Setup Screen === */
-.game-dobble.db-setup {
-  justify-content: center;
-  gap: 18px;
-  overflow-y: auto;
-}
 
 .game-dobble .db-setup__head {
   text-align: center;
@@ -61,46 +58,12 @@
   width: 100%;
 }
 
-.game-dobble .db-presets {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.game-dobble .db-preset {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-deep);
-  color: var(--text-primary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.game-dobble .db-preset.is-active {
-  border-color: var(--db-accent);
-  background: rgba(192, 132, 25, 0.09);
-  box-shadow: inset 0 0 0 1px var(--db-accent);
-}
-
 .game-dobble .db-preset__name {
   font-family: var(--font-mono);
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.06em;
 }
-
-.game-dobble .db-preset--easy .db-preset__name { color: var(--neon-emerald); }
-.game-dobble .db-preset--medium .db-preset__name { color: var(--neon-cyan); }
-.game-dobble .db-preset--hard .db-preset__name { color: var(--neon-gold); }
-.game-dobble .db-preset--extreme .db-preset__name { color: #d9692c; }
-.game-dobble .db-preset--insane .db-preset__name { color: var(--neon-crimson); }
-.game-dobble .db-preset--god .db-preset__name { color: var(--neon-violet); }
 
 .game-dobble .db-preset__ko {
   color: var(--text-secondary);
@@ -113,33 +76,10 @@
   font-size: 0.76rem;
 }
 
-.game-dobble .db-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-soft);
-}
-
-.game-dobble .db-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .game-dobble .db-field__label {
   color: var(--text-secondary);
   font-size: 0.9rem;
   font-weight: 600;
-}
-
-.game-dobble .db-stepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .game-dobble .db-stepper__btn {
@@ -190,6 +130,7 @@
 }
 
 /* === Active Board === */
+
 .game-dobble .db-header {
   width: 100%;
   display: flex;
@@ -349,10 +290,6 @@
     grid-template-columns: 1fr;
   }
 
-  .game-dobble .db-presets {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .game-dobble .db-arena {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -368,7 +305,9 @@
 }
 
 /* === Lobby card artwork === */
+
 /* Custom Dobble circular card pair preview */
+
 .game-card__dobble-art {
   width: 100%;
   height: 100%;

@@ -11,7 +11,7 @@
  */
 import { ANZAN_DEFAULT_PRESET, ANZAN_FIELDS, ANZAN_PRESETS, anzanModeId, matchAnzanPreset, parseAnzanMode } from './settings.js';
 import { bindScore } from '../../js/core/clock.js';
-import { renderPlayModeSwitch } from '../../js/core/party-kit.js';
+import { mountSetupScreen } from '../../js/core/setup-screen.js';
 
 const READY_SEC = 1.1; // "문제 2 / 5" card before each problem
 const FLASH_ON_RATIO = 0.72; // share of each interval the number is visible (rest is blank)
@@ -36,9 +36,6 @@ export function generateAnzanRun(rng, settings) {
 /** Points for one correct answer: more digits, more numbers and faster flashes pay more. */
 const basePoints = (s) => Math.round((60 * s.digits * s.count) / Math.sqrt(s.intervalSec));
 
-const formatValue = (field, value) =>
-  field.valueLabels ? field.valueLabels[field.options.indexOf(value)] : `${value}${field.unit}`;
-
 function describe(s) {
   const playTxt = s.play === 1 ? '다같이 한 화면 진행' : '혼자 합계 입력';
   return `${playTxt} · ${s.digits}자리 숫자 ${s.count}개가 ${s.intervalSec}초 간격으로 나타납니다 · ${s.problems}문제`;
@@ -53,117 +50,22 @@ export function mount(container, ctx) {
   return settings ? mountGame(container, ctx, settings) : mountSetup(container, ctx);
 }
 
-/* ============================================================================
- * Setup screen
- * ========================================================================== */
 function mountSetup(container, ctx) {
-  const last = parseAnzanMode(ctx.storage.getPref?.(LAST_MODE_PREF, '') || '');
-  const preset = ANZAN_PRESETS.find((p) => p.id === ANZAN_DEFAULT_PRESET);
-  const source = last || { ...preset, play: 0 };
-  let values = Object.fromEntries(ANZAN_FIELDS.map((f) => [f.key, source[f.key]]));
-
-  const root = document.createElement('div');
-  root.className = 'game-root game-flash-anzan fa-setup';
-  root.innerHTML = `
-    <div class="fa-setup__head">
-      <h2 class="fa-setup__title">플래시 암산 · 난이도</h2>
-      <p class="fa-setup__sub">숫자가 하나씩 번쩍입니다. 머릿속으로 더해서 <b>합계</b>를 맞히세요.</p>
-    </div>
-    ${renderPlayModeSwitch(values.play, 'fa', {
-      label: ANZAN_FIELDS[0].valueLabels[0],
-      desc: '직접 합계를 입력해 맞히기',
-    })}
-    <div class="fa-setup__body">
-      <div class="fa-presets" role="radiogroup" aria-label="난이도 프리셋">
-        ${ANZAN_PRESETS.map(
-          (p) => `
-          <button type="button" class="fa-preset fa-preset--${p.id}" role="radio" data-preset="${p.id}">
-            <span class="fa-preset__name">${p.label}</span>
-            <span class="fa-preset__ko">${p.ko}</span>
-            <span class="fa-preset__meta">${p.digits}자리 × ${p.count}개 · ${p.intervalSec}초</span>
-          </button>`
-        ).join('')}
-      </div>
-      <div class="fa-fields">
-        ${ANZAN_FIELDS.map(
-          (f) => `
-          <div class="fa-field" data-field="${f.key}">
-            <span class="fa-field__label">${f.label}</span>
-            <div class="fa-stepper">
-              <button type="button" class="fa-stepper__btn" data-step="-1" aria-label="${f.label} 줄이기">−</button>
-              <output class="fa-stepper__value" data-value></output>
-              <button type="button" class="fa-stepper__btn" data-step="1" aria-label="${f.label} 늘리기">+</button>
-            </div>
-          </div>`
-        ).join('')}
-        <p class="fa-fields__summary" data-summary></p>
-      </div>
-    </div>
-    <button type="button" class="fa-setup__start" data-start>시작하기 <span aria-hidden="true">→</span></button>
-  `;
-  container.appendChild(root);
-
-  function render() {
-    const match = matchAnzanPreset(values);
-    root.querySelectorAll('[data-playmode]').forEach((btn) => {
-      const on = Number(btn.dataset.playmode) === values.play;
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-checked', String(on));
-    });
-    root.querySelectorAll('[data-preset]').forEach((btn) => {
-      const on = match?.id === btn.dataset.preset;
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-checked', String(on));
-    });
-    for (const f of ANZAN_FIELDS) {
-      const row = root.querySelector(`[data-field="${f.key}"]`);
-      const idx = f.options.indexOf(values[f.key]);
-      row.querySelector('[data-value]').textContent = formatValue(f, values[f.key]);
-      row.querySelector('[data-step="-1"]').disabled = idx <= 0;
-      row.querySelector('[data-step="1"]').disabled = idx >= f.options.length - 1;
-    }
-    root.querySelector('[data-summary]').textContent = `${match ? `${match.label} · ` : '커스텀 · '}${describe(values)}`;
-  }
-
-  const onClick = (e) => {
-    const playBtn = e.target.closest('[data-playmode]');
-    const presetBtn = e.target.closest('[data-preset]');
-    const stepBtn = e.target.closest('[data-step]');
-    if (playBtn) {
-      values = { ...values, play: Number(playBtn.dataset.playmode) };
-      ctx.audio.playClick();
-      render();
-    } else if (presetBtn) {
-      const p = ANZAN_PRESETS.find((x) => x.id === presetBtn.dataset.preset);
-      values = { ...values, digits: p.digits, count: p.count, intervalSec: p.intervalSec, problems: p.problems };
-      ctx.audio.playClick();
-      render();
-    } else if (stepBtn) {
-      const key = stepBtn.closest('[data-field]').dataset.field;
-      const field = ANZAN_FIELDS.find((f) => f.key === key);
-      const idx = field.options.indexOf(values[key]) + Number(stepBtn.dataset.step);
-      if (idx < 0 || idx >= field.options.length) return;
-      values = { ...values, [key]: field.options[idx] };
-      ctx.audio.playClick();
-      render();
-    } else if (e.target.closest('[data-start]')) {
-      ctx.audio.playClick();
-      const mode = anzanModeId(values);
-      ctx.storage.setPref?.(LAST_MODE_PREF, mode);
-      ctx.switchMode(mode);
-    }
-  };
-  root.addEventListener('click', onClick);
-  render();
-  root.querySelector('[data-start]').focus({ preventScroll: true });
-
-  return {
-    idle: true,
-    unmount() {
-      root.removeEventListener('click', onClick);
-      container.innerHTML = '';
-    },
-  };
+  return mountSetupScreen(container, ctx, {
+    gameId: 'flash-anzan',
+    title: '플래시 암산 · 난이도',
+    intro: '숫자가 하나씩 번쩍입니다. 머릿속으로 더해서 <b>합계</b>를 맞히세요.',
+    fields: ANZAN_FIELDS,
+    presets: ANZAN_PRESETS,
+    defaultPreset: ANZAN_DEFAULT_PRESET,
+    presetMeta: (p) => `${p.digits}자리 × ${p.count}개 · ${p.intervalSec}초`,
+    describe,
+    parseMode: parseAnzanMode,
+    modeId: anzanModeId,
+    matchPreset: matchAnzanPreset,
+    prefKey: LAST_MODE_PREF,
+    playSwitch: { label: ANZAN_FIELDS[0].valueLabels[0], desc: '직접 합계를 입력해 맞히기' },
+  });
 }
 
 /* ============================================================================

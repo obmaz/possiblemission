@@ -153,7 +153,7 @@ out.compactCards = await page.evaluate(() => {
   return noOldText && titlesInBody && summaries && soloOnly && bothModes;
 });
 await page.click('.game-card[data-game-id="dobble"] [data-launch-game]');
-await page.waitForSelector('.db-setup');
+await page.waitForSelector('.setup');
 out.dobbleMathValid = await page.evaluate(async () => {
   const { buildProjectiveDeck, generateDobbleRun } = await import('/games/dobble/index.js');
   const { DOBBLE_SYMBOLS } = await import('/games/dobble/symbols.js');
@@ -206,7 +206,7 @@ out.resultButtons = await page.evaluate(() => {
 /* ---------- 플래시 암산: countdown, setup → full play ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="flash-anzan"] [data-launch-game]');
-await page.waitForSelector('.fa-setup');
+await page.waitForSelector('.setup');
 await page.click('[data-preset="easy"]');
 await page.click('[data-start]');
 await page.waitForSelector('.fa-stage');
@@ -239,7 +239,7 @@ out.memoryMode = new URL(page.url()).searchParams.get('mode');
 /* ---------- 숫자 숨바꼭질: setup screen → custom settings → full play ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="hide-seek"] [data-launch-game]');
-await page.waitForSelector('.df-setup');
+await page.waitForSelector('.setup');
 out.hideSeekPresets = await page.$$eval('[data-preset]', (els) => els.map((e) => e.dataset.preset).join(','));
 await page.click('[data-preset="hard"]');
 // One step longer reveal turns the HARD preset into custom settings
@@ -277,7 +277,7 @@ out.resultHasCopyButton = await page.evaluate(() => Boolean(document.querySelect
 out.resultStats = await page.$$eval('.result-stat-box', (els) => els.map((e) => e.textContent.trim()));
 // "난이도 바꾸기" goes back to the setup screen
 await page.click('#result-change-btn');
-out.hideSeekChangeDifficulty = Boolean(await page.waitForSelector('.df-setup', { timeout: 4000 }).catch(() => null));
+out.hideSeekChangeDifficulty = Boolean(await page.waitForSelector('.setup', { timeout: 4000 }).catch(() => null));
 // Same symbol → same number on every tile; GOD mixes Hangul
 out.hideSeekRules = await page.evaluate(async () => {
   const { createRng } = await import('/js/core/seed.js');
@@ -299,7 +299,7 @@ out.hideSeekRules = await page.evaluate(async () => {
 // Starting again from the lobby shows the setup screen again (it used to skip it)
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="hide-seek"] [data-launch-game]');
-out.hideSeekSetupAgain = Boolean(await page.waitForSelector('.df-setup', { timeout: 4000 }).catch(() => null));
+out.hideSeekSetupAgain = Boolean(await page.waitForSelector('.setup', { timeout: 4000 }).catch(() => null));
 // …and remembers the last settings
 out.hideSeekRemembersLast = (await page.textContent('[data-field="revealSec"] [data-value]')) === '4초';
 
@@ -385,8 +385,8 @@ out.hideSeekWaveInvariant = await page.evaluate(async () => {
       };
     }, titleSel);
   };
-  const mob = await checkViewport(375, 580, 'hide-seek', '.df-setup__title');
-  const land = await checkViewport(667, 375, 'flash-anzan', '.fa-setup__title');
+  const mob = await checkViewport(375, 580, 'hide-seek', '.setup__title');
+  const land = await checkViewport(667, 375, 'flash-anzan', '.setup__title');
   out.mobileHudNoOverlap = { ok: mob.ok && land.ok, mob, land };
   await page.setViewportSize({ width: 1440, height: 900 });
 }
@@ -394,7 +394,7 @@ out.hideSeekWaveInvariant = await page.evaluate(async () => {
 /* ---------- 컬러 트랩: setup → solo full play + party mode check ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="color-trap"] [data-launch-game]');
-await page.waitForSelector('.ct-setup');
+await page.waitForSelector('.setup');
 await page.click('[data-preset="easy"]');
 await page.click('[data-start]');
 await page.waitForSelector('.ct-stage');
@@ -415,7 +415,7 @@ out.colorTrapSolo = `${await resultStatus()} · ${ctAnswers.length}q`;
 
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="color-trap"] [data-launch-game]');
-await page.waitForSelector('.ct-setup');
+await page.waitForSelector('.setup');
 await page.click('[data-playmode="1"]');
 await page.click('[data-preset="easy"]');
 await page.click('[data-start]');
@@ -439,7 +439,7 @@ out.pixelRevealPool = await page.evaluate(async () => {
 });
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="pixel-reveal"] [data-launch-game]');
-await page.waitForSelector('.pr-setup');
+await page.waitForSelector('.setup');
 await page.click('[data-playmode="1"]');
 await page.click('[data-preset="easy"]');
 await page.click('[data-start]');
@@ -455,7 +455,7 @@ out.pixelRevealNoOverlap = await page.evaluate(() => {
 
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="pixel-reveal"] [data-launch-game]');
-await page.waitForSelector('.pr-setup');
+await page.waitForSelector('.setup');
 await page.click('[data-playmode="0"]');
 await page.click('[data-preset="easy"]');
 await page.click('[data-start]');
@@ -478,7 +478,7 @@ out.pixelRevealSolo = `${await resultStatus()} · ${prAnswers.length}q`;
 /* ---------- 찰나의 카운팅: setup → solo full play + party mode check ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="flash-count"] [data-launch-game]');
-await page.waitForSelector('.fc-setup');
+await page.waitForSelector('.setup');
 await page.click('[data-preset="easy"]');
 await page.click('[data-field="flashSec"] [data-step="1"]');
 await page.click('[data-start]');
@@ -564,7 +564,7 @@ for (const id of await page.evaluate(async () => (await import('/games/registry.
   out.standalone[id] = Boolean(mounted) && (await page.evaluate(() => !document.querySelector('.game-card, #game-hud')));
 }
 await page.goto(`${base}/?seed=${SEED}&game=despair-fortress`);
-out.legacyGameId = Boolean(await page.waitForSelector('.df-setup', { timeout: 6000 }).catch(() => null));
+out.legacyGameId = Boolean(await page.waitForSelector('.setup', { timeout: 6000 }).catch(() => null));
 
 out.consoleErrors = errors;
 console.log(JSON.stringify(out, null, 2));

@@ -4,6 +4,8 @@
    ========================================================================== */
 
 .game-flash-count {
+  --setup-accent: var(--neon-cyan);
+  --setup-accent-soft: rgba(11, 132, 198, 0.09);
   --fc-accent: var(--neon-cyan, #0b84c6);
   width: 100%;
   height: 100%;
@@ -24,12 +26,6 @@
   overflow: hidden;
 }
 
-.game-flash-count.fc-setup {
-  justify-content: center;
-  gap: 16px;
-  overflow-y: auto;
-}
-
 .game-flash-count .fc-setup__head { text-align: center; }
 
 .game-flash-count .fc-setup__title {
@@ -47,13 +43,6 @@
 }
 
 .game-flash-count .fc-setup__sub b { color: var(--fc-accent); }
-
-.game-flash-count .fc-playmode {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  width: min(100%, 720px);
-}
 
 .game-flash-count .fc-playmode__btn {
   display: flex;
@@ -74,6 +63,7 @@
 }
 
 .game-flash-count .fc-playmode__title { font-weight: 800; font-size: 0.95rem; }
+
 .game-flash-count .fc-playmode__desc { font-size: 0.78rem; color: var(--text-muted); }
 
 .game-flash-count .fc-setup__body {
@@ -84,31 +74,6 @@
   width: 100%;
 }
 
-.game-flash-count .fc-presets {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.game-flash-count .fc-preset {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-deep);
-  text-align: left;
-  cursor: pointer;
-}
-
-.game-flash-count .fc-preset.is-active {
-  border-color: var(--fc-accent);
-  background: rgba(11, 132, 198, 0.09);
-  box-shadow: inset 0 0 0 1px var(--fc-accent);
-}
-
 .game-flash-count .fc-preset__name {
   font-family: var(--font-mono);
   font-size: 1.05rem;
@@ -116,40 +81,15 @@
   letter-spacing: 0.06em;
 }
 
-.game-flash-count .fc-preset--easy .fc-preset__name { color: var(--neon-emerald); }
-.game-flash-count .fc-preset--medium .fc-preset__name { color: var(--neon-cyan); }
-.game-flash-count .fc-preset--hard .fc-preset__name { color: var(--neon-gold); }
-.game-flash-count .fc-preset--extreme .fc-preset__name { color: #d9692c; }
-.game-flash-count .fc-preset--insane .fc-preset__name { color: var(--neon-crimson); }
-.game-flash-count .fc-preset--god .fc-preset__name { color: var(--neon-violet); }
-
 .game-flash-count .fc-preset__ko { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); }
+
 .game-flash-count .fc-preset__meta { font-size: 0.76rem; color: var(--text-muted); }
-
-.game-flash-count .fc-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  padding: 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-soft);
-}
-
-.game-flash-count .fc-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
 
 .game-flash-count .fc-field__label {
   color: var(--text-secondary);
   font-size: 0.9rem;
   font-weight: 600;
 }
-
-.game-flash-count .fc-stepper { display: inline-flex; align-items: center; gap: 6px; }
 
 .game-flash-count .fc-stepper__btn {
   width: 34px;
@@ -194,6 +134,7 @@
 }
 
 /* === Active Board === */
+
 .game-flash-count .fc-header {
   width: 100%;
   display: flex;
@@ -408,6 +349,7 @@
 }
 
 .game-flash-count .fc-party-status { font-size: 0.92rem; font-weight: 800; color: var(--text-secondary); }
+
 .game-flash-count .fc-party-actions { display: flex; gap: 8px; }
 
 .game-flash-count .fc-mc-btn {
@@ -421,19 +363,23 @@
 }
 
 .game-flash-count .fc-mc-btn:disabled { opacity: 0.5; cursor: default; }
+
 .game-flash-count .fc-mc-btn--next { border-color: transparent; background: var(--btn-primary); color: #ffffff; }
 
 @media (max-width: 899px) {
   .game-flash-count { height: auto; min-height: 100%; }
+
   .game-flash-count .fc-arena { min-height: 220px; }
+
   .game-flash-count .fc-setup__body { grid-template-columns: 1fr; }
-  .game-flash-count .fc-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .game-flash-count .fc-playmode { grid-template-columns: 1fr; }
+
   .game-flash-count .fc-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* === Lobby card artwork === */
+
 /* Flash Count card preview */
+
 .game-card__flashcount-art {
   width: 100%;
   height: 100%;

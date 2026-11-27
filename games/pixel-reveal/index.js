@@ -10,7 +10,7 @@
 import { bindClock, bindScore } from '../../js/core/clock.js';
 import { pickSeeded, shuffleSeeded } from '../../js/core/seed.js';
 import { WRONG_INPUT_COOLDOWN_MS } from '../../js/core/rules.js';
-import { renderPlayModeSwitch } from '../../js/core/party-kit.js';
+import { mountSetupScreen } from '../../js/core/setup-screen.js';
 import { REVEAL_ITEMS } from './items.js';
 import {
   PIXEL_REVEAL_DEFAULT_PRESET,
@@ -43,8 +43,6 @@ export function generatePixelRevealRun(rng, settings) {
   });
 }
 
-const formatValue = (f, v) => (f.valueLabels ? f.valueLabels[f.options.indexOf(v)] : `${v}${f.unit}`);
-
 function describe(s) {
   const playTxt = s.play === 1 ? '다같이 한 화면 진행' : '혼자 선택지 도전';
   return `${playTxt} · ${s.rounds}문제 · ${s.revealSec}초간 선명해짐 (${s.startGrid}칸 시작)`;
@@ -55,114 +53,22 @@ export function mount(container, ctx) {
   return settings ? mountGame(container, ctx, settings) : mountSetup(container, ctx);
 }
 
-/* ============================================================================
- * Setup Screen
- * ========================================================================== */
 function mountSetup(container, ctx) {
-  const last = parsePixelRevealMode(ctx.storage.getPref?.(LAST_MODE_PREF, '') || '');
-  const preset = PIXEL_REVEAL_PRESETS.find((p) => p.id === PIXEL_REVEAL_DEFAULT_PRESET);
-  const source = last || { ...preset, play: 0 };
-  let values = Object.fromEntries(PIXEL_REVEAL_FIELDS.map((f) => [f.key, source[f.key]]));
-
-  const root = document.createElement('div');
-  root.className = 'game-root game-pixel-reveal pr-setup';
-  root.innerHTML = `
-    <div class="pr-setup__head">
-      <h2 class="pr-setup__title">모자이크 줌아웃 · 난이도</h2>
-      <p class="pr-setup__sub">거대한 모자이크가 서서히 선명해집니다. <b>누구보다 빠르게</b> 정체를 맞히세요!</p>
-    </div>
-    ${renderPlayModeSwitch(values.play, 'pr')}
-    <div class="pr-setup__body">
-      <div class="pr-presets" role="radiogroup" aria-label="난이도 프리셋">
-        ${PIXEL_REVEAL_PRESETS.map(
-          (p) => `
-          <button type="button" class="pr-preset pr-preset--${p.id}" role="radio" data-preset="${p.id}">
-            <span class="pr-preset__name">${p.label}</span>
-            <span class="pr-preset__ko">${p.ko}</span>
-            <span class="pr-preset__meta">${p.rounds}문제 · ${p.revealSec}초 · ${p.startGrid}칸</span>
-          </button>`
-        ).join('')}
-      </div>
-      <div class="pr-fields">
-        ${PIXEL_REVEAL_FIELDS.map(
-          (f) => `
-          <div class="pr-field" data-field="${f.key}">
-            <span class="pr-field__label">${f.label}</span>
-            <div class="pr-stepper">
-              <button type="button" class="pr-stepper__btn" data-step="-1" aria-label="${f.label} 줄이기">−</button>
-              <output class="pr-stepper__value" data-value></output>
-              <button type="button" class="pr-stepper__btn" data-step="1" aria-label="${f.label} 늘리기">+</button>
-            </div>
-          </div>`
-        ).join('')}
-        <p class="pr-fields__summary" data-summary></p>
-      </div>
-    </div>
-    <button type="button" class="pr-setup__start" data-start>시작하기 <span aria-hidden="true">→</span></button>
-  `;
-  container.appendChild(root);
-
-  function render() {
-    const match = matchPixelRevealPreset(values);
-    root.querySelectorAll('[data-playmode]').forEach((btn) => {
-      const on = Number(btn.dataset.playmode) === values.play;
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-checked', String(on));
-    });
-    root.querySelectorAll('[data-preset]').forEach((btn) => {
-      const on = match?.id === btn.dataset.preset;
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-checked', String(on));
-    });
-    for (const f of PIXEL_REVEAL_FIELDS) {
-      const row = root.querySelector(`[data-field="${f.key}"]`);
-      const idx = f.options.indexOf(values[f.key]);
-      row.querySelector('[data-value]').textContent = formatValue(f, values[f.key]);
-      row.querySelector('[data-step="-1"]').disabled = idx <= 0;
-      row.querySelector('[data-step="1"]').disabled = idx >= f.options.length - 1;
-    }
-    root.querySelector('[data-summary]').textContent = `${match ? `${match.label} · ` : '커스텀 · '}${describe(values)}`;
-  }
-
-  const onClick = (e) => {
-    const playBtn = e.target.closest('[data-playmode]');
-    const presetBtn = e.target.closest('[data-preset]');
-    const stepBtn = e.target.closest('[data-step]');
-    if (playBtn) {
-      values = { ...values, play: Number(playBtn.dataset.playmode) };
-      ctx.audio.playClick();
-      render();
-    } else if (presetBtn) {
-      const p = PIXEL_REVEAL_PRESETS.find((x) => x.id === presetBtn.dataset.preset);
-      values = { ...values, rounds: p.rounds, revealSec: p.revealSec, startGrid: p.startGrid };
-      ctx.audio.playClick();
-      render();
-    } else if (stepBtn) {
-      const key = stepBtn.closest('[data-field]').dataset.field;
-      const field = PIXEL_REVEAL_FIELDS.find((f) => f.key === key);
-      const idx = field.options.indexOf(values[key]) + Number(stepBtn.dataset.step);
-      if (idx < 0 || idx >= field.options.length) return;
-      values = { ...values, [key]: field.options[idx] };
-      ctx.audio.playClick();
-      render();
-    } else if (e.target.closest('[data-start]')) {
-      ctx.audio.playClick();
-      const mode = pixelRevealModeId(values);
-      ctx.storage.setPref?.(LAST_MODE_PREF, mode);
-      ctx.switchMode(mode);
-    }
-  };
-
-  root.addEventListener('click', onClick);
-  render();
-
-  return {
-    idle: true,
-    unmount() {
-      root.removeEventListener('click', onClick);
-      container.innerHTML = '';
-    },
-  };
+  return mountSetupScreen(container, ctx, {
+    gameId: 'pixel-reveal',
+    title: '모자이크 줌아웃 · 난이도',
+    intro: '거대한 모자이크가 서서히 선명해집니다. <b>누구보다 빠르게</b> 정체를 맞히세요!',
+    fields: PIXEL_REVEAL_FIELDS,
+    presets: PIXEL_REVEAL_PRESETS,
+    defaultPreset: PIXEL_REVEAL_DEFAULT_PRESET,
+    presetMeta: (p) => `${p.rounds}문제 · ${p.revealSec}초 · ${p.startGrid}칸`,
+    describe,
+    parseMode: parsePixelRevealMode,
+    modeId: pixelRevealModeId,
+    matchPreset: matchPixelRevealPreset,
+    prefKey: LAST_MODE_PREF,
+    playSwitch: true,
+  });
 }
 
 /* ============================================================================

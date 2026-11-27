@@ -9,7 +9,7 @@
 import { bindClock, bindScore } from '../../js/core/clock.js';
 import { pickSeeded, shuffleSeeded } from '../../js/core/seed.js';
 import { WRONG_INPUT_COOLDOWN_MS } from '../../js/core/rules.js';
-import { renderPlayModeSwitch } from '../../js/core/party-kit.js';
+import { mountSetupScreen } from '../../js/core/setup-screen.js';
 import {
   COLOR_TRAP_DEFAULT_PRESET,
   COLOR_TRAP_FIELDS,
@@ -119,8 +119,6 @@ export function generateColorTrapRun(rng, settings) {
   return questions;
 }
 
-const formatValue = (f, v) => (f.valueLabels ? f.valueLabels[f.options.indexOf(v)] : `${v}${f.unit}`);
-
 function describe(s) {
   const playTxt = s.play === 1 ? '다같이 한 화면 진행' : '혼자 선택지 도전';
   const mixTxt = COLOR_TRAP_FIELDS[3].valueLabels[s.modeMix];
@@ -132,117 +130,24 @@ export function mount(container, ctx) {
   return settings ? mountGame(container, ctx, settings) : mountSetup(container, ctx);
 }
 
-/* ============================================================================
- * Setup Screen
- * ========================================================================== */
 function mountSetup(container, ctx) {
-  const last = parseColorTrapMode(ctx.storage.getPref?.(LAST_MODE_PREF, '') || '');
-  const preset = COLOR_TRAP_PRESETS.find((p) => p.id === COLOR_TRAP_DEFAULT_PRESET);
-  const source = last || { ...preset, play: 0 };
-  let values = Object.fromEntries(COLOR_TRAP_FIELDS.map((f) => [f.key, source[f.key]]));
-
-  const root = document.createElement('div');
-  root.className = 'game-root game-color-trap ct-setup';
-  root.innerHTML = `
-    <div class="ct-setup__head">
-      <h2 class="ct-setup__title">컬러 트랩 · 난이도</h2>
-      <p class="ct-setup__sub">글자의 <b>색깔</b>과 <b>뜻</b>이 다릅니다! 헷갈리지 말고 정확히 고르세요.</p>
-    </div>
-    ${renderPlayModeSwitch(values.play, 'ct')}
-    <div class="ct-setup__body">
-      <div class="ct-presets" role="radiogroup" aria-label="난이도 프리셋">
-        ${COLOR_TRAP_PRESETS.map(
-          (p) => `
-          <button type="button" class="ct-preset ct-preset--${p.id}" role="radio" data-preset="${p.id}">
-            <span class="ct-preset__name">${p.label}</span>
-            <span class="ct-preset__ko">${p.ko}</span>
-            <span class="ct-preset__meta">${p.rounds}문제 · ${COLOR_TRAP_FIELDS[3].valueLabels[p.modeMix]}</span>
-          </button>`
-        ).join('')}
-      </div>
-      <div class="ct-fields">
-        ${COLOR_TRAP_FIELDS.map(
-          (f) => `
-          <div class="ct-field" data-field="${f.key}">
-            <span class="ct-field__label">${f.label}</span>
-            <div class="ct-stepper">
-              <button type="button" class="ct-stepper__btn" data-step="-1" aria-label="${f.label} 줄이기">−</button>
-              <output class="ct-stepper__value" data-value></output>
-              <button type="button" class="ct-stepper__btn" data-step="1" aria-label="${f.label} 늘리기">+</button>
-            </div>
-          </div>`
-        ).join('')}
-        <p class="ct-fields__summary" data-summary></p>
-      </div>
-    </div>
-    <button type="button" class="ct-setup__start" data-start>시작하기 <span aria-hidden="true">→</span></button>
-  `;
-  container.appendChild(root);
-
-  function render() {
-    const match = matchColorTrapPreset(values);
-    root.querySelectorAll('[data-playmode]').forEach((btn) => {
-      const on = Number(btn.dataset.playmode) === values.play;
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-checked', String(on));
-    });
-    root.querySelectorAll('[data-preset]').forEach((btn) => {
-      const on = match?.id === btn.dataset.preset;
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-checked', String(on));
-    });
-    for (const f of COLOR_TRAP_FIELDS) {
-      const row = root.querySelector(`[data-field="${f.key}"]`);
-      const idx = f.options.indexOf(values[f.key]);
-      const disabled = f.key === 'timeSec' && values.play === 1;
-      row.classList.toggle('is-disabled', disabled);
-      row.querySelector('[data-value]').textContent = disabled ? '사용 안 함' : formatValue(f, values[f.key]);
-      row.querySelector('[data-step="-1"]').disabled = disabled || idx <= 0;
-      row.querySelector('[data-step="1"]').disabled = disabled || idx >= f.options.length - 1;
-    }
-    root.querySelector('[data-summary]').textContent = `${match ? `${match.label} · ` : '커스텀 · '}${describe(values)}`;
-  }
-
-  const onClick = (e) => {
-    const playBtn = e.target.closest('[data-playmode]');
-    const presetBtn = e.target.closest('[data-preset]');
-    const stepBtn = e.target.closest('[data-step]');
-    if (playBtn) {
-      values = { ...values, play: Number(playBtn.dataset.playmode) };
-      ctx.audio.playClick();
-      render();
-    } else if (presetBtn) {
-      const p = COLOR_TRAP_PRESETS.find((x) => x.id === presetBtn.dataset.preset);
-      values = { ...values, rounds: p.rounds, timeSec: p.timeSec, modeMix: p.modeMix };
-      ctx.audio.playClick();
-      render();
-    } else if (stepBtn) {
-      const key = stepBtn.closest('[data-field]').dataset.field;
-      if (key === 'timeSec' && values.play === 1) return;
-      const field = COLOR_TRAP_FIELDS.find((f) => f.key === key);
-      const idx = field.options.indexOf(values[key]) + Number(stepBtn.dataset.step);
-      if (idx < 0 || idx >= field.options.length) return;
-      values = { ...values, [key]: field.options[idx] };
-      ctx.audio.playClick();
-      render();
-    } else if (e.target.closest('[data-start]')) {
-      ctx.audio.playClick();
-      const mode = colorTrapModeId(values);
-      ctx.storage.setPref?.(LAST_MODE_PREF, mode);
-      ctx.switchMode(mode);
-    }
-  };
-
-  root.addEventListener('click', onClick);
-  render();
-
-  return {
-    idle: true,
-    unmount() {
-      root.removeEventListener('click', onClick);
-      container.innerHTML = '';
-    },
-  };
+  return mountSetupScreen(container, ctx, {
+    gameId: 'color-trap',
+    title: '컬러 트랩 · 난이도',
+    intro: '글자의 <b>색깔</b>과 <b>뜻</b>이 다릅니다! 헷갈리지 말고 정확히 고르세요.',
+    fields: COLOR_TRAP_FIELDS,
+    presets: COLOR_TRAP_PRESETS,
+    defaultPreset: COLOR_TRAP_DEFAULT_PRESET,
+    presetMeta: (p) => `${p.rounds}문제 · ${COLOR_TRAP_FIELDS[3].valueLabels[p.modeMix]}`,
+    describe,
+    parseMode: parseColorTrapMode,
+    modeId: colorTrapModeId,
+    matchPreset: matchColorTrapPreset,
+    prefKey: LAST_MODE_PREF,
+    playSwitch: true,
+    // Party rounds are paced by the host, so the time limit does not apply
+    disabledText: (field, values) => (field.key === 'timeSec' && values.play === 1 ? '사용 안 함' : null),
+  });
 }
 
 /* ============================================================================

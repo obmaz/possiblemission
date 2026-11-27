@@ -3,6 +3,8 @@
    ========================================================================== */
 
 .game-flash-anzan {
+  --setup-accent: var(--neon-cyan);
+  --setup-accent-soft: rgba(11, 132, 198, 0.08);
   --fa-accent: var(--neon-cyan);
   position: relative;
   display: flex;
@@ -23,6 +25,7 @@
 }
 
 /* --- Status header (problem number, score) -------------------------------- */
+
 .game-flash-anzan .fa-header {
   position: absolute;
   top: 14px;
@@ -43,6 +46,7 @@
 }
 
 /* --- Flash stage ---------------------------------------------------------- */
+
 .game-flash-anzan .fa-stage {
   display: flex;
   flex-direction: column;
@@ -104,6 +108,7 @@
 }
 
 /* --- Answer --------------------------------------------------------------- */
+
 .game-flash-anzan .fa-answer {
   display: grid;
   justify-items: center;
@@ -177,9 +182,6 @@
 }
 
 /* --- Setup screen --------------------------------------------------------- */
-.game-flash-anzan.fa-setup {
-  overflow-y: auto;
-}
 
 .game-flash-anzan .fa-setup__head {
   text-align: center;
@@ -201,13 +203,6 @@
 
 .game-flash-anzan .fa-setup__sub b {
   color: var(--fa-accent);
-}
-
-.game-flash-anzan .fa-playmode {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  width: min(100%, 720px);
 }
 
 .game-flash-anzan .fa-playmode__btn {
@@ -301,52 +296,12 @@
   width: 100%;
 }
 
-.game-flash-anzan .fa-presets {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.game-flash-anzan .fa-preset {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-deep);
-  color: var(--text-primary);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.game-flash-anzan .fa-preset:hover,
-.game-flash-anzan .fa-preset:focus-visible {
-  border-color: var(--fa-accent);
-  outline: none;
-}
-
-.game-flash-anzan .fa-preset.is-active {
-  border-color: var(--fa-accent);
-  background: rgba(11, 132, 198, 0.08);
-  box-shadow: inset 0 0 0 1px var(--fa-accent);
-}
-
 .game-flash-anzan .fa-preset__name {
   font-family: var(--font-mono);
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.06em;
 }
-
-.game-flash-anzan .fa-preset--easy .fa-preset__name { color: var(--neon-emerald); }
-.game-flash-anzan .fa-preset--medium .fa-preset__name { color: var(--neon-cyan); }
-.game-flash-anzan .fa-preset--hard .fa-preset__name { color: var(--neon-gold); }
-.game-flash-anzan .fa-preset--extreme .fa-preset__name { color: #d9692c; }
-.game-flash-anzan .fa-preset--insane .fa-preset__name { color: var(--neon-crimson); }
-.game-flash-anzan .fa-preset--god .fa-preset__name { color: var(--neon-violet); }
 
 .game-flash-anzan .fa-preset__ko {
   color: var(--text-secondary);
@@ -359,33 +314,10 @@
   font-size: 0.76rem;
 }
 
-.game-flash-anzan .fa-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-soft);
-}
-
-.game-flash-anzan .fa-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
 .game-flash-anzan .fa-field__label {
   color: var(--text-secondary);
   font-size: 0.9rem;
   font-weight: 600;
-}
-
-.game-flash-anzan .fa-stepper {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .game-flash-anzan .fa-stepper__btn {
@@ -458,12 +390,6 @@
     grid-template-columns: 1fr;
   }
 
-  .game-flash-anzan .fa-presets {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .game-flash-anzan .fa-playmode {
-    grid-template-columns: 1fr;
-  }
   .game-flash-anzan .fa-stepper__value {
     min-width: 96px;
   }
@@ -476,7 +402,9 @@
 }
 
 /* === Lobby card artwork === */
+
 /* Flash anzan card preview */
+
 .game-card__anzan-art {
   width: 100%;
   height: 100%;

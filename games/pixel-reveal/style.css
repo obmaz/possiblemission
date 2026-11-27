@@ -4,6 +4,8 @@
    ========================================================================== */
 
 .game-pixel-reveal {
+  --setup-accent: var(--neon-violet);
+  --setup-accent-soft: rgba(123, 91, 214, 0.09);
   --pr-accent: var(--neon-violet, #7b5bd6);
   width: 100%;
   height: 100%;
@@ -24,12 +26,6 @@
   overflow: hidden;
 }
 
-.game-pixel-reveal.pr-setup {
-  justify-content: center;
-  gap: 16px;
-  overflow-y: auto;
-}
-
 .game-pixel-reveal .pr-setup__head { text-align: center; }
 
 .game-pixel-reveal .pr-setup__title {
@@ -47,13 +43,6 @@
 }
 
 .game-pixel-reveal .pr-setup__sub b { color: var(--pr-accent); }
-
-.game-pixel-reveal .pr-playmode {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  width: min(100%, 720px);
-}
 
 .game-pixel-reveal .pr-playmode__btn {
   display: flex;
@@ -74,6 +63,7 @@
 }
 
 .game-pixel-reveal .pr-playmode__title { font-weight: 800; font-size: 0.95rem; }
+
 .game-pixel-reveal .pr-playmode__desc { font-size: 0.78rem; color: var(--text-muted); }
 
 .game-pixel-reveal .pr-setup__body {
@@ -84,31 +74,6 @@
   width: 100%;
 }
 
-.game-pixel-reveal .pr-presets {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.game-pixel-reveal .pr-preset {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-deep);
-  text-align: left;
-  cursor: pointer;
-}
-
-.game-pixel-reveal .pr-preset.is-active {
-  border-color: var(--pr-accent);
-  background: rgba(123, 91, 214, 0.09);
-  box-shadow: inset 0 0 0 1px var(--pr-accent);
-}
-
 .game-pixel-reveal .pr-preset__name {
   font-family: var(--font-mono);
   font-size: 1.05rem;
@@ -116,40 +81,15 @@
   letter-spacing: 0.06em;
 }
 
-.game-pixel-reveal .pr-preset--easy .pr-preset__name { color: var(--neon-emerald); }
-.game-pixel-reveal .pr-preset--medium .pr-preset__name { color: var(--neon-cyan); }
-.game-pixel-reveal .pr-preset--hard .pr-preset__name { color: var(--neon-gold); }
-.game-pixel-reveal .pr-preset--extreme .pr-preset__name { color: #d9692c; }
-.game-pixel-reveal .pr-preset--insane .pr-preset__name { color: var(--neon-crimson); }
-.game-pixel-reveal .pr-preset--god .pr-preset__name { color: var(--neon-violet); }
-
 .game-pixel-reveal .pr-preset__ko { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); }
+
 .game-pixel-reveal .pr-preset__meta { font-size: 0.76rem; color: var(--text-muted); }
-
-.game-pixel-reveal .pr-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface-soft);
-}
-
-.game-pixel-reveal .pr-field {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
 
 .game-pixel-reveal .pr-field__label {
   color: var(--text-secondary);
   font-size: 0.9rem;
   font-weight: 600;
 }
-
-.game-pixel-reveal .pr-stepper { display: inline-flex; align-items: center; gap: 6px; }
 
 .game-pixel-reveal .pr-stepper__btn {
   width: 34px;
@@ -194,6 +134,7 @@
 }
 
 /* === Active Board === */
+
 .game-pixel-reveal .pr-header {
   width: 100%;
   display: flex;
@@ -283,6 +224,7 @@
 }
 
 .game-pixel-reveal .pr-answer-banner[data-tone='success'] { background: rgba(22, 147, 106, 0.94); }
+
 .game-pixel-reveal .pr-answer-banner[data-tone='error'] { background: rgba(209, 69, 69, 0.94); }
 
 .game-pixel-reveal .pr-meter {
@@ -359,7 +301,9 @@
 }
 
 .game-pixel-reveal .pr-party-status { font-size: 0.92rem; font-weight: 800; color: var(--text-secondary); }
+
 .game-pixel-reveal .pr-reveal-word { color: var(--pr-accent); font-size: 1.05rem; }
+
 .game-pixel-reveal .pr-party-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .game-pixel-reveal .pr-mc-btn {
@@ -373,18 +317,21 @@
 }
 
 .game-pixel-reveal .pr-mc-btn:disabled { opacity: 0.5; cursor: default; }
+
 .game-pixel-reveal .pr-mc-btn--next { border-color: transparent; background: var(--btn-primary); color: #ffffff; }
 
 @media (max-width: 899px) {
   .game-pixel-reveal { height: auto; min-height: 100%; }
+
   .game-pixel-reveal .pr-setup__body { grid-template-columns: 1fr; }
-  .game-pixel-reveal .pr-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .game-pixel-reveal .pr-playmode { grid-template-columns: 1fr; }
+
   .game-pixel-reveal .pr-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* === Lobby card artwork === */
+
 /* Pixel Reveal card preview */
+
 .game-card__pixel-art {
   width: 100%;
   height: 100%;

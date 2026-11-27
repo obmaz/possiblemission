@@ -16,6 +16,7 @@
  */
 import { bindClock, bindScore } from '../../js/core/clock.js';
 import { shuffleSeeded } from '../../js/core/seed.js';
+import { mountSetupScreen } from '../../js/core/setup-screen.js';
 import { TOUCH_HIT_SLOP, WRONG_INPUT_COOLDOWN_MS } from '../../js/core/rules.js';
 import {
   HIDE_SEEK_DEFAULT_PRESET,
@@ -196,8 +197,6 @@ function roundedRect(g, x, y, w, h, r) {
   else g.rect(x, y, w, h);
 }
 
-const formatValue = (field, value) => (field.valueLabels ? field.valueLabels[value] : `${value}${field.unit}`);
-
 /** One-line plain-language summary of a set of values. */
 function describe(s) {
   const extras = [s.hangul ? '한글 포함' : '', s.spiral ? '회오리 배경' : ''].filter(Boolean).join(' · ');
@@ -214,112 +213,33 @@ export function mount(container, ctx) {
   return settings ? mountGame(container, ctx, settings) : mountSetup(container, ctx);
 }
 
-/* ============================================================================
- * Setup screen (mode `setup`): presets + custom values, then start
- * ========================================================================== */
 function mountSetup(container, ctx) {
-  const last = parseHideSeekMode(ctx.storage.getPref?.(LAST_MODE_PREF, '') || '');
-  const preset = HIDE_SEEK_PRESETS.find((p) => p.id === HIDE_SEEK_DEFAULT_PRESET);
-  let values = last
-    ? Object.fromEntries(HIDE_SEEK_FIELDS.map((f) => [f.key, last[f.key]]))
-    : Object.fromEntries(HIDE_SEEK_FIELDS.map((f) => [f.key, preset[f.key]]));
-
-  const root = document.createElement('div');
-  root.className = 'game-root game-hide-seek df-setup';
-  root.innerHTML = `
-    <div class="df-setup__head">
-      <h2 class="df-setup__title">숫자 숨바꼭질 · 난이도</h2>
-      <p class="df-setup__sub">타일 뒤에 숨은 숫자 3개를 찾아 그 타일의 <b>글자</b>를 맞히세요. 같은 룸 시드와 같은 설정이면 모두 같은 벽이 나옵니다.</p>
-    </div>
-    <div class="df-setup__body">
-      <div class="df-presets" role="radiogroup" aria-label="난이도 프리셋">
-        ${HIDE_SEEK_PRESETS.map(
-          (p) => `
-          <button type="button" class="df-preset df-preset--${p.id}" role="radio" data-preset="${p.id}">
-            <span class="df-preset__name">${p.label}</span>
-            <span class="df-preset__ko">${p.ko}</span>
-            <span class="df-preset__meta">타일 ${p.tiles} · 최대 숨김 ${p.hideBatch}개</span>
-          </button>`
-        ).join('')}
-      </div>
-      <div class="df-fields">
-        ${HIDE_SEEK_FIELDS.map(
-          (f) => `
-          <div class="df-field" data-field="${f.key}">
-            <span class="df-field__label">${f.label}</span>
-            <div class="df-stepper">
-              <button type="button" class="df-stepper__btn" data-step="-1" aria-label="${f.label} 줄이기">−</button>
-              <output class="df-stepper__value" data-value></output>
-              <button type="button" class="df-stepper__btn" data-step="1" aria-label="${f.label} 늘리기">+</button>
-            </div>
-          </div>`
-        ).join('')}
-        <p class="df-fields__summary" data-summary></p>
-      </div>
-    </div>
-    <button type="button" class="df-setup__start" data-start>시작하기 <span aria-hidden="true">→</span></button>
-  `;
-  container.appendChild(root);
-
-  function render() {
-    const match = matchHideSeekPreset(values);
-    root.querySelectorAll('[data-preset]').forEach((btn) => {
-      const on = match?.id === btn.dataset.preset;
-      btn.classList.toggle('is-active', on);
-      btn.setAttribute('aria-checked', String(on));
-    });
-    const maxBatch = maxHideBatchForTiles(values.tiles);
-    for (const f of HIDE_SEEK_FIELDS) {
-      const row = root.querySelector(`[data-field="${f.key}"]`);
-      const idx = f.options.indexOf(values[f.key]);
-      row.querySelector('[data-value]').textContent = formatValue(f, values[f.key]);
-      row.querySelector('[data-step="-1"]').disabled = idx <= 0;
-      const nextOverLimit = f.key === 'hideBatch' && idx + 1 < f.options.length && f.options[idx + 1] > maxBatch;
-      row.querySelector('[data-step="1"]').disabled = idx >= f.options.length - 1 || nextOverLimit;
-    }
-    root.querySelector('[data-summary]').textContent = `${match ? `${match.label} · ` : '커스텀 · '}${describe(values)}`;
-  }
-
-  const onClick = (e) => {
-    const presetBtn = e.target.closest('[data-preset]');
-    const stepBtn = e.target.closest('[data-step]');
-    if (presetBtn) {
-      const p = HIDE_SEEK_PRESETS.find((x) => x.id === presetBtn.dataset.preset);
-      values = Object.fromEntries(HIDE_SEEK_FIELDS.map((f) => [f.key, p[f.key]]));
-      ctx.audio.playClick();
-      render();
-    } else if (stepBtn) {
-      const key = stepBtn.closest('[data-field]').dataset.field;
-      const field = HIDE_SEEK_FIELDS.find((f) => f.key === key);
-      const idx = field.options.indexOf(values[key]) + Number(stepBtn.dataset.step);
-      if (idx < 0 || idx >= field.options.length) return;
-      const nextValues = { ...values, [key]: field.options[idx] };
-      const maxBatch = maxHideBatchForTiles(nextValues.tiles);
-      if (nextValues.hideBatch > maxBatch) {
-        const batchOpts = HIDE_SEEK_FIELDS.find((f) => f.key === 'hideBatch').options;
-        nextValues.hideBatch = batchOpts.filter((v) => v <= maxBatch).pop() ?? batchOpts[0];
-      }
-      values = nextValues;
-      ctx.audio.playClick();
-      render();
-    } else if (e.target.closest('[data-start]')) {
-      ctx.audio.playClick();
-      const mode = hideSeekModeId(values);
-      ctx.storage.setPref?.(LAST_MODE_PREF, mode);
-      ctx.switchMode(mode);
-    }
-  };
-  root.addEventListener('click', onClick);
-  render();
-  root.querySelector('[data-start]').focus({ preventScroll: true });
-
-  return {
-    idle: true,
-    unmount() {
-      root.removeEventListener('click', onClick);
-      container.innerHTML = '';
+  const hideBatchOptions = HIDE_SEEK_FIELDS.find((f) => f.key === 'hideBatch').options;
+  return mountSetupScreen(container, ctx, {
+    gameId: 'hide-seek',
+    title: '숫자 숨바꼭질 · 난이도',
+    intro: '타일 뒤에 숨은 숫자 3개를 찾아 그 타일의 <b>글자</b>를 맞히세요. 같은 룸 시드와 같은 설정이면 모두 같은 벽이 나옵니다.',
+    fields: HIDE_SEEK_FIELDS,
+    presets: HIDE_SEEK_PRESETS,
+    defaultPreset: HIDE_SEEK_DEFAULT_PRESET,
+    presetMeta: (p) => `타일 ${p.tiles} · 최대 숨김 ${p.hideBatch}개`,
+    describe,
+    parseMode: parseHideSeekMode,
+    modeId: hideSeekModeId,
+    matchPreset: matchHideSeekPreset,
+    prefKey: LAST_MODE_PREF,
+    // Fewer tiles allow fewer simultaneous hidden numbers
+    normalize: (values) => {
+      const max = maxHideBatchForTiles(values.tiles);
+      if (values.hideBatch <= max) return values;
+      return { ...values, hideBatch: hideBatchOptions.filter((n) => n <= max).pop() ?? hideBatchOptions[0] };
     },
-  };
+    canStep: (field, step, values) => {
+      if (field.key !== 'hideBatch' || step < 0) return true;
+      const next = field.options[field.options.indexOf(values.hideBatch) + 1];
+      return next === undefined || next <= maxHideBatchForTiles(values.tiles);
+    },
+  });
 }
 
 /* ============================================================================

@@ -1,0 +1,222 @@
+/* ==========================================================================
+   SHARED SETUP SCREEN (js/core/setup-screen.js)
+   Difficulty presets + stepper fields + start button. A game may set
+   --setup-accent / --setup-accent-soft on its `.game-<id>` root to tint it.
+   ========================================================================== */
+.game-root.setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+.setup__head {
+  text-align: center;
+}
+
+.setup__title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 2.2vw, 1.7rem);
+  font-weight: 800;
+}
+
+.setup__sub {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  word-break: keep-all;
+}
+
+.setup__sub b {
+  color: var(--setup-accent, var(--btn-primary));
+}
+
+.setup__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 18px;
+  width: 100%;
+}
+
+/* --- solo / party switch --- */
+.setup-playmode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: min(100%, 720px);
+}
+
+.setup-playmode__btn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-soft);
+  text-align: left;
+}
+
+.setup-playmode__btn.is-active {
+  border-color: var(--setup-accent, var(--btn-primary));
+  background: var(--setup-accent-soft, rgba(37, 99, 235, 0.09));
+  box-shadow: inset 0 0 0 1px var(--setup-accent, var(--btn-primary));
+}
+
+.setup-playmode__title {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.setup-playmode__desc {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+/* --- presets --- */
+.setup-presets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.setup-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-deep);
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.setup-preset.is-active {
+  border-color: var(--setup-accent, var(--btn-primary));
+  background: var(--setup-accent-soft, rgba(37, 99, 235, 0.09));
+  box-shadow: inset 0 0 0 1px var(--setup-accent, var(--btn-primary));
+}
+
+.setup-preset__name {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.setup-preset--easy .setup-preset__name { color: var(--neon-emerald); }
+.setup-preset--medium .setup-preset__name { color: var(--neon-cyan); }
+.setup-preset--hard .setup-preset__name { color: var(--neon-gold); }
+.setup-preset--extreme .setup-preset__name { color: #d9692c; }
+.setup-preset--insane .setup-preset__name { color: var(--neon-crimson); }
+.setup-preset--god .setup-preset__name { color: var(--neon-violet); }
+
+.setup-preset__ko {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.setup-preset__meta {
+  color: var(--text-muted);
+  font-size: 0.76rem;
+}
+
+/* --- fields --- */
+.setup-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-soft);
+}
+
+.setup-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.setup-field.is-disabled {
+  opacity: 0.45;
+}
+
+.setup-field__label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.setup-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.setup-stepper__btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-deep);
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.setup-stepper__btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.setup-stepper__value {
+  min-width: 64px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-align: center;
+}
+
+.setup-summary {
+  margin: 4px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  color: var(--setup-accent, var(--btn-primary));
+  font-size: 0.85rem;
+  word-break: keep-all;
+}
+
+.setup__start {
+  min-width: 240px;
+  padding: 14px 28px;
+  border-radius: var(--radius-pill);
+  background: var(--btn-primary);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+@media (max-width: 899px) {
+  .game-root.setup {
+    height: auto;
+    min-height: 100%;
+  }
+  .setup__body {
+    grid-template-columns: 1fr;
+  }
+  .setup-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .setup-playmode {
+    grid-template-columns: 1fr;
+  }
+}
