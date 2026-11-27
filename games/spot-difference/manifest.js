@@ -6,7 +6,7 @@ export default {
   title: '틀린그림찾기',
   accent: 'magenta',
   tag: '매의 눈',
-  players: 'solo',
+  players: 'both',
   timeHint: '75~90초',
   summary: '카페 20장 조합·캠프 2종',
   defaultMode: SPOT_PICK_MODE,

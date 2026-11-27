@@ -130,6 +130,39 @@ await page.click('[data-view="start"] [data-level="easy"]');
 await page.waitForSelector('[data-sd-canvas="orig"]');
 out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode') && /-easy$/.test(quickMode1) ? quickMode1 : `mismatch ${quickMode1}`;
 
+/* ---------- 틀린그림찾기 다같이(기억해서 찾기): 기본 60초 외우기 → 중간 시작 → 1장 변형 그림에서 찾기 ---------- */
+{
+  await page.goto(`${base}/?seed=${SEED}`);
+  await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
+  await page.click('[data-play-mode="party"]');
+  await page.click('[data-view="start"] [data-level="easy"]');
+  await page.waitForSelector('[data-sd-party-skip]');
+  const partyUrl = new URL(page.url()).searchParams.get('mode');
+  await page.waitForFunction(() => document.querySelectorAll('[data-sd-loading]').length === 0);
+  const memorizeState = await page.evaluate(() => {
+    const origVis = getComputedStyle(document.querySelector('[data-sd-card="orig"]')).display !== 'none';
+    const modHidden = getComputedStyle(document.querySelector('[data-sd-card="mod"]')).display === 'none';
+    const timer = document.querySelector('.pm-timer')?.textContent?.trim();
+    return { origVis, modHidden, timer };
+  });
+  await page.click('[data-sd-party-skip]');
+  const findState = await page.evaluate(() => ({
+    origHidden: getComputedStyle(document.querySelector('[data-sd-card="orig"]')).display === 'none',
+    modVis: getComputedStyle(document.querySelector('[data-sd-card="mod"]')).display !== 'none',
+  }));
+  out.spotPartyMemory = {
+    ok: /-easy-party-60$/.test(partyUrl || '')
+      && memorizeState.origVis
+      && memorizeState.modHidden
+      && /^0[01]:\d{2}$/.test(memorizeState.timer || '')
+      && findState.origHidden
+      && findState.modVis,
+    partyUrl,
+    memorizeState,
+    findState,
+  };
+}
+
 /* ---------- 도블 스피드 매치: projective plane math + KRRI/KTX + setup → full play + result buttons ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
 await page.waitForSelector('.game-card');
@@ -142,11 +175,11 @@ out.compactCards = await page.evaluate(() => {
   const noOldText = !document.querySelector('.game-card__sub-en, .game-card__hook');
   const titlesInBody = document.querySelectorAll('.game-card__body .game-card__pb-bar .game-card__title').length === 8;
   const summaries = document.querySelectorAll('.game-card__pb-bar .game-card__summary').length === 8;
-  const soloOnly = ['spot-difference', 'dobble', 'memory-match', 'hide-seek'].every((id) => {
+  const soloOnly = ['dobble', 'memory-match', 'hide-seek'].every((id) => {
     const c = document.querySelector(`.game-card[data-game-id="${id}"]`);
     return c?.querySelector('[data-player-icon="solo"]') && !c?.querySelector('[data-player-icon="group"]');
   });
-  const bothModes = ['flash-anzan', 'color-trap', 'pixel-reveal', 'flash-count'].every((id) => {
+  const bothModes = ['spot-difference', 'flash-anzan', 'color-trap', 'pixel-reveal', 'flash-count'].every((id) => {
     const c = document.querySelector(`.game-card[data-game-id="${id}"]`);
     return c?.querySelector('[data-player-icon="solo"]') && c?.querySelector('[data-player-icon="group"]');
   });
@@ -588,6 +621,7 @@ if (!out.countdownShown) failures.push('no start countdown');
 if (!/^성공 · 🧮 5\/5 정답/.test(out.anzan || '')) failures.push(`flash anzan: ${out.anzan}`);
 if (out.spotCardHasSelect || out.pickerCards !== 2 || !out.pickerExitNoConfirm) failures.push('spot picker flow');
 if (!out.spotCafeEasyExact) failures.push('spot cafe-easy 1:1 visual/logic match');
+if (!out.spotPartyMemory?.ok) failures.push(`spot party memory mode: ${JSON.stringify(out.spotPartyMemory)}`);
 if (!out.dobbleMathValid || !cleared(out.dobble)) failures.push(`dobble: ${out.dobbleMathValid} / ${out.dobble}`);
 if (!out.noInviteCopyBtn || !out.heroToolsInBanner || !out.compactCards) failures.push('lobby hero tools / compact cards');
 if (!out.mobileHudNoOverlap?.ok) failures.push(`mobile HUD overlap or icons: ${JSON.stringify(out.mobileHudNoOverlap)}`);

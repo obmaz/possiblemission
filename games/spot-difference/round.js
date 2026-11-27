@@ -31,13 +31,16 @@ export const PHOTO_STAGES = {
 export function parseModeConfig(mode) {
   const parsed = parseSpotMode(mode);
   if (!parsed) return null;
-  const { stage, difficulty } = parsed;
+  const { stage, difficulty, party, memorizeSec } = parsed;
+  const baseLabel = `${stage.shortKo} · ${difficulty.label}`;
   return {
     stage,
     difficulty,
+    party,
+    memorizeSec,
     targetCount: difficulty.count,
     timeLimitSec: difficulty.timeSec,
-    modeLabel: `${stage.shortKo} · ${difficulty.label}`,
+    modeLabel: party ? `${baseLabel} · 다같이(${memorizeSec}초)` : baseLabel,
   };
 }
 

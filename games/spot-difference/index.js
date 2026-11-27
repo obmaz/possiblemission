@@ -30,17 +30,19 @@ const MAX_HINTS = 2;
 export function mount(container, ctx) {
   const config = parseModeConfig(ctx.mode);
   if (!config) return mountPicker(container, ctx);
-  const { stage, difficulty, targetCount, timeLimitSec, modeLabel } = config;
+  const { stage, difficulty, party, memorizeSec, targetCount, timeLimitSec, modeLabel } = config;
   const roundData = resolveRoundData(ctx.rng, stage, targetCount, difficulty.id);
   const anomalies = roundData.anomalies;
 
   let unmounted = false;
   let isPaused = false;
   let finished = false;
+  let partyPhase = party ? 'memorize' : 'find';
+  let memorizeRemainingSec = party ? memorizeSec : 0;
   let remainingSec = timeLimitSec;
   let activePlayMs = 0;
   let lastFrameMs = performance.now();
-  let lastTickWholeSec = Math.ceil(timeLimitSec);
+  let lastTickWholeSec = Math.ceil(party ? memorizeSec : timeLimitSec);
 
   let foundCount = 0;
   let wrongTaps = 0;
@@ -78,7 +80,7 @@ export function mount(container, ctx) {
 
   // Render Scoped DOM
   const root = document.createElement('div');
-  root.className = 'game-root game-spot-difference';
+  root.className = `game-root game-spot-difference${party ? ' is-party' : ''}`;
   root.innerHTML = `
     <div class="sd-toolbar">
       <div class="sd-toolbar__left">
@@ -86,6 +88,7 @@ export function mount(container, ctx) {
           <span>${stage.titleKo}</span>
           <span class="sd-stage-badge__sub">${difficulty.label}</span>
           <span class="sd-stage-badge__sub">${targetCount}곳</span>
+          ${party ? '<span class="sd-stage-badge__sub">다같이</span>' : ''}
         </span>
         <div class="sd-counter" aria-label="발견한 차이점 개수">
           <span class="sd-counter__text" data-sd-count>0 / ${targetCount}</span>
@@ -117,7 +120,15 @@ export function mount(container, ctx) {
       </div>
     </div>
 
-    <div class="sd-arena" data-sd-arena data-mobile-view="both">
+    <div class="sd-party-banner" data-sd-party-banner ${party ? '' : 'hidden'}>
+      <div class="sd-party-banner__info">
+        <span class="sd-party-banner__badge">기억하기 단계</span>
+        <span>원래 그림을 잘 기억하세요! 시간이 끝나거나 버튼을 누르면 바뀐 그림에서 찾기가 시작됩니다.</span>
+      </div>
+      <button type="button" class="sd-party-skip-btn" data-sd-party-skip>지금 바로 찾기 시작 →</button>
+    </div>
+
+    <div class="sd-arena" data-sd-arena data-mobile-view="both" ${party ? 'data-party-phase="memorize"' : ''}>
       <section class="sd-board-card sd-board-card--orig" data-sd-card="orig">
         <header class="sd-board-header">
           <span class="sd-board-label">
@@ -149,7 +160,7 @@ export function mount(container, ctx) {
 
     <div class="sd-footer">
       <div class="sd-callout" data-sd-callout data-tone="info">
-        <span>👀 좌우 그림에서 다른 부분 ${targetCount}곳을 터치하세요! (어느 쪽을 눌러도 인정)</span>
+        <span>${party ? '👀 먼저 원래 그림을 잘 기억해 두세요! (중간에 바로 시작 가능)' : `👀 좌우 그림에서 다른 부분 ${targetCount}곳을 터치하세요! (어느 쪽을 눌러도 인정)`}</span>
       </div>
       <span class="sd-shortcuts">단축키: [H] 힌트 · [M] 돋보기 · 캔버스에서 [Enter] 힌트</span>
     </div>
@@ -167,6 +178,8 @@ export function mount(container, ctx) {
   const origCard = root.querySelector('[data-sd-card="orig"]');
   const modCard = root.querySelector('[data-sd-card="mod"]');
   const arenaEl = root.querySelector('[data-sd-arena]');
+  const partyBannerEl = root.querySelector('[data-sd-party-banner]');
+  const partySkipBtn = root.querySelector('[data-sd-party-skip]');
   const countEl = root.querySelector('[data-sd-count]');
   const setTimer = bindClock(root.querySelector('[data-pm-timer]'));
   const setScore = bindScore(root.querySelector('[data-pm-score]'));
@@ -201,8 +214,23 @@ export function mount(container, ctx) {
   }
 
   function syncStatus() {
-    setTimer(remainingSec);
+    setTimer(partyPhase === 'memorize' ? memorizeRemainingSec : remainingSec);
     setScore(computeScore());
+  }
+
+  function enterFindPhase() {
+    if (partyPhase === 'find' || finished || unmounted) return;
+    partyPhase = 'find';
+    if (arenaEl) arenaEl.dataset.partyPhase = 'find';
+    if (partyBannerEl) partyBannerEl.hidden = true;
+    hideLoupes();
+    remainingSec = timeLimitSec;
+    lastTickWholeSec = Math.ceil(timeLimitSec);
+    ctx.audio.playClick();
+    setCallout(`🔍 기억을 떠올려 바뀐 그림에서 다른 곳 ${targetCount}곳을 찾으세요!`, 'info');
+    syncStatus();
+    updateHintBtn();
+    markDirty();
   }
 
   function setCallout(text, tone = 'info') {
@@ -232,7 +260,7 @@ export function mount(container, ctx) {
     if (!hintBtn) return;
     const rem = Math.max(0, MAX_HINTS - hintsUsed);
     hintBtn.textContent = `💡 힌트 (${rem})`;
-    hintBtn.disabled = rem === 0 || finished;
+    hintBtn.disabled = partyPhase === 'memorize' || rem === 0 || finished;
   }
 
   function clearHintedDots() {
@@ -381,7 +409,7 @@ export function mount(container, ctx) {
   }
 
   function handleCanvasTap(side, clientX, clientY, pointerType) {
-    if (!imageReady || isPaused || finished) return;
+    if (!imageReady || isPaused || finished || partyPhase === 'memorize') return;
     const now = performance.now();
     if (now < cooldownUntilMs) return;
 
@@ -478,7 +506,7 @@ export function mount(container, ctx) {
   }
 
   function triggerHint() {
-    if (!imageReady || isPaused || finished) return;
+    if (!imageReady || isPaused || finished || partyPhase === 'memorize') return;
     if (hintsUsed >= MAX_HINTS) {
       ctx.ui.showToast('힌트를 모두 사용했습니다!', 'warn', 1600);
       return;
@@ -584,22 +612,37 @@ export function mount(container, ctx) {
     lastFrameMs = nowMs;
 
     if (imageReady && !isPaused && !finished) {
-      activePlayMs += dtMs;
-      remainingSec = Math.max(0, remainingSec - dtMs / 1000);
-
-      const wholeSec = Math.ceil(remainingSec);
-      if (wholeSec !== lastTickWholeSec) {
-        lastTickWholeSec = wholeSec;
-        if (wholeSec > 0 && wholeSec <= 10) {
-          ctx.audio.playTick();
+      if (partyPhase === 'memorize') {
+        memorizeRemainingSec = Math.max(0, memorizeRemainingSec - dtMs / 1000);
+        const wholeSec = Math.ceil(memorizeRemainingSec);
+        if (wholeSec !== lastTickWholeSec) {
+          lastTickWholeSec = wholeSec;
+          if (wholeSec > 0 && wholeSec <= 5) {
+            ctx.audio.playTick();
+          }
         }
-      }
+        syncStatus();
+        if (memorizeRemainingSec <= 0) {
+          enterFindPhase();
+        }
+      } else {
+        activePlayMs += dtMs;
+        remainingSec = Math.max(0, remainingSec - dtMs / 1000);
 
-      syncStatus();
+        const wholeSec = Math.ceil(remainingSec);
+        if (wholeSec !== lastTickWholeSec) {
+          lastTickWholeSec = wholeSec;
+          if (wholeSec > 0 && wholeSec <= 10) {
+            ctx.audio.playTick();
+          }
+        }
 
-      if (remainingSec <= 0) {
-        finishGame(false);
-        if (unmounted) return;
+        syncStatus();
+
+        if (remainingSec <= 0) {
+          finishGame(false);
+          if (unmounted) return;
+        }
       }
     }
 
@@ -750,8 +793,12 @@ export function mount(container, ctx) {
     ctx.audio.playClick();
     toggleLoupe();
   };
+  const onPartySkipClick = () => {
+    enterFindPhase();
+  };
   hintBtn?.addEventListener('click', onHintClick);
   loupeBtn?.addEventListener('click', onLoupeClick);
+  partySkipBtn?.addEventListener('click', onPartySkipClick);
 
   const viewTabCleanups = viewTabEls.map((btn) => {
     const handler = () => {
@@ -883,6 +930,7 @@ export function mount(container, ctx) {
       detachMod();
       hintBtn?.removeEventListener('click', onHintClick);
       loupeBtn?.removeEventListener('click', onLoupeClick);
+      partySkipBtn?.removeEventListener('click', onPartySkipClick);
       viewTabCleanups.forEach((fn) => fn());
       window.removeEventListener('keydown', onKeyDown);
       offPause();

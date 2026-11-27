@@ -712,3 +712,156 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* === Party (Memory Spot) Picker & Single-Board Phases ====================== */
+.game-spot-difference .sd-picker__mode-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 460px);
+}
+
+.game-spot-difference .sd-play-mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  padding: 5px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-soft);
+  border: 1px solid var(--border-subtle);
+}
+
+.game-spot-difference .sd-play-mode__btn {
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-md) - 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-spot-difference .sd-play-mode__btn.is-active {
+  background: var(--bg-surface-deep);
+  border-color: var(--sd-accent);
+  color: var(--sd-accent);
+}
+
+.game-spot-difference .sd-memorize-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-soft);
+  border: 1px solid var(--border-subtle);
+}
+
+.game-spot-difference .sd-memorize-bar[hidden] {
+  display: none;
+}
+
+.game-spot-difference .sd-memorize-bar__label {
+  font-size: var(--text-caption);
+  font-weight: 800;
+  color: var(--text-muted);
+}
+
+.game-spot-difference .sd-memorize-bar__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.game-spot-difference .sd-mem-chip {
+  min-height: 34px;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface-deep);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-spot-difference .sd-mem-chip.is-active {
+  border-color: var(--sd-accent);
+  background: rgba(236, 106, 160, 0.14);
+  color: var(--sd-accent);
+}
+
+.game-spot-difference.is-party .sd-view-tabs {
+  display: none;
+}
+
+.game-spot-difference .sd-party-banner {
+  width: 100%;
+  max-width: 1360px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 10px 16px;
+  border-radius: var(--radius-lg);
+  background: rgba(11, 132, 198, 0.08);
+  border: 1px solid rgba(11, 132, 198, 0.28);
+}
+
+.game-spot-difference .sd-party-banner[hidden] {
+  display: none;
+}
+
+.game-spot-difference .sd-party-banner__info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.game-spot-difference .sd-party-banner__badge {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--sd-cyan);
+  color: #ffffff;
+  font-size: var(--text-caption);
+  font-weight: 800;
+}
+
+.game-spot-difference .sd-party-skip-btn {
+  min-height: 44px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--btn-primary);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.game-spot-difference .sd-arena[data-party-phase='memorize'],
+.game-spot-difference .sd-arena[data-party-phase='find'] {
+  grid-template-columns: minmax(0, min(860px, 100%));
+  justify-content: center;
+}
+
+.game-spot-difference .sd-arena[data-party-phase='memorize'] .sd-board-card--mod,
+.game-spot-difference .sd-arena[data-party-phase='find'] .sd-board-card--orig {
+  display: none;
+}
