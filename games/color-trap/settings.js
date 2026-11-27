@@ -31,7 +31,6 @@ COLOR_TRAP_FIELDS[2].options = [45, 55, 60, 75, 90];
 
 export const COLOR_TRAP_DEFAULT_PRESET = 'medium';
 
-const KEYS = COLOR_TRAP_FIELDS.map((f) => f.key);
 
 export function matchColorTrapPreset(values) {
   return (

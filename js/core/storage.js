@@ -1,67 +1,56 @@
 /**
- * LocalStorage persistence layer with safe try/catch and in-memory fallback.
- * All keys are prefixed with `pm_arcade_v1_`.
+ * LocalStorage persistence with an in-memory fallback (private browsing, sandboxed WebViews).
+ * Keys are prefixed with `pm_arcade_v1_`.
  */
 
 const PREFIX = 'pm_arcade_v1_';
 const KEYS = {
   profile: `${PREFIX}profile`,
-  pb: `${PREFIX}pb`,
-  runs: `${PREFIX}runs`,
+  bests: `${PREFIX}pb`,
   seeds: `${PREFIX}seeds`,
   muted: `${PREFIX}muted`,
 };
 
-const MAX_RUNS = 200;
 const MAX_SEEDS = 10;
+const DEFAULT_SEED = 'MISSION-1';
+const DEFAULT_NICKNAME = '익명요원';
+const NICKNAME_MAX = 12;
+const TEAM_MAX = 10;
+
 const memoryFallback = new Map();
 
 function readRaw(key) {
   try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      return window.localStorage.getItem(key);
-    }
+    const value = window.localStorage.getItem(key);
+    if (value !== null) return value;
   } catch {
-    // Ignore storage access errors (private browsing / sandboxed WebView)
+    // Storage can be blocked entirely
   }
-  return memoryFallback.has(key) ? memoryFallback.get(key) : null;
+  return memoryFallback.get(key) ?? null;
 }
 
 function writeRaw(key, value) {
   memoryFallback.set(key, value);
   try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(key, value);
-    }
+    window.localStorage.setItem(key, value);
   } catch {
-    // Ignore quota or storage restriction errors
+    // Quota exceeded or storage blocked: the in-memory copy still serves this session
   }
 }
 
 function readJson(key, fallback) {
-  const raw = readRaw(key);
-  if (!raw) return fallback;
   try {
-    const parsed = JSON.parse(raw);
-    return parsed ?? fallback;
+    return JSON.parse(readRaw(key)) ?? fallback;
   } catch {
     return fallback;
   }
 }
 
-function writeJson(key, value) {
-  try {
-    writeRaw(key, JSON.stringify(value));
-  } catch {
-    // Ignore serialization errors
-  }
-}
+const writeJson = (key, value) => writeRaw(key, JSON.stringify(value));
 
-/**
- * Normalizes a room seed string to uppercase `[A-Z0-9-_]`, max 16 chars.
- * @param {string} rawSeed
- * @returns {string}
- */
+const plainObject = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
+
+/** Normalizes a room seed to uppercase `[A-Z0-9-_]`, at most 16 characters. */
 export function normalizeSeed(rawSeed) {
   const cleaned = String(rawSeed ?? '')
     .trim()
@@ -69,172 +58,64 @@ export function normalizeSeed(rawSeed) {
     .replace(/\s+/g, '-')
     .replace(/[^A-Z0-9-_]/g, '')
     .slice(0, 16);
-  return cleaned || 'MISSION-1';
+  return cleaned || DEFAULT_SEED;
 }
 
-/**
- * @returns {{ nickname: string, team: string }}
- */
+/** @returns {{ nickname: string, team: string }} */
 export function getProfile() {
-  const data = readJson(KEYS.profile, null);
-  if (!data || typeof data !== 'object') {
-    return { nickname: '익명요원', team: '' };
-  }
-  const nickname = String(data.nickname ?? '').trim().slice(0, 12) || '익명요원';
-  const team = String(data.team ?? '').trim().slice(0, 10);
-  return { nickname, team };
+  const data = plainObject(readJson(KEYS.profile, null));
+  return {
+    nickname: String(data.nickname ?? '').trim().slice(0, NICKNAME_MAX) || DEFAULT_NICKNAME,
+    team: String(data.team ?? '').trim().slice(0, TEAM_MAX),
+  };
 }
 
-/**
- * @param {{ nickname?: string, team?: string }} profile
- * @returns {{ nickname: string, team: string }}
- */
+/** Saves the fields that are given and returns the resulting profile. */
 export function saveProfile({ nickname, team } = {}) {
   const current = getProfile();
-  const cleanNick = nickname !== undefined
-    ? (String(nickname).trim().slice(0, 12) || '익명요원')
-    : current.nickname;
-  const cleanTeam = team !== undefined
-    ? String(team).trim().slice(0, 10)
-    : current.team;
-  const saved = { nickname: cleanNick, team: cleanTeam };
+  const saved = {
+    nickname: nickname === undefined ? current.nickname : String(nickname).trim().slice(0, NICKNAME_MAX) || DEFAULT_NICKNAME,
+    team: team === undefined ? current.team : String(team).trim().slice(0, TEAM_MAX),
+  };
   writeJson(KEYS.profile, saved);
   return saved;
 }
 
 /**
- * @returns {Record<string, Record<string, object>>}
+ * Records a finished run and keeps the personal best per game + mode. Only cleared runs can
+ * set a best (a failed attempt never shows a "new record"); a tie is broken by the faster time.
+ * @param {{ gameId: string, mode: string, score: number, timeMs: number, cleared: boolean }} run
+ * @returns {{ isNewRecord: boolean }}
  */
-function getAllPersonalBests() {
-  const data = readJson(KEYS.pb, {});
-  return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
-}
-
-/**
- * Records a completed game run and updates personal best if beaten.
- * @param {object} runEntry
- * @returns {{ isNewRecord: boolean, personalBest: object, entry: object }}
- */
-export function recordRun(runEntry) {
-  const profile = getProfile();
-  const timestamp = Number.isFinite(runEntry.timestamp) ? runEntry.timestamp : Date.now();
-  const entry = {
-    gameId: String(runEntry.gameId || ''),
-    mode: String(runEntry.mode || 'standard'),
-    modeLabel: String(runEntry.modeLabel || runEntry.mode || ''),
-    seed: normalizeSeed(runEntry.seed),
-    nickname: String(runEntry.nickname || profile.nickname).trim().slice(0, 12) || '익명요원',
-    team: String(runEntry.team ?? profile.team).trim().slice(0, 10),
-    score: Math.max(0, Math.round(Number(runEntry.score) || 0)),
-    timeMs: Math.max(0, Math.round(Number(runEntry.timeMs) || 0)),
-    accuracy: Math.max(0, Math.min(100, Math.round(Number(runEntry.accuracy) || 0))),
-    grade: String(runEntry.grade || 'C'),
-    cleared: runEntry.cleared !== false,
-    timestamp,
-  };
-
-  // Append to runs list (capped at latest 200)
-  const existingRuns = readJson(KEYS.runs, []);
-  const runs = Array.isArray(existingRuns) ? existingRuns : [];
-  runs.unshift(entry);
-  if (runs.length > MAX_RUNS) {
-    runs.length = MAX_RUNS;
-  }
-  writeJson(KEYS.runs, runs);
-
-  // Update Personal Best per gameId + mode
-  const allPb = getAllPersonalBests();
-  if (!allPb[entry.gameId] || typeof allPb[entry.gameId] !== 'object') {
-    allPb[entry.gameId] = {};
-  }
-  const prev = allPb[entry.gameId][entry.mode] || null;
-  // Only cleared runs can own a personal best, so a failed attempt never shows up
-  // as "BEST 0 (C)" in the lobby or as a misleading NEW RECORD! banner.
-  const isNewRecord =
-    entry.cleared &&
-    (!prev ||
-      prev.cleared === false ||
-      entry.score > prev.score ||
-      (entry.score === prev.score && entry.timeMs < prev.timeMs));
-
-  let personalBest = prev;
+export function recordRun({ gameId, mode, score, timeMs, cleared }) {
+  const bests = plainObject(readJson(KEYS.bests, {}));
+  const forGame = plainObject(bests[gameId]);
+  const prev = forGame[mode];
+  const isNewRecord = Boolean(cleared) && (!prev || score > prev.score || (score === prev.score && timeMs < prev.timeMs));
   if (isNewRecord) {
-    personalBest = {
-      score: entry.score,
-      timeMs: entry.timeMs,
-      accuracy: entry.accuracy,
-      grade: entry.grade,
-      seed: entry.seed,
-      cleared: true,
-      updatedAt: timestamp,
-    };
-    allPb[entry.gameId][entry.mode] = personalBest;
-    writeJson(KEYS.pb, allPb);
+    bests[gameId] = { ...forGame, [mode]: { score, timeMs } };
+    writeJson(KEYS.bests, bests);
   }
-
-  return { isNewRecord, personalBest, entry };
+  return { isNewRecord };
 }
 
-/**
- * @returns {string[]}
- */
+/** Recently used room seeds, newest first. */
 export function getSeedHistory() {
   const raw = readJson(KEYS.seeds, []);
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((entry) => (typeof entry === 'string' ? entry : entry?.seed))
-    .filter(Boolean);
+  return Array.isArray(raw) ? raw.map((entry) => (typeof entry === 'string' ? entry : entry?.seed)).filter(Boolean) : [];
 }
 
-/**
- * @param {string} seed
- * @returns {string[]}
- */
 export function addSeedHistory(seed) {
   const clean = normalizeSeed(seed);
-  const raw = readJson(KEYS.seeds, []);
-  const list = Array.isArray(raw) ? raw : [];
-  const filtered = list.filter((entry) => {
-    const val = typeof entry === 'string' ? entry : entry?.seed;
-    return val && val !== clean;
-  });
-  filtered.unshift({ seed: clean, lastUsedAt: Date.now() });
-  if (filtered.length > MAX_SEEDS) {
-    filtered.length = MAX_SEEDS;
-  }
-  writeJson(KEYS.seeds, filtered);
-  return filtered.map((e) => e.seed);
+  const others = getSeedHistory().filter((s) => s !== clean);
+  writeJson(KEYS.seeds, [clean, ...others].slice(0, MAX_SEEDS));
 }
 
-/**
- * @returns {boolean}
- */
-export function getMuted() {
-  return readRaw(KEYS.muted) === '1';
-}
+export const getMuted = () => readRaw(KEYS.muted) === '1';
 
-/**
- * @param {boolean} muted
- */
-export function setMutedFlag(muted) {
-  writeRaw(KEYS.muted, muted ? '1' : '0');
-}
+export const setMutedFlag = (muted) => writeRaw(KEYS.muted, muted ? '1' : '0');
 
-/**
- * Small per-device preferences (e.g. the last 숫자 숨바꼭질 settings).
- * @param {string} key
- * @param {string} [fallback='']
- * @returns {string}
- */
-export function getPref(key, fallback = '') {
-  const value = readRaw(`${PREFIX}pref_${key}`);
-  return value === null ? fallback : value;
-}
+/** Small per-device preference (e.g. the last difficulty chosen in a game). */
+export const getPref = (key, fallback = '') => readRaw(`${PREFIX}pref_${key}`) ?? fallback;
 
-/**
- * @param {string} key
- * @param {string} value
- */
-export function setPref(key, value) {
-  writeRaw(`${PREFIX}pref_${key}`, String(value));
-}
+export const setPref = (key, value) => writeRaw(`${PREFIX}pref_${key}`, String(value));

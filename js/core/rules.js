@@ -1,6 +1,6 @@
 /**
- * Cross-game fairness rules (DESIGN_SPEC §5). Every mini-game imports these so a
- * tuning change applies to all games at once instead of drifting per file.
+ * Cross-game fairness rules. Games import these so one tuning change applies everywhere
+ * instead of drifting per file.
  */
 
 /** Input lock after a wrong click/tap/key, so spam-clicking can't brute-force answers. */

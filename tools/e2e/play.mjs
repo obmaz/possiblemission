@@ -52,7 +52,7 @@ for (const stageId of stages) {
   const mode = new URL(page.url()).searchParams.get('mode');
   const targets = await page.evaluate(async ({ seed, mode }) => {
     const { createRng } = await import('/js/core/seed.js');
-    const m = await import('/games/spot-difference/index.js');
+    const m = await import('/games/spot-difference/round.js');
     const cfg = m.parseModeConfig(mode);
     const rng = createRng(`${seed}::spot-difference::${mode}`);
     return m.resolveRoundData(rng, cfg.stage, cfg.targetCount, cfg.difficulty.id).anomalies.map((a) => ({ x: a.x, y: a.y, label: a.label }));
@@ -78,7 +78,7 @@ for (const stageId of stages) {
   const mode = new URL(page.url()).searchParams.get('mode');
   const check = await page.evaluate(async ({ seed, mode }) => {
     const { createRng } = await import('/js/core/seed.js');
-    const m = await import('/games/spot-difference/index.js');
+    const m = await import('/games/spot-difference/round.js');
     const cfg = m.parseModeConfig(mode);
     const rng = createRng(`${seed}::spot-difference::${mode}`);
     const anomalies = m.resolveRoundData(rng, cfg.stage, cfg.targetCount, cfg.difficulty.id).anomalies;
@@ -250,9 +250,9 @@ const hsMode = new URL(page.url()).searchParams.get('mode');
 out.hideSeekMode = hsMode;
 const plan = await page.evaluate(async ({ seed, mode }) => {
   const { createRng } = await import('/js/core/seed.js');
-  const { generateFortressRun } = await import('/games/hide-seek/index.js');
+  const { generateHideSeekRun } = await import('/games/hide-seek/index.js');
   const { parseHideSeekMode } = await import('/games/hide-seek/settings.js');
-  return generateFortressRun(createRng(`${seed}::hide-seek::${mode}`), parseHideSeekMode(mode)).targets.map((t) => t.letter);
+  return generateHideSeekRun(createRng(`${seed}::hide-seek::${mode}`), parseHideSeekMode(mode)).targets.map((t) => t.letter);
 }, { seed: SEED, mode: hsMode });
 const timerText = () => page.textContent('.pm-timer');
 const toSec = (t) => (t.includes(':') ? Number(t.split(':')[0]) * 60 + Number(t.split(':')[1]) : parseFloat(t));
@@ -281,13 +281,13 @@ out.hideSeekChangeDifficulty = Boolean(await page.waitForSelector('.setup', { ti
 // Same symbol → same number on every tile; GOD mixes Hangul
 out.hideSeekRules = await page.evaluate(async () => {
   const { createRng } = await import('/js/core/seed.js');
-  const { generateFortressRun } = await import('/games/hide-seek/index.js');
+  const { generateHideSeekRun } = await import('/games/hide-seek/index.js');
   const { parseHideSeekMode } = await import('/games/hide-seek/settings.js');
-  const run = generateFortressRun(createRng('X::hide-seek::god'), parseHideSeekMode('god'));
+  const run = generateHideSeekRun(createRng('X::hide-seek::god'), parseHideSeekMode('god'));
   const map = new Map();
   const consistent = run.tiles.every((t) => (map.has(t.letter) ? map.get(t.letter) === t.number : (map.set(t.letter, t.number), true)));
   const hangul = run.tiles.some((t) => /[가-힣]/.test(t.letter));
-  const easy = generateFortressRun(createRng('X::hide-seek::easy'), parseHideSeekMode('easy'));
+  const easy = generateHideSeekRun(createRng('X::hide-seek::easy'), parseHideSeekMode('easy'));
   const noHangulOnEasy = easy.tiles.every((t) => /[A-Z]/.test(t.letter));
   const { tilePeekAt } = await import('/games/hide-seek/index.js');
   const godCfg = parseHideSeekMode('god');
@@ -307,11 +307,11 @@ out.hideSeekRemembersLast = (await page.textContent('[data-field="revealSec"] [d
 out.deterministic = await page.evaluate(async () => {
   const { createRng } = await import('/js/core/seed.js');
   const df = await import('/games/hide-seek/index.js');
-  const sd = await import('/games/spot-difference/index.js');
+  const sd = await import('/games/spot-difference/round.js');
   const { parseHideSeekMode } = await import('/games/hide-seek/settings.js');
   const god = parseHideSeekMode('god');
-  const a = JSON.stringify(df.generateFortressRun(createRng('X::hide-seek::god'), god));
-  const b = JSON.stringify(df.generateFortressRun(createRng('X::hide-seek::god'), god));
+  const a = JSON.stringify(df.generateHideSeekRun(createRng('X::hide-seek::god'), god));
+  const b = JSON.stringify(df.generateHideSeekRun(createRng('X::hide-seek::god'), god));
   const cfg = sd.parseModeConfig('cafe-hard');
   const pick = () => JSON.stringify(sd.resolveRoundData(createRng('X::spot-difference::cafe-hard'), cfg.stage, 9, 'hard').anomalies.map((s) => s.id));
   return a === b && pick() === pick();
@@ -321,11 +321,11 @@ out.deterministic = await page.evaluate(async () => {
 out.hideSeekWaveInvariant = await page.evaluate(async () => {
   const { createRng } = await import('/js/core/seed.js');
   const { HIDE_SEEK_PRESETS, parseHideSeekMode } = await import('/games/hide-seek/settings.js');
-  const { generateFortressRun, tilePeekAt } = await import('/games/hide-seek/index.js');
+  const { generateHideSeekRun, tilePeekAt } = await import('/games/hide-seek/index.js');
 
   for (const preset of HIDE_SEEK_PRESETS) {
     const settings = parseHideSeekMode(preset.id);
-    const wall = generateFortressRun(createRng(`WAVE-TEST::hide-seek::${preset.id}`), settings);
+    const wall = generateHideSeekRun(createRng(`WAVE-TEST::hide-seek::${preset.id}`), settings);
     const seenHiddenCount = new Array(wall.tiles.length).fill(0);
     const fullyVisibleCount = new Array(wall.tiles.length).fill(0);
 

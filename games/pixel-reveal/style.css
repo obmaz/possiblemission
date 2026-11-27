@@ -1,6 +1,5 @@
 /* ==========================================================================
    Game: 모자이크 줌아웃 (.game-pixel-reveal) — keyframes prefixed pr-
-   No hover or focus visual effects per user preference.
    ========================================================================== */
 
 .game-pixel-reveal {
@@ -24,113 +23,6 @@
   user-select: none;
   -webkit-user-select: none;
   overflow: hidden;
-}
-
-.game-pixel-reveal .pr-setup__head { text-align: center; }
-
-.game-pixel-reveal .pr-setup__title {
-  margin: 0 0 6px;
-  font-family: var(--font-display);
-  font-size: clamp(1.2rem, 2.2vw, 1.7rem);
-  font-weight: 800;
-}
-
-.game-pixel-reveal .pr-setup__sub {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  word-break: keep-all;
-}
-
-.game-pixel-reveal .pr-setup__sub b { color: var(--pr-accent); }
-
-.game-pixel-reveal .pr-playmode__btn {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-surface-soft);
-  text-align: left;
-  cursor: pointer;
-}
-
-.game-pixel-reveal .pr-playmode__btn.is-active {
-  border-color: var(--pr-accent);
-  background: rgba(123, 91, 214, 0.1);
-  box-shadow: inset 0 0 0 1px var(--pr-accent);
-}
-
-.game-pixel-reveal .pr-playmode__title { font-weight: 800; font-size: 0.95rem; }
-
-.game-pixel-reveal .pr-playmode__desc { font-size: 0.78rem; color: var(--text-muted); }
-
-.game-pixel-reveal .pr-setup__body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: start;
-  gap: 18px;
-  width: 100%;
-}
-
-.game-pixel-reveal .pr-preset__name {
-  font-family: var(--font-mono);
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-.game-pixel-reveal .pr-preset__ko { font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); }
-
-.game-pixel-reveal .pr-preset__meta { font-size: 0.76rem; color: var(--text-muted); }
-
-.game-pixel-reveal .pr-field__label {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.game-pixel-reveal .pr-stepper__btn {
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface-deep);
-  font-size: 1.1rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.game-pixel-reveal .pr-stepper__btn:disabled { opacity: 0.3; cursor: default; }
-
-.game-pixel-reveal .pr-stepper__value {
-  min-width: 96px;
-  font-family: var(--font-mono);
-  font-size: 0.88rem;
-  font-weight: 700;
-  text-align: center;
-}
-
-.game-pixel-reveal .pr-fields__summary {
-  margin: 4px 0 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-subtle);
-  color: var(--pr-accent);
-  font-size: 0.85rem;
-}
-
-.game-pixel-reveal .pr-setup__start {
-  min-width: 240px;
-  padding: 14px 28px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--btn-primary);
-  color: #ffffff;
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 800;
-  cursor: pointer;
 }
 
 /* === Active Board === */
@@ -322,8 +214,6 @@
 
 @media (max-width: 899px) {
   .game-pixel-reveal { height: auto; min-height: 100%; }
-
-  .game-pixel-reveal .pr-setup__body { grid-template-columns: 1fr; }
 
   .game-pixel-reveal .pr-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

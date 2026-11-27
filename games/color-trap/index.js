@@ -22,7 +22,7 @@ import {
 const LAST_MODE_PREF = 'colorTrapLastMode';
 const WRONG_PENALTY_SEC = 2.0;
 
-export const TRAP_COLORS = [
+const TRAP_COLORS = [
   { id: 'red', label: '빨강', hex: '#e11d48', soft: 'rgba(225, 29, 72, 0.12)' },
   { id: 'blue', label: '파랑', hex: '#2563eb', soft: 'rgba(37, 99, 235, 0.12)' },
   { id: 'green', label: '초록', hex: '#16a34a', soft: 'rgba(22, 163, 74, 0.12)' },
@@ -317,8 +317,6 @@ function mountGame(container, ctx, settings) {
   function finishGame(cleared) {
     if (finished || unmounted) return;
     finished = true;
-    const totalInputs = correctCount + wrongTaps;
-    const accuracy = isParty ? 100 : totalInputs > 0 ? Math.round((correctCount / totalInputs) * 100) : 0;
     const details = isParty
       ? [
           { value: `🎙️ ${roundIndex}/${totalRounds} 진행` },
@@ -333,7 +331,6 @@ function mountGame(container, ctx, settings) {
     ctx.completeGame({
       score: computeScore(),
       timeMs: Math.round(activePlayMs),
-      accuracy,
       cleared,
       modeLabel,
       details,

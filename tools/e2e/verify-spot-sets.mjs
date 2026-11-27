@@ -29,8 +29,8 @@ try {
   await page.goto(`${base}/?seed=VERIFY-SPOT`);
 
   const result = await page.evaluate(async () => {
-    const { SPOT_STAGES, SPOT_DIFFICULTIES } = await import('/games/spot-difference/stages.js');
-    const { PHOTO_SET_STAGES, PHOTO_STAGES, BASE_W, BASE_H, resolveRoundData } = await import('/games/spot-difference/index.js');
+    const { SPOT_STAGES, SPOT_DIFFICULTIES, BASE_W, BASE_H } = await import('/games/spot-difference/stages.js');
+    const { PHOTO_SET_STAGES, PHOTO_STAGES, resolveRoundData } = await import('/games/spot-difference/round.js');
     const { createRng } = await import('/js/core/seed.js');
 
     const maxRequiredCount = Math.max(...SPOT_DIFFICULTIES.map((d) => d.count));

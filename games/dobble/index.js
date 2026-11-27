@@ -116,7 +116,7 @@ export function generateDobbleRun(rng, settings) {
   );
   const symbolPool = shuffleSeeded(rng, [...featured, ...others].slice(0, rawDeck.length));
 
-  // Build shuffled card sequence so consecutive cards form rounds (like The Tower)
+  // Consecutive cards of one shuffled sequence form the rounds
   const deckIndices = shuffleSeeded(
     rng,
     Array.from({ length: rawDeck.length }, (_, i) => i)
@@ -390,12 +390,9 @@ function mountGame(container, ctx, settings) {
   function finishGame(cleared) {
     if (finished || unmounted) return;
     finished = true;
-    const totalInputs = roundIndex + wrongTaps;
-    const accuracy = totalInputs > 0 ? Math.round((roundIndex / totalInputs) * 100) : 0;
     ctx.completeGame({
       score: computeScore(),
       timeMs: Math.round(activePlayMs),
-      accuracy,
       cleared,
       modeLabel,
       details: [

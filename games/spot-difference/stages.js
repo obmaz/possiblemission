@@ -9,6 +9,10 @@
 
 export const SPOT_PICK_MODE = 'pick';
 
+/** Every picture is authored at this size; anomaly coordinates are normalized to it. */
+export const BASE_W = 1200;
+export const BASE_H = 896;
+
 /** Resolves a file under this game's `assets/` folder to an absolute URL. */
 export const spotAsset = (path) => new URL(`./assets/${path}`, import.meta.url).href;
 

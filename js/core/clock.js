@@ -11,7 +11,7 @@ const DANGER_SEC = 7;
  * @param {number} seconds
  * @returns {{ text: string, state: 'normal' | 'warn' | 'danger' }}
  */
-export function formatClock(seconds) {
+function formatClock(seconds) {
   const sec = Math.max(0, Number(seconds) || 0);
   const state = sec <= DANGER_SEC ? 'danger' : sec <= WARN_SEC ? 'warn' : 'normal';
   if (sec < 10) return { text: `${sec.toFixed(1)}s`, state };

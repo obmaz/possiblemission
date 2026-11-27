@@ -8,7 +8,7 @@
  * @param {string} str
  * @returns {number} Unsigned 32-bit integer
  */
-export function hashSeed(str) {
+function hashSeed(str) {
   const input = String(str ?? '');
   let hash = 0x811c9dc5; // 2166136261
   for (let i = 0; i < input.length; i += 1) {

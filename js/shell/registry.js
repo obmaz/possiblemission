@@ -40,7 +40,7 @@ export async function loadGames() {
   return listGames();
 }
 
-export function listGames() {
+function listGames() {
   return GAME_IDS.map((id) => gamesById.get(id)).filter(Boolean);
 }
 

@@ -80,7 +80,7 @@ export function parseHideSeekMode(mode) {
   return valid ? { ...settings, presetId: null } : null;
 }
 
-/** Short Korean label for HUD / records, e.g. "HARD" or "커스텀 60타일". */
+/** Short Korean label for the top bar and records, e.g. "HARD" or "커스텀 60타일". */
 export function hideSeekModeLabel(mode) {
   if (mode === HIDE_SEEK_SETUP_MODE) return '난이도 설정';
   const s = parseHideSeekMode(mode);

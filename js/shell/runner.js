@@ -153,7 +153,7 @@ export function createRunner({ view, stage, hooks = {} }) {
         pauseListeners.add(fn);
         return () => pauseListeners.delete(fn);
       },
-      completeGame({ score = 0, timeMs = 0, accuracy = 0, cleared = true, modeLabel, details = [] } = {}) {
+      completeGame({ score = 0, timeMs = 0, cleared = true, modeLabel, details = [] } = {}) {
         if (!isCurrent() || entry.finished) return;
         entry.finished = true;
         overlays.curtain.hidden = true;
@@ -162,21 +162,10 @@ export function createRunner({ view, stage, hooks = {} }) {
         const result = {
           score: Math.max(0, Math.round(Number(score) || 0)),
           timeMs: Math.max(0, Math.round(Number(timeMs) || 0)),
-          accuracy: Math.max(0, Math.min(100, Math.round(Number(accuracy) || 0))),
         };
         const label = modeLabel || entry.modeLabel;
-        const { grade } = ui.calculateGrade(result.score, { cleared });
-        const { isNewRecord } = storage.recordRun({
-          gameId: game.id,
-          mode: entry.mode,
-          modeLabel: label,
-          seed,
-          nickname: player.nickname,
-          team: player.team,
-          grade,
-          cleared,
-          ...result,
-        });
+        const grade = ui.calculateGrade(result.score, { cleared });
+        const { isNewRecord } = storage.recordRun({ gameId: game.id, mode: entry.mode, cleared, ...result });
 
         if (cleared) {
           audio.playClear();

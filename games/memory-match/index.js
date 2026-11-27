@@ -1,6 +1,6 @@
 /**
- * Game 3: 메모리 매치 (MEMORY MATCH)
- * Pure static ES module exporting mount(container, ctx) -> { unmount() }.
+ * Game: 메모리 매치 (MEMORY MATCH)
+ * `mount(container, ctx)` -> `{ unmount() }`. Preview, flip, match, combo; sizes live in ./settings.js.
  */
 import { bindClock, bindScore } from '../../js/core/clock.js';
 import { pickSeeded, shuffleSeeded } from '../../js/core/seed.js';
@@ -20,7 +20,7 @@ const FLOAT_BADGE_MS = 940;
  * Resolves mode config with safe fallback to 4x4.
  * @param {string} mode
  */
-export function resolveModeConfig(mode) {
+function resolveModeConfig(mode) {
   return MEMORY_MODES[mode] || MEMORY_MODES['4x4'];
 }
 
@@ -29,7 +29,7 @@ export function resolveModeConfig(mode) {
  * @param {() => number} rng
  * @param {string} mode
  */
-export function buildSeededDeck(rng, mode) {
+function buildSeededDeck(rng, mode) {
   const cfg = resolveModeConfig(mode);
   const chosen = pickSeeded(rng, SYMBOLS, cfg.pairs);
   const doubled = [];
@@ -371,7 +371,6 @@ export function mount(container, ctx) {
     const efficiencyBonus = cleared ? Math.max(0, (2 * totalPairs - moves) * 100) : 0;
     const perfectBonus = cleared && moves === totalPairs ? 1200 : 0;
     const totalScore = Math.max(0, matchScore + timeBonus + efficiencyBonus + perfectBonus);
-    const accuracy = moves > 0 ? Math.round((matchedPairs / moves) * 100) : 0;
     const finalTimeMs = Math.round(elapsedActiveMs);
 
     setTimer(remainingSec);
@@ -381,7 +380,6 @@ export function mount(container, ctx) {
       ctx.completeGame({
         score: totalScore,
         timeMs: finalTimeMs,
-        accuracy,
         cleared,
         modeLabel: cfg.modeLabel,
         details: [

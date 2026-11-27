@@ -273,8 +273,6 @@ function mountGame(container, ctx, settings) {
     if (finished || unmounted) return;
     finished = true;
     roundState = 'ended';
-    const totalAttempts = correctCount + wrongTaps;
-    const accuracy = isParty ? 100 : totalAttempts > 0 ? Math.round((correctCount / totalAttempts) * 100) : 0;
     const cleared = isParty ? true : correctCount >= Math.ceil(totalRounds * 0.5);
     const details = isParty
       ? [
@@ -290,7 +288,6 @@ function mountGame(container, ctx, settings) {
     ctx.completeGame({
       score: computeTotalScore(),
       timeMs: Math.round(activePlayMs),
-      accuracy,
       cleared,
       modeLabel,
       details,

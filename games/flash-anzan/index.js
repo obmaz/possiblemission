@@ -215,11 +215,9 @@ function mountGame(container, ctx, settings) {
     if (finished) return;
     finished = true;
     phase = 'ended';
-    const accuracy = isParty ? 100 : Math.round((correctCount / problems.length) * 100);
     ctx.completeGame({
       score: isParty ? problems.length * 200 : score,
       timeMs: Math.round(activeMs),
-      accuracy,
       // Clearing means getting at least 60% of the problems right
       cleared: isParty ? true : correctCount >= Math.ceil(problems.length * 0.6),
       details: isParty

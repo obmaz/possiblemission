@@ -9,10 +9,7 @@
  *
  * Difficulty is fully configurable on an in-game setup screen (mode `setup`): six
  * presets (EASY … GOD) or custom tile count, reveal time, hide batch/interval, peek time
- * and time limit — see ./hide-seek-settings.js.
- *
- * The module id stays `despair-fortress` so existing links and records keep working.
- * Built for a single screen (e.g. a wall display in a venue).
+ * and time limit — see ./settings.js. Built for a single screen (e.g. a wall display).
  */
 import { bindClock, bindScore } from '../../js/core/clock.js';
 import { shuffleSeeded } from '../../js/core/seed.js';
@@ -88,7 +85,7 @@ function basePoints(settings) {
  * @param {() => number} rng
  * @param {object} settings - parsed values from parseHideSeekMode()
  */
-export function generateFortressRun(rng, settings) {
+export function generateHideSeekRun(rng, settings) {
   const [cols, rows] = TILE_GRID[settings.tiles];
   const count = cols * rows;
   const hideBatch = Math.min(settings.hideBatch, maxHideBatchForTiles(count));
@@ -246,7 +243,7 @@ function mountSetup(container, ctx) {
  * The game: one wall, three numbers to find in any order
  * ========================================================================== */
 function mountGame(container, ctx, settings) {
-  const wall = generateFortressRun(ctx.rng, settings);
+  const wall = generateHideSeekRun(ctx.rng, settings);
   const { targets } = wall;
   const pts = basePoints(settings);
 
@@ -503,7 +500,6 @@ function mountGame(container, ctx, settings) {
     ctx.completeGame({
       score,
       timeMs: Math.round(playMs),
-      accuracy: solved + mistakes > 0 ? Math.round((solved / (solved + mistakes)) * 100) : 0,
       cleared,
       details: [
         { value: `🔢 ${solved}/${targets.length} 숫자` },

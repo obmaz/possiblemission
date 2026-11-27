@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Game 4: 숫자 숨바꼭질 — single wall screen of letter tiles
+   Game: 숫자 숨바꼭질 (.game-hide-seek) — a single wall screen of letter tiles
    Everything is scoped under .game-hide-seek; keyframes are prefixed df-.
    The console chips borrow the wall's look (dark green panel, glowing number,
    light tile) so the numbers to find read as part of the attraction.
@@ -381,134 +381,11 @@
 
 /* --- Setup screen (mode `setup`): presets + custom values --------------- */
 
-.game-hide-seek .df-setup__head {
-  text-align: center;
-}
-
-.game-hide-seek .df-setup__title {
-  margin: 0 0 6px;
-  font-family: var(--font-display);
-  font-size: clamp(1.2rem, 2.2vw, 1.7rem);
-  font-weight: 800;
-}
-
-.game-hide-seek .df-setup__sub {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  word-break: keep-all;
-}
-
-.game-hide-seek .df-setup__sub b {
-  color: var(--df-neon);
-}
-
-.game-hide-seek .df-setup__body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: start;
-  gap: 18px;
-  min-height: 0;
-}
-
-.game-hide-seek .df-preset__name {
-  font-family: var(--font-mono);
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-.game-hide-seek .df-preset__ko {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.game-hide-seek .df-preset__meta {
-  color: var(--text-muted);
-  font-size: 0.76rem;
-}
-
-.game-hide-seek .df-field__label {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.game-hide-seek .df-stepper__btn {
-  width: 34px;
-  height: 34px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: rgba(15, 23, 42, 0.05);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 1.1rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.game-hide-seek .df-stepper__btn:hover:not(:disabled),
-.game-hide-seek .df-stepper__btn:focus-visible {
-  border-color: var(--df-neon);
-  outline: none;
-}
-
-.game-hide-seek .df-stepper__btn:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.game-hide-seek .df-stepper__value {
-  min-width: 64px;
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-weight: 700;
-  text-align: center;
-}
-
-.game-hide-seek .df-fields__summary {
-  margin: 4px 0 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-subtle);
-  color: var(--df-neon);
-  font-size: 0.85rem;
-  word-break: keep-all;
-}
-
-.game-hide-seek .df-setup__start {
-  justify-self: center;
-  min-width: 240px;
-  padding: 14px 28px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--btn-primary);
-  color: #ffffff;
-  font: inherit;
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.game-hide-seek .df-setup__start:hover,
-.game-hide-seek .df-setup__start:focus-visible {
-  background: var(--btn-primary-hover);
-  outline: 2px solid var(--btn-primary);
-  outline-offset: 3px;
-}
-
-@media (max-width: 899px) {
-  .game-hide-seek .df-setup__body {
-    grid-template-columns: 1fr;
-  }
-}
-
 /* === Lobby card artwork === */
 
 /* Shared Party Mode helper removed (no team scoreboard) */
 
-/* Letter-tile wall preview for the Despair Fortress card */
+/* Letter-tile wall preview for the lobby card */
 
 .game-card__tile-art {
   width: 100%;

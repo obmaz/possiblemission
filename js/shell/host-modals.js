@@ -2,9 +2,10 @@
 import * as audio from '../core/audio.js';
 import * as ui from '../core/ui.js';
 import { escapeHtml } from '../core/dom.js';
+import { renderQrCode } from '../core/qr.js';
 
 export function openQrModal(seed) {
-  const shareUrl = ui.buildShareUrl({ seed });
+  const shareUrl = ui.buildShareUrl(seed);
   const wrap = document.createElement('div');
   wrap.className = 'qr-card';
   wrap.innerHTML = `
@@ -21,7 +22,7 @@ export function openQrModal(seed) {
 
   const canvas = wrap.querySelector('canvas');
   try {
-    ui.renderQrCode(canvas, shareUrl, { size: 220, fg: '#070914', bg: '#ffffff' });
+    renderQrCode(canvas, shareUrl, { size: 220, fg: '#070914', bg: '#ffffff' });
   } catch {
     canvas.replaceWith(document.createTextNode('URL이 너무 길어 QR을 생성할 수 없습니다.'));
   }
