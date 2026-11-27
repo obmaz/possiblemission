@@ -166,20 +166,32 @@ out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode')
     return { origVis, modHidden, timer };
   });
   await page.click('[data-sd-party-skip]');
+  const beforeMiss = await page.textContent('.pm-timer');
+  await page.mouse.click(10, 10);
+  const modBox = await page.locator('[data-sd-canvas="mod"]').boundingBox();
+  await page.mouse.click(modBox.x + 2, modBox.y + 2);
+  await page.waitForTimeout(100);
+  const afterMiss = await page.textContent('.pm-timer');
   const findState = await page.evaluate(() => ({
     origHidden: getComputedStyle(document.querySelector('[data-sd-card="orig"]')).display === 'none',
     modVis: getComputedStyle(document.querySelector('[data-sd-card="mod"]')).display !== 'none',
+    callout: document.querySelector('[data-sd-callout]')?.textContent?.trim() || '',
   }));
+  const parseSec = (t) => (t.includes(':') ? Number(t.split(':')[0]) * 60 + Number(t.split(':')[1]) : parseFloat(t));
+  const noPenalty = Math.abs(parseSec(beforeMiss) - parseSec(afterMiss)) <= 1;
   out.spotPartyMemory = {
     ok: /-easy-party-60$/.test(partyUrl || '')
       && memorizeState.origVis
       && memorizeState.modHidden
       && /^0[01]:\d{2}$/.test(memorizeState.timer || '')
       && findState.origHidden
-      && findState.modVis,
+      && findState.modVis
+      && noPenalty
+      && findState.callout.includes('다른 곳이 아니에요'),
     partyUrl,
     memorizeState,
     findState,
+    noPenalty,
   };
 }
 

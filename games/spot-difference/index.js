@@ -488,20 +488,25 @@ export function mount(container, ctx) {
       }
     }
 
-    // Wrong tap penalty
+    // Wrong tap feedback (party mode has no time penalty)
     wrongTaps += 1;
     streak = 0;
     cooldownUntilMs = now + WRONG_INPUT_COOLDOWN_MS;
-    remainingSec = Math.max(0, remainingSec - MISS_TIME_PENALTY_SEC);
+    if (!party) {
+      remainingSec = Math.max(0, remainingSec - MISS_TIME_PENALTY_SEC);
+    }
 
     ctx.audio.playError();
     triggerShake();
-    spawnFeedback(nx, ny, 'miss', `-${MISS_TIME_PENALTY_SEC}초 페널티!`);
-    setCallout(`❌ 다른 곳이 아니에요! (-${MISS_TIME_PENALTY_SEC}초 페널티)`, 'error');
+    spawnFeedback(nx, ny, 'miss', party ? '틀렸어요!' : `-${MISS_TIME_PENALTY_SEC}초 페널티!`);
+    setCallout(
+      party ? '❌ 다른 곳이 아니에요! 다시 잘 떠올려 보세요.' : `❌ 다른 곳이 아니에요! (-${MISS_TIME_PENALTY_SEC}초 페널티)`,
+      'error'
+    );
     syncStatus();
     markDirty();
 
-    if (remainingSec <= 0) {
+    if (!party && remainingSec <= 0) {
       finishGame(false);
     }
   }

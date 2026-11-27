@@ -76,7 +76,9 @@ games/<id>/
   - 모든 게임의 시작 전 설정 화면은 반드시 `js/core/setup-screen.js`(`mountSetupScreen`)와 `styles/setup.css`(`.game-root.setup`)를 사용합니다. 게임별로 독자적인 난이도/모드 선택 UI를 만들지 않습니다.
   - 기본 난이도 프리셋에는 최소한 **`EASY`(쉬움), `MEDIUM`(보통), `HARD`(어려움)**(`id: 'easy' | 'medium' | 'hard'`)이 포함되어야 합니다(필요 시 `EXTREME`, `INSANE`, `GOD` 확장 가능).
   - 혼자하기·다같이 모드를 모두 지원하는 게임(`players: 'both'`)은 `setup-screen.js`의 `playSwitch` 옵션(`.setup-playmode` 2열 라디오 스위치)으로 플레이 방식을 선택합니다.
-- 결과 팝업 버튼(`로비`·`난이도 변경`·`재도전`)은 같은 크기, 가로 한 줄(초소형 모바일 제외).
+- 결과 팝업(`js/shell/result-modal.js`, `styles/components.css`):
+  - 모든 게임은 종료 시 반드시 `ctx.completeGame(...)`을 호출해 공통 결과 팝업을 사용합니다. 게임별로 자체 결과 화면을 만들거나 `.result-*` 레이아웃·버튼 패딩/여백을 임의로 오버라이드하지 않습니다.
+  - 결과 팝업 버튼(`로비`·`난이도 변경`·`재도전`)은 동일한 크기·패딩·여백의 가로 한 줄 배치(초소형 모바일 제외)를 유지합니다.
 - `--hud-height`는 `.game-view`에서 정의되고(`레이아웃 숨기기` 시 36px) 16:9 프레임 계산과 카운트다운·일시정지 오버레이가 사용합니다.
 
 ## 6. 검증

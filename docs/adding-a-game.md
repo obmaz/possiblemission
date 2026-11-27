@@ -33,5 +33,6 @@
 ## 지켜야 할 것
 
 - 게임 코드는 공통 DOM(`#game-hud` 등)을 건드리지 않습니다. 필요한 값은 `ctx`로만 주고받습니다.
+- 난이도 설정은 `js/core/setup-screen.js`, 결과 화면은 `ctx.completeGame()`(공통 결과 팝업 레이아웃·버튼 패딩/여백 유지)만 사용하며 게임별로 임의 오버라이드하지 않습니다.
 - 이미지 등 리소스는 `new URL('./assets/x.jpg', import.meta.url).href`로 참조합니다(루트 페이지·단독 페이지 어디서든 동작).
 - 틀린그림찾기에 이미지 스테이지를 추가할 때는 `.agents/skills/spot-difference-stage/SKILL.md`를 따릅니다.

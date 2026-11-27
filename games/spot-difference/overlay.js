@@ -104,30 +104,21 @@ export function drawMirrorCrosshair(ctx2d, pointerState, targetSide) {
   ctx2d.save();
   ctx2d.translate(x, y);
 
-  ctx2d.strokeStyle = withAlpha(COLOR.accent, 0.92);
-  ctx2d.lineWidth = 2.2;
-  ctx2d.shadowColor = withAlpha(COLOR.accent, 0.85);
+  ctx2d.fillStyle = withAlpha(COLOR.accent, 0.28);
+  ctx2d.strokeStyle = '#ffffff';
+  ctx2d.lineWidth = 2.5;
+  ctx2d.shadowColor = withAlpha(COLOR.accent, 0.75);
   ctx2d.shadowBlur = 8;
 
   ctx2d.beginPath();
-  ctx2d.arc(0, 0, 18, 0, Math.PI * 2);
-  ctx2d.stroke();
-
-  ctx2d.beginPath();
-  ctx2d.moveTo(-26, 0);
-  ctx2d.lineTo(-10, 0);
-  ctx2d.moveTo(10, 0);
-  ctx2d.lineTo(26, 0);
-  ctx2d.moveTo(0, -26);
-  ctx2d.lineTo(0, -10);
-  ctx2d.moveTo(0, 10);
-  ctx2d.lineTo(0, 26);
-  ctx2d.stroke();
-
-  ctx2d.beginPath();
-  ctx2d.arc(0, 0, 3, 0, Math.PI * 2);
-  ctx2d.fillStyle = COLOR.gold;
+  ctx2d.arc(0, 0, 16, 0, Math.PI * 2);
   ctx2d.fill();
+  ctx2d.stroke();
+
+  ctx2d.shadowBlur = 0;
+  ctx2d.strokeStyle = withAlpha(COLOR.accent, 0.9);
+  ctx2d.lineWidth = 1.5;
+  ctx2d.stroke();
 
   ctx2d.restore();
 }
