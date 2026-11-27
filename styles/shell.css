@@ -192,8 +192,20 @@
  * desktop/monitor viewports so puzzle layouts are identical for all players.
  */
 @media (min-width: 900px) {
+  .game-view {
+    --stage-w: min(
+      calc(100vw - 2 * clamp(6px, 1.4vh, 18px)),
+      calc((100dvh - var(--hud-height) - 2 * clamp(6px, 1.4vh, 18px)) * 16 / 9)
+    );
+  }
+  .game-view:not([data-layout='hidden']) .game-hud {
+    width: var(--stage-w);
+    margin: clamp(6px, 1.4vh, 18px) auto 0;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+  }
   .game-stage > .game-root {
-    width: min(100%, calc((100dvh - var(--hud-height) - 2 * clamp(6px, 1.4vh, 18px)) * 16 / 9));
+    width: var(--stage-w);
     height: auto;
     aspect-ratio: 16 / 9;
     margin: auto;

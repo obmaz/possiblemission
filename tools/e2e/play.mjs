@@ -160,10 +160,17 @@ out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode')
   const partyUrl = new URL(page.url()).searchParams.get('mode');
   await page.waitForFunction(() => document.querySelectorAll('[data-sd-loading]').length === 0);
   const memorizeState = await page.evaluate(() => {
-    const origVis = getComputedStyle(document.querySelector('[data-sd-card="orig"]')).display !== 'none';
+    const origCard = document.querySelector('[data-sd-card="orig"]');
+    const banner = document.querySelector('[data-sd-party-banner]');
+    const footer = document.querySelector('.sd-footer');
+    const origRect = origCard.getBoundingClientRect();
+    const bannerRect = banner.getBoundingClientRect();
+    const footerRect = footer.getBoundingClientRect();
+    const origVis = getComputedStyle(origCard).display !== 'none';
     const modHidden = getComputedStyle(document.querySelector('[data-sd-card="mod"]')).display === 'none';
+    const noOverlap = origRect.top >= bannerRect.bottom - 1 && origRect.bottom <= footerRect.top + 1;
     const timer = document.querySelector('.pm-timer')?.textContent?.trim();
-    return { origVis, modHidden, timer };
+    return { origVis, modHidden, noOverlap, timer };
   });
   await page.click('[data-sd-party-skip]');
   const beforeMiss = await page.textContent('.pm-timer');
@@ -183,6 +190,7 @@ out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode')
     ok: /-easy-party-60$/.test(partyUrl || '')
       && memorizeState.origVis
       && memorizeState.modHidden
+      && memorizeState.noOverlap
       && /^0[01]:\d{2}$/.test(memorizeState.timer || '')
       && findState.origHidden
       && findState.modVis
@@ -572,6 +580,7 @@ out.chrome = await page.evaluate(async () => {
   const visible = (el) => Boolean(el) && !el.hidden && el.getBoundingClientRect().width > 0;
   const fsSupported = Boolean(document.fullscreenEnabled);
   const shell = {
+    hudMatchesStageWidth: Math.abs(document.getElementById('game-hud').getBoundingClientRect().width - document.querySelector('#game-stage > .game-root').getBoundingClientRect().width) <= 2,
     noSharedTimerOrScore: !document.querySelector('#game-hud .pm-timer, #game-hud .pm-score, #hud-timer, #hud-score'),
     gameOwnsTimer: Boolean(document.querySelector('#game-stage .pm-timer')) && Boolean(document.querySelector('#game-stage .pm-score')),
     fullscreenButton: !fsSupported || (visible(document.getElementById('hud-fullscreen-btn')) && /전체화면/.test(document.getElementById('hud-fullscreen-btn').textContent)),
@@ -673,7 +682,7 @@ if (out.pixelRevealPool?.count !== 100 || out.pixelRevealPool?.uniqueIds !== 100
   failures.push(`pixel-reveal pool: ${JSON.stringify(out.pixelRevealPool)}`);
 }
 if (!cleared(out.flashCountSolo)) failures.push(`flash-count: ${out.flashCountSolo}`);
-if (!out.chrome?.noSharedTimerOrScore || !out.chrome?.gameOwnsTimer) failures.push(`game owns timer/score: ${JSON.stringify(out.chrome)}`);
+if (!out.chrome?.hudMatchesStageWidth || !out.chrome?.noSharedTimerOrScore || !out.chrome?.gameOwnsTimer) failures.push(`game owns timer/score or width mismatch: ${JSON.stringify(out.chrome)}`);
 if (!out.chrome?.fullscreenButton || !out.chrome?.layoutButtonNextToFullscreen) failures.push(`fullscreen / layout buttons: ${JSON.stringify(out.chrome)}`);
 if (out.chrome?.fullscreenEntered === false || out.chrome?.fullscreenExited === false) failures.push(`fullscreen toggle: ${JSON.stringify(out.chrome)}`);
 if (!out.chrome?.hidden || !out.chrome?.stageGrew || !out.chrome?.restored) failures.push(`hide / show layout: ${JSON.stringify(out.chrome)}`);
