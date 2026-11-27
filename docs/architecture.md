@@ -21,7 +21,7 @@
 | `shell/game-view.js` | 공통 상단바와 `레이아웃 숨기기`, 나가기 확인 |
 | `shell/lobby.js` | 히어로·프로필/룸 시드 폼·카드 목록 |
 | `shell/room.js` | 룸 시드 저장소(변경 구독) |
-| `shell/fullscreen.js` | `[data-fullscreen-toggle]` 버튼 전체화면 ↔ 축소하기 (미지원 브라우저에서는 숨김) |
+| `shell/screen-mode.js` | `[data-fullscreen-toggle]` 버튼 전체화면 ↔ 축소하기 (미지원 브라우저에서는 숨김) |
 | `shell/sound.js`, `host-modals.js`, `result-modal.js` | 음소거, QR·MC 가이드, 결과 팝업 |
 
 공통 상단바에는 **타이머·점수·진행도가 없습니다.** 그 값은 각 게임의 화면에 있습니다.

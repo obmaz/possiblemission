@@ -2,7 +2,7 @@
  * Entry for a game's own page (`games/<id>/index.html`): runs that one game without the lobby.
  * URL: `?seed=ROOM-1&mode=<mode id>` (both optional). Leaving the game returns to the arcade lobby.
  */
-import { initFullscreen } from './shell/fullscreen.js';
+import { initFullscreen } from './shell/screen-mode.js';
 import { createRunner } from './shell/runner.js';
 import { getSeed, setSeed } from './shell/room.js';
 

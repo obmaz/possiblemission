@@ -3,7 +3,7 @@ import * as audio from '../core/audio.js';
 import * as storage from '../core/storage.js';
 import * as ui from '../core/ui.js';
 import { escapeHtml } from '../core/dom.js';
-import { syncFullscreenButtons } from './fullscreen.js';
+import { syncFullscreenButtons } from './screen-mode.js';
 import { openBannerTitleModal, openMcGuideModal, openQrModal } from './host-modals.js';
 import { getSeed, onSeedChange, randomSeed, setSeed } from './room.js';
 import { ICON_SOUND_ON, syncMuteButtons, toggleMute } from './sound.js';

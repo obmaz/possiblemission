@@ -5,7 +5,7 @@
  */
 import * as ui from './core/ui.js';
 import { createGameView } from './shell/game-view.js';
-import { initFullscreen } from './shell/fullscreen.js';
+import { initFullscreen } from './shell/screen-mode.js';
 import { createLobby } from './shell/lobby.js';
 import { getGame, loadGames, resolveMode } from './shell/registry.js';
 import { getSeed, onSeedChange, setSeed } from './shell/room.js';
