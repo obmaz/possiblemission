@@ -7,14 +7,12 @@ import { pickSeeded, shuffleSeeded } from '../../js/core/seed.js';
 import { MEMORY_MODES } from './settings.js';
 import { SYMBOLS } from './symbols.js';
 
-
 const PREVIEW_DURATION_MS = 2000;
 const PREVIEW_STAGGER_MS = 10;
 const FLIP_DURATION_MS = 320;
 const MISMATCH_LOCK_MS = 680;
 const FINISH_DELAY_MS = 560;
 const FLOAT_BADGE_MS = 940;
-
 
 /**
  * Resolves mode config with safe fallback to 4x4.

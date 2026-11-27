@@ -498,7 +498,6 @@ for (const cnt of fcAnswers) {
 await page.waitForSelector('.arcade-modal', { timeout: 5000 }).catch(() => {});
 out.flashCountSolo = `${await resultStatus()} · ${fcAnswers.length}q`;
 
-
 /* ---------- Shared chrome: no timer/score in the top bar, fullscreen toggle, hide / show layout ---------- */
 await page.goto(`${base}/?seed=${SEED}&game=dobble&mode=easy`);
 await page.waitForSelector('.db-card');

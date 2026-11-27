@@ -3,7 +3,6 @@
  * up to 216 UTF-8 bytes) with a canvas renderer. No external dependencies.
  */
 
-
 const QR_GF_EXP = new Uint8Array(512);
 const QR_GF_LOG = new Uint8Array(256);
 (() => {
