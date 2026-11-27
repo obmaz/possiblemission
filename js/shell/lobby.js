@@ -70,6 +70,9 @@ function renderHero(root) {
       <img class="hero-banner__bg" src="./assets/hero-arcade.jpg" alt="네온 아케이드 파티 배너" />
       <div class="hero-banner__scrim" aria-hidden="true"></div>
     </div>
+    <div class="hero-banner__brand">
+      <img class="hero-banner__logo" src="./assets/brand-logo.svg" alt="Possible Mission" />
+    </div>
     <div class="hero-banner__tools">
       <button class="hero-icon-btn" type="button" data-fullscreen-toggle></button>
       <button class="hero-icon-btn" type="button" data-mute-toggle id="lobby-mute-btn">${ICON_SOUND_ON}</button>

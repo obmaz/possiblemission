@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 284 44" fill="none" role="img" aria-label="Possible Mission">
+  <defs>
+    <linearGradient id="pm-grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0b84c6" />
+      <stop offset="52%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#d1477f" />
+    </linearGradient>
+    <linearGradient id="pm-text-grad" x1="148" y1="8" x2="274" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0b84c6" />
+      <stop offset="55%" stop-color="#2563eb" />
+      <stop offset="100%" stop-color="#d1477f" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="3" width="38" height="38" rx="11" fill="url(#pm-grad)" />
+  <rect x="4.5" y="5.5" width="33" height="33" rx="8.5" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.2" />
+  <path d="M23.5 10.5L13.5 23.5H20.5L18.5 33.5L28.5 20.5H21.5L23.5 10.5Z" fill="#ffffff" />
+  <text x="50" y="29.5" font-family="'Outfit', 'Pretendard Variable', 'Noto Sans KR', sans-serif" font-size="22" font-weight="800" letter-spacing="-0.03em">
+    <tspan fill="#172033">Possible </tspan>
+    <tspan fill="url(#pm-text-grad)">Mission</tspan>
+  </text>
+</svg>
