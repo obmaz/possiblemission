@@ -11,7 +11,7 @@
    - 끝나면 `ctx.completeGame({ score, timeMs, cleared, details })`.
    - 일시정지는 `const off = ctx.onPause((paused) => …)`로 받고 `unmount()`에서 `off()`.
    - 랜덤은 모두 `ctx.rng`(또는 `js/core/seed.js`)로 — 같은 시드에서 같은 라운드여야 합니다.
-3. **`settings.js`** — 프리셋, 모드 id 인코딩/파싱, `xxxModeLabel(mode)`(잘못된 id면 `''`). 기존 게임의 `settings.js`를 참고하세요.
+3. **`settings.js`** — 필드·프리셋을 선언하고 `createModeCodec`(`js/core/mode-codec.js`)으로 모드 id 인코딩/파싱/라벨을 얻습니다(잘못된 id의 라벨은 `''`). 소수 필드는 `scale: 10`. 기존 게임의 `settings.js`를 참고하세요.
 4. **`manifest.js`** — 로비 카드 정보와 `modeLabel`:
 
    ```js

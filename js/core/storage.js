@@ -102,7 +102,7 @@ export function recordRun({ gameId, mode, score, timeMs, cleared }) {
 /** Recently used room seeds, newest first. */
 export function getSeedHistory() {
   const raw = readJson(KEYS.seeds, []);
-  return Array.isArray(raw) ? raw.map((entry) => (typeof entry === 'string' ? entry : entry?.seed)).filter(Boolean) : [];
+  return Array.isArray(raw) ? raw.filter((seed) => typeof seed === 'string') : [];
 }
 
 export function addSeedHistory(seed) {

@@ -538,11 +538,11 @@ out.chrome.stageGrew = (await stageHeight()) > heightWithBar + 10;
 await page.click('#hud-layout-btn');
 out.chrome.restored = await page.evaluate(() => document.getElementById('hud-game-title').getBoundingClientRect().width > 0 && document.getElementById('game-view').dataset.layout === 'shown');
 
-/* ---------- Registry: every games/<id>/ folder is complete and registered; legacy ids still resolve ---------- */
+/* ---------- Registry: every games/<id>/ folder is complete and registered ---------- */
 out.registry = await page.evaluate(async () => {
-  const { GAME_IDS, LEGACY_GAME_IDS } = await import('/games/registry.js');
+  const { GAME_IDS } = await import('/games/registry.js');
   const cards = [...document.querySelectorAll('.game-card')].length;
-  return { ids: GAME_IDS.length, legacyOk: Object.values(LEGACY_GAME_IDS).every((id) => GAME_IDS.includes(id)), cards };
+  return { ids: GAME_IDS.length, cards };
 });
 out.registryFolders = (() => {
   const gamesDir = path.join(root, 'games');
@@ -562,8 +562,6 @@ for (const id of await page.evaluate(async () => (await import('/games/registry.
   const mounted = await page.waitForSelector('#game-stage .game-root', { timeout: 6000 }).catch(() => null);
   out.standalone[id] = Boolean(mounted) && (await page.evaluate(() => !document.querySelector('.game-card, #game-hud')));
 }
-await page.goto(`${base}/?seed=${SEED}&game=despair-fortress`);
-out.legacyGameId = Boolean(await page.waitForSelector('.setup', { timeout: 6000 }).catch(() => null));
 
 out.consoleErrors = errors;
 console.log(JSON.stringify(out, null, 2));
@@ -612,10 +610,9 @@ if (!out.chrome?.noSharedTimerOrScore || !out.chrome?.gameOwnsTimer) failures.pu
 if (!out.chrome?.fullscreenButton || !out.chrome?.layoutButtonNextToFullscreen) failures.push(`fullscreen / layout buttons: ${JSON.stringify(out.chrome)}`);
 if (out.chrome?.fullscreenEntered === false || out.chrome?.fullscreenExited === false) failures.push(`fullscreen toggle: ${JSON.stringify(out.chrome)}`);
 if (!out.chrome?.hidden || !out.chrome?.stageGrew || !out.chrome?.restored) failures.push(`hide / show layout: ${JSON.stringify(out.chrome)}`);
-if (out.registry?.cards !== out.registry?.ids || !out.registry?.legacyOk) failures.push(`registry: ${JSON.stringify(out.registry)}`);
+if (out.registry?.cards !== out.registry?.ids) failures.push(`registry: ${JSON.stringify(out.registry)}`);
 if (out.registryFolders?.missing.length || out.registryFolders?.onDisk.length !== out.registry?.ids) failures.push(`games folders: ${JSON.stringify(out.registryFolders)}`);
 if (Object.values(out.standalone || {}).some((ok) => !ok) || !Object.keys(out.standalone || {}).length) failures.push(`standalone game pages: ${JSON.stringify(out.standalone)}`);
-if (!out.legacyGameId) failures.push('legacy game id (?game=despair-fortress) did not open 숫자 숨바꼭질');
 if (out.consoleErrors.length) failures.push(`console errors: ${out.consoleErrors.length}`);
 if (failures.length) {
   console.error(`\nFAILED:\n- ${failures.join('\n- ')}`);

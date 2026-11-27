@@ -1,14 +1,8 @@
 /**
- * 도블 (DOBBLE) difficulty settings: 6 presets plus custom values.
- * Shared by the lobby catalog (mode validation / labels) and the game (setup screen).
- *
- * Mode ids
- * - `setup`                            → in-game settings screen (no run)
- * - `easy` … `god`                     → a preset
- * - `custom-<s>-<r>-<t>-<rot>`         → custom values (s = symbols per card [6,8,10,12,14,17],
- *   r = target rounds, t = time limit sec, rot = rotate/scale icons 0/1), so a shared
- *   link + room seed reproduces the exact same deck & card sequence for everyone.
+ * 도블 (DOBBLE) difficulty: 6 presets plus custom values (symbols per card, rounds, time, rotation).
+ * Shared by the manifest (mode labels) and the game (setup screen, run generation).
  */
+import { createModeCodec } from '../../js/core/mode-codec.js';
 
 export const DOBBLE_SETUP_MODE = 'setup';
 
@@ -30,35 +24,13 @@ export const DOBBLE_PRESETS = [
 
 export const DOBBLE_DEFAULT_PRESET = 'medium';
 
-const KEYS = DOBBLE_FIELDS.map((f) => f.key);
-const pick = (p) => Object.fromEntries(KEYS.map((k) => [k, p[k]]));
+const codec = createModeCodec({
+  fields: DOBBLE_FIELDS,
+  presets: DOBBLE_PRESETS,
+  customLabel: (v) => `${v.symbolsPerCard}개×${v.rounds}판`,
+});
 
-export function matchDobblePreset(values) {
-  return DOBBLE_PRESETS.find((p) => KEYS.every((k) => p[k] === values[k])) || null;
-}
-
-export function dobbleModeId(values) {
-  const preset = matchDobblePreset(values);
-  if (preset) return preset.id;
-  return `custom-${values.symbolsPerCard}-${values.rounds}-${values.timeSec}-${values.rotate}`;
-}
-
-export function parseDobbleMode(mode) {
-  const raw = String(mode || '');
-  const preset = DOBBLE_PRESETS.find((p) => p.id === raw);
-  if (preset) return { ...pick(preset), presetId: preset.id };
-  const m = raw.match(/^custom-(\d+)-(\d+)-(\d+)-([01])$/);
-  if (!m) return null;
-  const [symbolsPerCard, rounds, timeSec, rotate] = m.slice(1).map(Number);
-  const values = { symbolsPerCard, rounds, timeSec, rotate };
-  const valid = DOBBLE_FIELDS.every((f) => f.options.includes(values[f.key]));
-  return valid ? { ...values, presetId: null } : null;
-}
-
-export function dobbleModeLabel(mode) {
-  if (mode === DOBBLE_SETUP_MODE) return '난이도 설정';
-  const v = parseDobbleMode(mode);
-  if (!v) return '';
-  if (v.presetId) return DOBBLE_PRESETS.find((p) => p.id === v.presetId).label;
-  return `커스텀 ${v.symbolsPerCard}개×${v.rounds}판`;
-}
+export const matchDobblePreset = codec.matchPreset;
+export const dobbleModeId = codec.modeId;
+export const parseDobbleMode = codec.parse;
+export const dobbleModeLabel = codec.label;

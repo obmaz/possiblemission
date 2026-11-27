@@ -37,10 +37,10 @@ games/<id>/
   index.html    단독 실행 페이지 (body[data-game="<id>"])
 ```
 
-- `id`는 폴더 이름이며 URL(`?game=<id>`)과 RNG 시드 문자열에 쓰입니다. 옛 id는 `games/registry.js`의 `LEGACY_GAME_IDS`로 계속 열립니다(예: `despair-fortress` → `hide-seek`).
+- `id`는 폴더 이름이며 URL(`?game=<id>`)과 RNG 시드 문자열에 쓰입니다.
 - `idle: true`를 돌려주면 난이도 선택·그림 선택 같은 **선택 화면**으로 취급되어 카운트다운·일시정지·나가기 확인이 없습니다.
 - `unmount()`는 이벤트 리스너·타이머·rAF를 정리합니다. 스테이지 비우기는 실행기가 합니다.
-- 모드 id는 `settings.js`가 인코딩/파싱하며, 공유 링크가 같은 문제를 재현하도록 **커스텀 값도 id에 담습니다**(`custom-…`). id 형식을 바꾸면 이미 공유된 링크가 깨집니다.
+- 모드 id는 `settings.js`가 `js/core/mode-codec.js`로 인코딩/파싱합니다. 공유 링크가 같은 문제를 재현하도록 **커스텀 값도 id에 담습니다**(`setup` · `<프리셋>` · `<프리셋>-party` · `custom-<필드 순서대로 정수>`).
 
 ### `ctx`
 
@@ -61,6 +61,7 @@ games/<id>/
 | --- | --- |
 | `seed.js` | `createRng`(FNV-1a 해시 + Mulberry32), `shuffleSeeded`, `pickSeeded`, `pickDispersed` |
 | `clock.js` | `bindClock(el)` / `bindScore(el)`: 값이 바뀔 때만 DOM을 쓰는 타이머·점수 갱신 함수 생성(`.pm-timer[data-state]`, `.pm-score` 스타일은 `styles/components.css`) |
+| `mode-codec.js` | 설정형 게임의 모드 id 코덱(`matchPreset`·`modeId`·`parse`·`label`). 게임은 필드·프리셋만 선언 |
 | `setup-screen.js` | 프리셋 카드 + 스테퍼 + (선택) 혼자/다같이 스위치 + 시작 버튼. 게임이 프리셋·필드·모드 코덱을 넘김. `styles/setup.css`와 한 쌍 |
 | `rules.js` | 공정성 상수: 오답 후 입력 잠금 `WRONG_INPUT_COOLDOWN_MS`, 터치 여유 `TOUCH_HIT_SLOP` |
 | `storage.js` | 프로필, 최고 기록, 시드 이력, 음소거, 게임별 선호값(메모리 폴백 포함) |
@@ -79,4 +80,4 @@ games/<id>/
 `tools/e2e/`(Playwright):
 
 - `verify-spot-sets.mjs` — 틀린그림찾기 이미지 풀의 영역 비중복·쌍별 차이 수·픽셀 일치/가시성.
-- `play.mjs` — 모든 게임을 같은 시드 생성기로 끝까지 플레이, 상단바에 타이머/점수가 없고 게임이 자기 것을 가졌는지, 전체화면 버튼 배선, 레이아웃 숨기기/복원, 레지스트리 ↔ 폴더 일치, 각 폴더의 단독 페이지, 옛 id 호환, 콘솔 에러 0.
+- `play.mjs` — 모든 게임을 같은 시드 생성기로 끝까지 플레이, 상단바에 타이머/점수가 없고 게임이 자기 것을 가졌는지, 전체화면 버튼 배선, 레이아웃 숨기기/복원, 레지스트리 ↔ 폴더 일치, 각 폴더의 단독 페이지, 콘솔 에러 0.

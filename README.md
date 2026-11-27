@@ -37,7 +37,7 @@ possiblemission/
 │  └─ <id>/
 │     ├─ manifest.js       로비 카드 정보(제목·태그·인원·시간·카드 그림) + modeLabel()
 │     ├─ index.js          mount(container, ctx) → { unmount(), idle? }
-│     ├─ settings.js       난이도 프리셋·모드 id 인코딩/파싱 (manifest와 게임이 공유; 틀린그림찾기는 stages.js)
+│     ├─ settings.js       난이도 필드·프리셋 선언 + 모드 id 코덱 (manifest와 게임이 공유; 틀린그림찾기는 stages.js)
 │     ├─ style.css         .game-<id> 아래로 스코프된 스타일 + 로비 카드 그림
 │     ├─ index.html        이 게임만 단독 실행하는 페이지
 │     └─ assets/, symbols.js …  게임 전용 리소스
@@ -53,6 +53,7 @@ possiblemission/
 │  └─ core/                게임이 공유하는 라이브러리 (UI 없음/최소)
 │     ├─ seed.js           FNV-1a + Mulberry32 시드 RNG, 셔플/분산 선택
 │     ├─ clock.js          타이머·점수 표시 갱신 도우미(DOM은 각 게임이 소유)
+│     ├─ mode-codec.js     프리셋/커스텀/다같이 모드 id 인코딩·파싱·라벨
 │     ├─ setup-screen.js   난이도 선택 화면 공통 컴포넌트
 │     ├─ audio.js, storage.js, ui.js(토스트·컨페티·모달), qr.js, rules.js, dom.js
 ├─ styles/                 공통 스타일: tokens → base → lobby → shell → components → setup

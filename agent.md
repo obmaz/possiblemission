@@ -7,7 +7,7 @@
 - **정적 무빌드 웹 앱**: 순수 HTML5 / CSS3 / Vanilla JS ES Modules (`./` 상대 경로, 외부 런타임 의존성 없음).
 - **미니게임 = 폴더 하나**: `games/<id>/`에 `manifest.js`(로비 카드 정보), `index.js`(`mount(container, ctx)`), `settings.js`(프리셋·모드 id), `style.css`(`.game-<id>` 스코프), `index.html`(단독 실행), `assets/`가 모두 들어 있습니다. 게임 목록은 `games/registry.js`의 `GAME_IDS`가 유일한 등록 지점이며, 셸이 폴더를 읽어 동적으로 연결합니다. 공통 코드(`js/`, `styles/`)에는 게임 이름을 하드코딩하지 않습니다.
 - **셸**: `index.html`, `js/app.js`(부트스트랩·URL/히스토리), `js/shell/`(로비·실행기·공통 상단바), `js/core/`(`seed.js`, `clock.js`, `setup-screen.js`, `audio.js`, `storage.js`, `rules.js`, `ui.js`, `qr.js`), `styles/`(`tokens` → `base` → `lobby` → `shell` → `components` → `setup`).
-- **시드 결정성**: 모든 게임 라운드는 `createRng(\`${seed}::${gameId}::${mode}\`)`(= `ctx.rng`)에 의해 동일 시드에서 100% 재현되어야 합니다. 모드 id 형식(`custom-…` 포함)을 바꾸면 공유 링크가 깨지므로 유지합니다.
+- **시드 결정성**: 모든 게임 라운드는 `createRng(\`${seed}::${gameId}::${mode}\`)`(= `ctx.rng`)에 의해 동일 시드에서 100% 재현되어야 합니다. 모드 id는 `js/core/mode-codec.js`로 인코딩하며 커스텀 값까지 id에 담습니다.
 - 자세한 계약과 게임 추가 절차: [`docs/architecture.md`](./docs/architecture.md), [`docs/adding-a-game.md`](./docs/adding-a-game.md).
 
 ## 2. UI·UX 및 코드 규칙

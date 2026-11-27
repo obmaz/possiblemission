@@ -1,11 +1,8 @@
 /**
- * 컬러 트랩 (COLOR TRAP / Stroop Challenge) settings: presets + solo/party mode + custom values.
- *
- * Mode ids
- * - `setup`                            → in-game settings screen
- * - `<preset>` / `<preset>-party`      → preset in solo (0) or party (1) play mode
- * - `custom-<play>-<r>-<t>-<mix>`      → custom settings
+ * 컬러 트랩 (COLOR TRAP / Stroop) settings: 6 presets plus solo/party mode plus custom values.
+ * Shared by the manifest (mode labels) and the game (setup screen, run generation).
  */
+import { createModeCodec } from '../../js/core/mode-codec.js';
 
 export const COLOR_TRAP_SETUP_MODE = 'setup';
 
@@ -27,47 +24,13 @@ export const COLOR_TRAP_PRESETS = [
 
 export const COLOR_TRAP_DEFAULT_PRESET = 'medium';
 
-export function matchColorTrapPreset(values) {
-  return (
-    COLOR_TRAP_PRESETS.find(
-      (p) => p.rounds === values.rounds && p.timeSec === values.timeSec && p.modeMix === values.modeMix
-    ) || null
-  );
-}
+const codec = createModeCodec({
+  fields: COLOR_TRAP_FIELDS,
+  presets: COLOR_TRAP_PRESETS,
+  customLabel: (v) => `${v.rounds}문제`,
+});
 
-export function colorTrapModeId(values) {
-  const preset = matchColorTrapPreset(values);
-  if (preset) return values.play === 1 ? `${preset.id}-party` : preset.id;
-  return `custom-${values.play}-${values.rounds}-${values.timeSec}-${values.modeMix}`;
-}
-
-export function parseColorTrapMode(mode) {
-  const raw = String(mode || '');
-  const partyMatch = raw.match(/^([a-z]+)-party$/);
-  const baseId = partyMatch ? partyMatch[1] : raw;
-  const preset = COLOR_TRAP_PRESETS.find((p) => p.id === baseId);
-  if (preset) {
-    return {
-      play: partyMatch ? 1 : 0,
-      rounds: preset.rounds,
-      timeSec: preset.timeSec,
-      modeMix: preset.modeMix,
-      presetId: preset.id,
-    };
-  }
-  const m = raw.match(/^custom-([01])-(\d+)-(\d+)-([012])$/);
-  if (!m) return null;
-  const [play, rounds, timeSec, modeMix] = m.slice(1).map(Number);
-  const values = { play, rounds, timeSec, modeMix };
-  const valid = COLOR_TRAP_FIELDS.every((f) => f.options.includes(values[f.key]));
-  return valid ? { ...values, presetId: null } : null;
-}
-
-export function colorTrapModeLabel(mode) {
-  if (mode === COLOR_TRAP_SETUP_MODE) return '난이도 설정';
-  const v = parseColorTrapMode(mode);
-  if (!v) return '';
-  const suffix = v.play === 1 ? ' · 다같이' : '';
-  if (v.presetId) return `${COLOR_TRAP_PRESETS.find((p) => p.id === v.presetId).label}${suffix}`;
-  return `커스텀 ${v.rounds}문제${suffix}`;
-}
+export const matchColorTrapPreset = codec.matchPreset;
+export const colorTrapModeId = codec.modeId;
+export const parseColorTrapMode = codec.parse;
+export const colorTrapModeLabel = codec.label;

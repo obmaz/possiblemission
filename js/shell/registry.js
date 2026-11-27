@@ -2,7 +2,7 @@
  * Discovers mini-games from `games/registry.js`: loads every folder's manifest and stylesheet
  * up front (the lobby needs them) and imports a game's code only when it is played.
  */
-import { GAME_IDS, LEGACY_GAME_IDS } from '../../games/registry.js';
+import { GAME_IDS } from '../../games/registry.js';
 
 const gamesById = new Map();
 
@@ -44,10 +44,7 @@ function listGames() {
   return GAME_IDS.map((id) => gamesById.get(id)).filter(Boolean);
 }
 
-/** Looks a game up by id, accepting legacy ids from older shared links. */
-export function getGame(id) {
-  return gamesById.get(LEGACY_GAME_IDS[id] || id) || null;
-}
+export const getGame = (id) => gamesById.get(id) ?? null;
 
 /**
  * Validates a mode id for a game, falling back to its default mode.

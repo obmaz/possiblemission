@@ -18,8 +18,3 @@ export const GAME_IDS = [
   'pixel-reveal',
   'flash-count',
 ];
-
-/** Old game ids that still resolve (shared links / bookmarks created before a folder rename). */
-export const LEGACY_GAME_IDS = {
-  'despair-fortress': 'hide-seek',
-};

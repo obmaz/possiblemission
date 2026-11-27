@@ -1,6 +1,8 @@
 /**
- * 모자이크 줌아웃 (PIXEL REVEAL) settings: 6 presets + solo/party mode + custom values.
+ * 모자이크 줌아웃 (PIXEL REVEAL) settings: 6 presets plus solo/party mode plus custom values.
+ * Shared by the manifest (mode labels) and the game (setup screen, run generation).
  */
+import { createModeCodec } from '../../js/core/mode-codec.js';
 
 export const PIXEL_REVEAL_SETUP_MODE = 'setup';
 
@@ -22,47 +24,13 @@ export const PIXEL_REVEAL_PRESETS = [
 
 export const PIXEL_REVEAL_DEFAULT_PRESET = 'medium';
 
-export function matchPixelRevealPreset(values) {
-  return (
-    PIXEL_REVEAL_PRESETS.find(
-      (p) => p.rounds === values.rounds && p.revealSec === values.revealSec && p.startGrid === values.startGrid
-    ) || null
-  );
-}
+const codec = createModeCodec({
+  fields: PIXEL_REVEAL_FIELDS,
+  presets: PIXEL_REVEAL_PRESETS,
+  customLabel: (v) => `${v.rounds}문제`,
+});
 
-export function pixelRevealModeId(values) {
-  const preset = matchPixelRevealPreset(values);
-  if (preset) return values.play === 1 ? `${preset.id}-party` : preset.id;
-  return `custom-${values.play}-${values.rounds}-${values.revealSec}-${values.startGrid}`;
-}
-
-export function parsePixelRevealMode(mode) {
-  const raw = String(mode || '');
-  const partyMatch = raw.match(/^([a-z]+)-party$/);
-  const baseId = partyMatch ? partyMatch[1] : raw;
-  const preset = PIXEL_REVEAL_PRESETS.find((p) => p.id === baseId);
-  if (preset) {
-    return {
-      play: partyMatch ? 1 : 0,
-      rounds: preset.rounds,
-      revealSec: preset.revealSec,
-      startGrid: preset.startGrid,
-      presetId: preset.id,
-    };
-  }
-  const m = raw.match(/^custom-([01])-(\d+)-(\d+)-(\d+)$/);
-  if (!m) return null;
-  const [play, rounds, revealSec, startGrid] = m.slice(1).map(Number);
-  const values = { play, rounds, revealSec, startGrid };
-  const valid = PIXEL_REVEAL_FIELDS.every((f) => f.options.includes(values[f.key]));
-  return valid ? { ...values, presetId: null } : null;
-}
-
-export function pixelRevealModeLabel(mode) {
-  if (mode === PIXEL_REVEAL_SETUP_MODE) return '난이도 설정';
-  const v = parsePixelRevealMode(mode);
-  if (!v) return '';
-  const suffix = v.play === 1 ? ' · 다같이' : '';
-  if (v.presetId) return `${PIXEL_REVEAL_PRESETS.find((p) => p.id === v.presetId).label}${suffix}`;
-  return `커스텀 ${v.rounds}문제${suffix}`;
-}
+export const matchPixelRevealPreset = codec.matchPreset;
+export const pixelRevealModeId = codec.modeId;
+export const parsePixelRevealMode = codec.parse;
+export const pixelRevealModeLabel = codec.label;
