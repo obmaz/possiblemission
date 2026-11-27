@@ -68,8 +68,6 @@ const WALL_SHORT_SIDE = 900;
 const PORTRAIT_ASPECT = 0.87;
 const WALL_PAD = 46;
 
-const TILE_ANGLES = [45, 45, 38, 30, 20, 12, 0, -12, -20, -30, -38];
-
 /** Points per found number grow with tile density, shorter reveal, and hidden ratio. */
 function basePoints(settings) {
   const density = settings.tiles / 24; // 1 … 5.25
@@ -101,10 +99,10 @@ export function generateHideSeekRun(rng, settings) {
     return { index, letter, number: numberOf[letter] };
   }).map((tile) => ({
     ...tile,
-    angle: TILE_ANGLES[Math.floor(rng() * TILE_ANGLES.length)],
-    size: 0.74 + rng() * 0.26, // fraction of the cell
-    jx: (rng() - 0.5) * 0.14, // jitter inside the cell
-    jy: (rng() - 0.5) * 0.1,
+    angle: Math.round((rng() - 0.5) * 86),
+    size: 0.68 + rng() * 0.32, // fraction of the cell
+    jx: (rng() - 0.5) * 0.9, // wide scatter inside and across cells
+    jy: (rng() - 0.5) * 0.9,
     hideRank: tile.index,
   }));
   // Numbers disappear in non-overlapping round-robin batches of `hideBatch`, in a seeded order
@@ -342,24 +340,62 @@ function mountGame(container, ctx, settings) {
     const cellH = (logical.h - WALL_PAD * 2) / rows;
     const cell = Math.min(cellW, cellH);
     const maxDist = Math.hypot(logical.w / 2, logical.h / 2);
-    geometry = wall.tiles.map((tile) => {
+    const pts = wall.tiles.map((tile) => {
       const i = tile.index;
       const c = portrait ? Math.floor(i / wall.cols) : i % wall.cols;
       const row = portrait ? i % wall.cols : Math.floor(i / wall.cols);
-      const x = WALL_PAD + (c + 0.5 + tile.jx) * cellW;
-      const y = WALL_PAD + (row + 0.58 + tile.jy) * cellH;
+      // Staggered row/col offsets + wide seeded jitter break up the grid lines
+      const staggerX = row % 2 === 1 ? 0.18 : -0.18;
+      const staggerY = c % 2 === 1 ? 0.15 : -0.15;
+      const half = cell * tile.size * 0.31;
       return {
-        // Sit slightly low in the cell to leave head-room for the popping number
-        x,
-        y,
-        // A 45° tile must still fit its cell: half-diagonal ≤ half cell
-        half: cell * tile.size * 0.31,
+        x: WALL_PAD + (c + 0.5 + staggerX + tile.jx) * cellW,
+        y: WALL_PAD + (row + 0.58 + staggerY + tile.jy) * cellH,
+        half,
         angleRad: (tile.angle * Math.PI) / 180,
-        cell,
-        // 0…1 distance from the centre: the intro and the clear wave ripple outward
-        ring: Math.hypot(x - logical.w / 2, y - logical.h / 2) / maxDist,
       };
     });
+
+    // Light repulsion relaxation so scattered tiles never pile up or hide letters
+    const clampBounds = (p) => {
+      const padX = WALL_PAD + p.half * 1.25;
+      const padTop = WALL_PAD + cell * 0.34 + p.half * 1.1;
+      const padBot = WALL_PAD + p.half * 1.25;
+      p.x = Math.max(padX, Math.min(logical.w - padX, p.x));
+      p.y = Math.max(padTop, Math.min(logical.h - padBot, p.y));
+    };
+    for (let iter = 0; iter < 6; iter++) {
+      for (let i = 0; i < pts.length; i++) {
+        for (let j = i + 1; j < pts.length; j++) {
+          const a = pts[i];
+          const b = pts[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const minSep = (a.half + b.half) * 1.15;
+          const distSq = dx * dx + dy * dy;
+          if (distSq >= minSep * minSep) continue;
+          const dist = Math.sqrt(distSq) || 0.001;
+          const push = (minSep - dist) * 0.5;
+          const ux = dx / dist;
+          const uy = dy / dist;
+          a.x -= ux * push;
+          a.y -= uy * push;
+          b.x += ux * push;
+          b.y += uy * push;
+        }
+      }
+      for (let i = 0; i < pts.length; i++) clampBounds(pts[i]);
+    }
+
+    geometry = pts.map((p) => ({
+      x: p.x,
+      y: p.y,
+      half: p.half,
+      angleRad: p.angleRad,
+      cell,
+      // 0…1 distance from the centre: the intro and the clear wave ripple outward
+      ring: Math.hypot(p.x - logical.w / 2, p.y - logical.h / 2) / maxDist,
+    }));
     gradients = null;
   }
 
