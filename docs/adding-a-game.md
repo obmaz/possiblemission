@@ -4,7 +4,7 @@
 
 ## 체크리스트
 
-1. **폴더 만들기** — `games/<id>/` (kebab-case, URL과 RNG 시드에 쓰이므로 한번 공개하면 바꾸지 않기).
+1. **폴더 만들기** — `games/_template/` 폴더를 복사해 `games/<id>/`(kebab-case, URL과 RNG 시드에 쓰이므로 한번 공개하면 바꾸지 않기)로 이름을 바꾸고 `template` 심볼·접두사(`tp-`)를 새 게임 이름으로 치환합니다. 세부 네이밍·용어 기준은 [`docs/conventions.md`](./conventions.md)를 따릅니다.
 2. **`index.js`** — `export function mount(container, ctx)`.
    - 난이도 선택이 필요하면 `ctx.mode`가 `setup`일 때 `mountSetupScreen(container, ctx, {...})`(`js/core/setup-screen.js`)를 돌려주고, 아니면 본게임을 mount합니다. 선택 화면은 `{ idle: true }`를 돌려줍니다. (자체 난이도 선택 UI를 따로 만들지 않습니다.)
    - 기본 난이도 프리셋에는 반드시 **`EASY` · `MEDIUM` · `HARD`**(`id: 'easy' | 'medium' | 'hard'`)가 포함되어야 합니다. `players: 'both'`인 게임은 `playSwitch` 옵션으로 혼자/다같이 스위치를 켭니다.

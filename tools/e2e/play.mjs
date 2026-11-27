@@ -621,7 +621,9 @@ out.registry = await page.evaluate(async () => {
 });
 out.registryFolders = (() => {
   const gamesDir = path.join(root, 'games');
-  const onDisk = fs.readdirSync(gamesDir).filter((n) => fs.statSync(path.join(gamesDir, n)).isDirectory());
+  const onDisk = fs
+    .readdirSync(gamesDir)
+    .filter((n) => !n.startsWith('_') && fs.statSync(path.join(gamesDir, n)).isDirectory());
   const missing = [];
   for (const id of onDisk) {
     for (const file of ['manifest.js', 'index.js', 'style.css', 'index.html']) {

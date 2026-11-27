@@ -1,0 +1,42 @@
+/* ==========================================================================
+   Game: 새 미니게임 (.game-template)
+   All selectors scoped under .game-template; keyframes prefixed tp-.
+   No hover/focus visual effects.
+   ========================================================================== */
+
+.game-template {
+  --setup-accent: var(--neon-cyan);
+  --setup-accent-soft: rgba(11, 132, 198, 0.14);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: clamp(10px, 2vw, 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-surface-deep);
+  border-radius: var(--radius-lg);
+}
+
+.game-template .tp-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.game-template .tp-stage {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+
+/* === Lobby card artwork === */
+.game-card__template-art {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 3rem;
+}
