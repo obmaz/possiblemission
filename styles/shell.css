@@ -1,0 +1,394 @@
+/* ==========================================================================
+   GAME SCREEN: shared top bar, stage, start countdown, pause curtain
+   The top bar shows no timer or score: every mini-game draws its own.
+   ========================================================================== */
+.game-view {
+  --hud-height: 56px;
+  position: relative;
+  z-index: var(--z-content);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/*
+ * "공통 레이아웃 가리기": the bar collapses into a thin transparent strip that keeps only the
+ * fullscreen and layout buttons (.hud-keep), so the game gets more room and nothing floats over it.
+ */
+.game-view[data-layout='hidden'] {
+  --hud-height: 36px;
+}
+
+.game-hud {
+  display: none;
+}
+
+.game-hud {
+  position: relative;
+  flex-shrink: 0;
+  z-index: var(--z-hud);
+  height: var(--hud-height);
+  padding: 0 clamp(10px, 2vw, 20px);
+  background: var(--bg-hud);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.game-hud__left,
+.game-hud__actions,
+.game-hud__identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.game-hud__actions {
+  flex-shrink: 0;
+}
+
+.hud-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  min-width: 38px;
+  padding: 6px 11px;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  border: 1px solid var(--border-specular);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.hud-btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.hud-btn--icon {
+  padding: 0;
+  width: 38px;
+  height: 38px;
+}
+
+.game-hud__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.98rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-hud__mode,
+.game-hud__seed {
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.game-hud__mode {
+  background: var(--bg-pill);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+.game-hud__seed {
+  background: rgba(251, 191, 36, 0.14);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: var(--neon-gold);
+  font-family: var(--font-mono);
+}
+
+.hud-more {
+  position: relative;
+}
+
+.hud-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: calc(var(--z-hud) + 1);
+  min-width: 168px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: var(--radius-md);
+  background: var(--bg-modal);
+  border: 1px solid var(--border-specular);
+  box-shadow: var(--shadow-floating);
+}
+
+.hud-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.game-view[data-layout='hidden'] .game-hud {
+  background: transparent;
+  border-bottom: 0;
+  justify-content: flex-end;
+}
+
+.game-view[data-layout='hidden'] .game-hud__left,
+.game-view[data-layout='hidden'] .game-hud__actions > :not(.hud-keep) {
+  display: none;
+}
+
+.game-view[data-layout='hidden'] .hud-keep {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  opacity: 0.7;
+}
+
+.game-view[data-layout='hidden'] .hud-keep .hud-btn__label {
+  display: none;
+}
+
+.game-stage {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  padding: clamp(6px, 1.4vh, 18px);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.game-stage > .game-root {
+  margin: auto;
+  flex-shrink: 0;
+}
+
+/*
+ * Arcade cabinet frame: every mini-game plays inside a fixed 16:9 stage on
+ * desktop/monitor viewports so puzzle layouts are identical for all players.
+ */
+@media (min-width: 900px) {
+  .game-stage > .game-root {
+    width: min(100%, calc((100dvh - var(--hud-height) - 2 * clamp(6px, 1.4vh, 18px)) * 16 / 9));
+    height: auto;
+    aspect-ratio: 16 / 9;
+    margin: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .game-hud__seed {
+    display: none;
+  }
+}
+
+@media (max-width: 899px) {
+  .game-hud__actions .hud-btn__label {
+    display: none;
+  }
+  .game-hud__actions .hud-btn {
+    padding: 0;
+    width: 38px;
+    height: 38px;
+  }
+}
+
+@media (max-width: 479px) {
+  .game-hud__back-label,
+  .game-hud__mode {
+    display: none;
+  }
+  #hud-exit-btn {
+    width: 38px;
+    padding: 0;
+  }
+}
+
+@media (max-width: 639px), (pointer: coarse) {
+  .hud-btn {
+    min-height: 40px;
+    min-width: 40px;
+  }
+  .hud-btn--icon,
+  .game-hud__actions .hud-btn {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-height: 520px) and (max-width: 899px) {
+  .game-view {
+    --hud-height: 48px;
+  }
+  .hud-btn,
+  .hud-btn--icon,
+  .game-hud__actions .hud-btn {
+    min-height: 34px;
+    min-width: 34px;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+  }
+}
+
+/* === Start countdown (3 · 2 · 1) === */
+.stage-countdown {
+  position: fixed;
+  inset: var(--hud-height) 0 0 0;
+  z-index: var(--z-countdown);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: var(--bg-obsidian);
+}
+
+.stage-countdown[hidden] {
+  display: none;
+}
+
+.stage-countdown__label {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+}
+
+.stage-countdown__circle {
+  display: grid;
+  place-items: center;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: var(--bg-surface-deep);
+  box-shadow: var(--shadow-card);
+}
+
+.stage-countdown__circle span {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 5rem;
+  font-weight: 800;
+}
+
+.stage-countdown__circle span.is-tick {
+  animation: countdown-pop 900ms ease-out;
+}
+
+/* "Go!": the backdrop and circle fall away while the word grows and fades */
+.stage-countdown.is-go {
+  background: transparent;
+  pointer-events: none;
+}
+
+.stage-countdown.is-go .stage-countdown__label,
+.stage-countdown.is-go .stage-countdown__circle {
+  background: transparent;
+  box-shadow: none;
+  color: transparent;
+}
+
+.stage-countdown__circle span.is-go {
+  color: var(--btn-primary);
+  font-size: 4.2rem;
+  animation: countdown-go 650ms ease-out forwards;
+}
+
+@keyframes countdown-go {
+  0% { transform: scale(0.8); opacity: 1; }
+  60% { opacity: 1; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+@keyframes countdown-pop {
+  0% { transform: scale(0.7); opacity: 0; box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.35); }
+  25% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); box-shadow: 0 0 0 22px rgba(37, 99, 235, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-countdown__circle span.is-tick,
+  .stage-countdown__circle span.is-go {
+    animation: none;
+  }
+}
+
+/* === Pause / Anti-Cheat Curtain === */
+.pause-curtain {
+  position: fixed;
+  top: var(--hud-height);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-pause-curtain);
+  background: rgba(244, 246, 250, 0.96);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.pause-curtain__card {
+  max-width: 400px;
+  width: 100%;
+  padding: 28px;
+  border-radius: var(--radius-xl);
+  background: var(--bg-modal);
+  border: 1px solid var(--border-specular);
+  box-shadow: var(--shadow-floating);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.pause-curtain__sub {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  letter-spacing: 0.14em;
+  color: var(--neon-gold);
+}
+
+.pause-curtain__title {
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: 900;
+}
+
+.pause-curtain__desc {
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}

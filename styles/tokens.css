@@ -1,0 +1,92 @@
+/* ==========================================================================
+   POSSIBLE MISSION (가능미션) — design tokens (light arcade theme)
+   ========================================================================== */
+
+:root {
+  /* === Canvas & Surface Hierarchy (Light) === */
+  --bg-obsidian: #f4f6fa;
+  --bg-obsidian-elevated: #ffffff;
+  --bg-surface-deep: #ffffff;
+  --bg-surface-soft: #f7f8fb;
+  --bg-surface-hover: #eef1f6;
+  --bg-hud: rgba(255, 255, 255, 0.94);
+  --bg-modal: #ffffff;
+  --bg-pill: rgba(15, 23, 42, 0.05);
+
+  /* === Glass & Borders === */
+  --glass-blur: blur(14px);
+  --border-subtle: rgba(15, 23, 42, 0.1);
+  --border-specular: rgba(15, 23, 42, 0.16);
+  --border-strong: rgba(15, 23, 42, 0.26);
+
+  /* === Accents (one per game, tuned for white backgrounds) === */
+  --neon-cyan: #0b84c6;       /* Focus / info */
+  --neon-magenta: #d1477f;    /* Spot the Diff / Combo */
+  --neon-gold: #c08419;       /* Rank S / Seed / Best Score / Bonus */
+  --neon-emerald: #16936a;    /* Ready / Success / Connected */
+  --neon-crimson: #d14545;    /* Number Hide & Seek / Danger / Wrong Tap */
+  --neon-violet: #7b5bd6;     /* Memory Match / MC Accent */
+
+  /* One colour for every primary action (start, retry, copy…) */
+  --btn-primary: #2563eb;
+  --btn-primary-hover: #1d4fd8;
+
+  /* Text that sits on top of photos / dark scrims */
+  --text-on-image: #f6f8fc;
+
+  /* === Semantic Glows (subtle by default) === */
+  --glow-cyan: 0 6px 18px rgba(56, 189, 248, 0.16);
+  --glow-magenta: 0 6px 18px rgba(236, 106, 160, 0.16);
+  --glow-gold: 0 6px 18px rgba(238, 180, 74, 0.18);
+  --glow-emerald: 0 6px 18px rgba(63, 191, 146, 0.16);
+  --glow-crimson: 0 6px 18px rgba(224, 103, 103, 0.18);
+  --glow-violet: 0 6px 18px rgba(161, 137, 232, 0.16);
+
+  /* === Typography === */
+  --font-display: 'Outfit', 'Pretendard Variable', 'Noto Sans KR', sans-serif;
+  --font-mono: 'Space Grotesk', 'Pretendard Variable', monospace;
+  --font-sans: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* === Fluid Type Scale === */
+  --text-hero: clamp(1.85rem, 3.8vw + 0.8rem, 3.5rem);
+  --text-h2: clamp(1.25rem, 1.6vw + 0.7rem, 1.75rem);
+  --text-h3: clamp(1.05rem, 0.8vw + 0.8rem, 1.25rem);
+  --text-body: clamp(0.875rem, 0.3vw + 0.8rem, 1rem);
+  --text-caption: 0.75rem;
+  --text-micro: 0.6875rem;
+
+  /* === Text Colors === */
+  --text-primary: #172033;
+  --text-secondary: #3b465b;
+  --text-muted: #5d687c;
+  --text-dim: #8b95a7;
+
+  /* === Radii & Layout === */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --radius-pill: 9999px;
+
+  --container-max: 1320px;
+  --gutter: clamp(14px, 3vw, 28px);
+
+  /* === Shadows & Motion === */
+  --shadow-card: 0 10px 26px -16px rgba(15, 23, 42, 0.35), 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-floating: 0 18px 40px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.06);
+  --ease-arcade: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 150ms;
+  --dur-med: 260ms;
+  --dur-slow: 480ms;
+
+  /* === Z-Index Layers === */
+  --z-bg: 0;
+  --z-content: 10;
+  --z-hud: 50;
+  --z-countdown: 60;
+  --z-pause-curtain: 65;
+  --z-modal: 80;
+  --z-confetti: 90;
+  --z-toast: 100;
+}

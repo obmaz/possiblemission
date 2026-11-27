@@ -39,7 +39,7 @@ out.pickerCards = await page.$$eval('.sd-pick-card', (els) => els.length);
 await page.click('#hud-exit-btn');
 out.pickerExitNoConfirm = await page.evaluate(() => !document.querySelector('#confirm-leave-btn') && !document.querySelector('#lobby-view').hidden);
 
-const stages = await page.evaluate(async () => (await import('/js/games/spot-stages.js')).SPOT_STAGES.map((s) => s.id));
+const stages = await page.evaluate(async () => (await import('/games/spot-difference/stages.js')).SPOT_STAGES.map((s) => s.id));
 out.spot = {};
 for (const stageId of stages) {
   await page.goto(`${base}/?seed=${SEED}`);
@@ -52,7 +52,7 @@ for (const stageId of stages) {
   const mode = new URL(page.url()).searchParams.get('mode');
   const targets = await page.evaluate(async ({ seed, mode }) => {
     const { createRng } = await import('/js/core/seed.js');
-    const m = await import('/js/games/spot-difference.js');
+    const m = await import('/games/spot-difference/index.js');
     const cfg = m.parseModeConfig(mode);
     const rng = createRng(`${seed}::spot-difference::${mode}`);
     return m.resolveRoundData(rng, cfg.stage, cfg.targetCount, cfg.difficulty.id).anomalies.map((a) => ({ x: a.x, y: a.y, label: a.label }));
@@ -78,7 +78,7 @@ for (const stageId of stages) {
   const mode = new URL(page.url()).searchParams.get('mode');
   const check = await page.evaluate(async ({ seed, mode }) => {
     const { createRng } = await import('/js/core/seed.js');
-    const m = await import('/js/games/spot-difference.js');
+    const m = await import('/games/spot-difference/index.js');
     const cfg = m.parseModeConfig(mode);
     const rng = createRng(`${seed}::spot-difference::${mode}`);
     const anomalies = m.resolveRoundData(rng, cfg.stage, cfg.targetCount, cfg.difficulty.id).anomalies;
@@ -132,6 +132,7 @@ out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode')
 
 /* ---------- 도블 스피드 매치: projective plane math + KRRI/KTX + setup → full play + result buttons ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
+await page.waitForSelector('.game-card');
 out.noInviteCopyBtn = await page.evaluate(() => !document.getElementById('copy-invite-btn'));
 out.heroToolsInBanner = await page.evaluate(() => Boolean(
   document.querySelector('#hero-banner #lobby-mute-btn svg')
@@ -141,7 +142,7 @@ out.compactCards = await page.evaluate(() => {
   const noOldText = !document.querySelector('.game-card__sub-en, .game-card__hook');
   const titlesInBody = document.querySelectorAll('.game-card__body .game-card__pb-bar .game-card__title').length === 8;
   const summaries = document.querySelectorAll('.game-card__pb-bar .game-card__summary').length === 8;
-  const soloOnly = ['spot-difference', 'dobble', 'memory-match', 'despair-fortress'].every((id) => {
+  const soloOnly = ['spot-difference', 'dobble', 'memory-match', 'hide-seek'].every((id) => {
     const c = document.querySelector(`.game-card[data-game-id="${id}"]`);
     return c?.querySelector('[data-player-icon="solo"]') && !c?.querySelector('[data-player-icon="group"]');
   });
@@ -154,9 +155,9 @@ out.compactCards = await page.evaluate(() => {
 await page.click('.game-card[data-game-id="dobble"] [data-launch-game]');
 await page.waitForSelector('.db-setup');
 out.dobbleMathValid = await page.evaluate(async () => {
-  const { buildProjectiveDeck, generateDobbleRun } = await import('/js/games/dobble.js');
-  const { DOBBLE_SYMBOLS } = await import('/js/games/dobble-symbols.js');
-  const { DOBBLE_PRESETS, parseDobbleMode } = await import('/js/games/dobble-settings.js');
+  const { buildProjectiveDeck, generateDobbleRun } = await import('/games/dobble/index.js');
+  const { DOBBLE_SYMBOLS } = await import('/games/dobble/symbols.js');
+  const { DOBBLE_PRESETS, parseDobbleMode } = await import('/games/dobble/settings.js');
   const { createRng } = await import('/js/core/seed.js');
   const uniformRounds = new Set(DOBBLE_PRESETS.map((p) => p.rounds)).size === 1;
   const hasKrriKtx = DOBBLE_SYMBOLS.some((s) => s.id === 'krri') && DOBBLE_SYMBOLS.some((s) => s.id === 'ktx');
@@ -184,8 +185,8 @@ await afterCountdown();
 const dobbleMode = new URL(page.url()).searchParams.get('mode');
 const dobbleMatches = await page.evaluate(async ({ seed, mode }) => {
   const { createRng } = await import('/js/core/seed.js');
-  const { generateDobbleRun } = await import('/js/games/dobble.js');
-  const { parseDobbleMode } = await import('/js/games/dobble-settings.js');
+  const { generateDobbleRun } = await import('/games/dobble/index.js');
+  const { parseDobbleMode } = await import('/games/dobble/settings.js');
   return generateDobbleRun(createRng(`${seed}::dobble::${mode}`), parseDobbleMode(mode)).map((r) => r.matchId);
 }, { seed: SEED, mode: dobbleMode });
 for (const symId of dobbleMatches) {
@@ -213,8 +214,8 @@ out.countdownShown = await page.evaluate(() => !document.getElementById('stage-c
 await afterCountdown();
 const sums = await page.evaluate(async (seed) => {
   const { createRng } = await import('/js/core/seed.js');
-  const { generateAnzanRun } = await import('/js/games/flash-anzan.js');
-  const { parseAnzanMode } = await import('/js/games/flash-anzan-settings.js');
+  const { generateAnzanRun } = await import('/games/flash-anzan/index.js');
+  const { parseAnzanMode } = await import('/games/flash-anzan/settings.js');
   return generateAnzanRun(createRng(`${seed}::flash-anzan::easy`), parseAnzanMode('easy')).map((p) => p.total);
 }, SEED);
 for (const total of sums) {
@@ -237,7 +238,7 @@ out.memoryMode = new URL(page.url()).searchParams.get('mode');
 
 /* ---------- 숫자 숨바꼭질: setup screen → custom settings → full play ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
-await page.click('.game-card[data-game-id="despair-fortress"] [data-launch-game]');
+await page.click('.game-card[data-game-id="hide-seek"] [data-launch-game]');
 await page.waitForSelector('.df-setup');
 out.hideSeekPresets = await page.$$eval('[data-preset]', (els) => els.map((e) => e.dataset.preset).join(','));
 await page.click('[data-preset="hard"]');
@@ -249,11 +250,11 @@ const hsMode = new URL(page.url()).searchParams.get('mode');
 out.hideSeekMode = hsMode;
 const plan = await page.evaluate(async ({ seed, mode }) => {
   const { createRng } = await import('/js/core/seed.js');
-  const { generateFortressRun } = await import('/js/games/despair-fortress.js');
-  const { parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
-  return generateFortressRun(createRng(`${seed}::despair-fortress::${mode}`), parseHideSeekMode(mode)).targets.map((t) => t.letter);
+  const { generateFortressRun } = await import('/games/hide-seek/index.js');
+  const { parseHideSeekMode } = await import('/games/hide-seek/settings.js');
+  return generateFortressRun(createRng(`${seed}::hide-seek::${mode}`), parseHideSeekMode(mode)).targets.map((t) => t.letter);
 }, { seed: SEED, mode: hsMode });
-const timerText = () => page.textContent('#hud-timer');
+const timerText = () => page.textContent('.pm-timer');
 const toSec = (t) => (t.includes(':') ? Number(t.split(':')[0]) * 60 + Number(t.split(':')[1]) : parseFloat(t));
 await afterCountdown();
 // A wrong letter typed into a number's box costs WRONG_PENALTY_SEC (3 s)
@@ -280,15 +281,15 @@ out.hideSeekChangeDifficulty = Boolean(await page.waitForSelector('.df-setup', {
 // Same symbol → same number on every tile; GOD mixes Hangul
 out.hideSeekRules = await page.evaluate(async () => {
   const { createRng } = await import('/js/core/seed.js');
-  const { generateFortressRun } = await import('/js/games/despair-fortress.js');
-  const { parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
-  const run = generateFortressRun(createRng('X::despair-fortress::god'), parseHideSeekMode('god'));
+  const { generateFortressRun } = await import('/games/hide-seek/index.js');
+  const { parseHideSeekMode } = await import('/games/hide-seek/settings.js');
+  const run = generateFortressRun(createRng('X::hide-seek::god'), parseHideSeekMode('god'));
   const map = new Map();
   const consistent = run.tiles.every((t) => (map.has(t.letter) ? map.get(t.letter) === t.number : (map.set(t.letter, t.number), true)));
   const hangul = run.tiles.some((t) => /[가-힣]/.test(t.letter));
-  const easy = generateFortressRun(createRng('X::despair-fortress::easy'), parseHideSeekMode('easy'));
+  const easy = generateFortressRun(createRng('X::hide-seek::easy'), parseHideSeekMode('easy'));
   const noHangulOnEasy = easy.tiles.every((t) => /[A-Z]/.test(t.letter));
-  const { tilePeekAt } = await import('/js/games/despair-fortress.js');
+  const { tilePeekAt } = await import('/games/hide-seek/index.js');
   const godCfg = parseHideSeekMode('god');
   const ranks = new Set(run.tiles.map((t) => t.hideRank));
   const fullReveal = run.tiles.every((t) => tilePeekAt(run, godCfg, t, 0.5) === 1);
@@ -297,7 +298,7 @@ out.hideSeekRules = await page.evaluate(async () => {
 });
 // Starting again from the lobby shows the setup screen again (it used to skip it)
 await page.goto(`${base}/?seed=${SEED}`);
-await page.click('.game-card[data-game-id="despair-fortress"] [data-launch-game]');
+await page.click('.game-card[data-game-id="hide-seek"] [data-launch-game]');
 out.hideSeekSetupAgain = Boolean(await page.waitForSelector('.df-setup', { timeout: 4000 }).catch(() => null));
 // …and remembers the last settings
 out.hideSeekRemembersLast = (await page.textContent('[data-field="revealSec"] [data-value]')) === '4초';
@@ -305,12 +306,12 @@ out.hideSeekRemembersLast = (await page.textContent('[data-field="revealSec"] [d
 /* ---------- Determinism: same seed+mode twice → same layout ---------- */
 out.deterministic = await page.evaluate(async () => {
   const { createRng } = await import('/js/core/seed.js');
-  const df = await import('/js/games/despair-fortress.js');
-  const sd = await import('/js/games/spot-difference.js');
-  const { parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
+  const df = await import('/games/hide-seek/index.js');
+  const sd = await import('/games/spot-difference/index.js');
+  const { parseHideSeekMode } = await import('/games/hide-seek/settings.js');
   const god = parseHideSeekMode('god');
-  const a = JSON.stringify(df.generateFortressRun(createRng('X::despair-fortress::god'), god));
-  const b = JSON.stringify(df.generateFortressRun(createRng('X::despair-fortress::god'), god));
+  const a = JSON.stringify(df.generateFortressRun(createRng('X::hide-seek::god'), god));
+  const b = JSON.stringify(df.generateFortressRun(createRng('X::hide-seek::god'), god));
   const cfg = sd.parseModeConfig('cafe-hard');
   const pick = () => JSON.stringify(sd.resolveRoundData(createRng('X::spot-difference::cafe-hard'), cfg.stage, 9, 'hard').anomalies.map((s) => s.id));
   return a === b && pick() === pick();
@@ -319,12 +320,12 @@ out.deterministic = await page.evaluate(async () => {
 /* ---------- Hide & Seek invariant: staggered hiding, hidden count <= hideBatch, never all at once ---------- */
 out.hideSeekWaveInvariant = await page.evaluate(async () => {
   const { createRng } = await import('/js/core/seed.js');
-  const { PRESETS, parseHideSeekMode } = await import('/js/games/hide-seek-settings.js');
-  const { generateFortressRun, tilePeekAt } = await import('/js/games/despair-fortress.js');
+  const { HIDE_SEEK_PRESETS, parseHideSeekMode } = await import('/games/hide-seek/settings.js');
+  const { generateFortressRun, tilePeekAt } = await import('/games/hide-seek/index.js');
 
-  for (const preset of PRESETS) {
+  for (const preset of HIDE_SEEK_PRESETS) {
     const settings = parseHideSeekMode(preset.id);
-    const wall = generateFortressRun(createRng(`WAVE-TEST::despair-fortress::${preset.id}`), settings);
+    const wall = generateFortressRun(createRng(`WAVE-TEST::hide-seek::${preset.id}`), settings);
     const seenHiddenCount = new Array(wall.tiles.length).fill(0);
     const fullyVisibleCount = new Array(wall.tiles.length).fill(0);
 
@@ -384,7 +385,7 @@ out.hideSeekWaveInvariant = await page.evaluate(async () => {
       };
     }, titleSel);
   };
-  const mob = await checkViewport(375, 580, 'despair-fortress', '.df-setup__title');
+  const mob = await checkViewport(375, 580, 'hide-seek', '.df-setup__title');
   const land = await checkViewport(667, 375, 'flash-anzan', '.fa-setup__title');
   out.mobileHudNoOverlap = { ok: mob.ok && land.ok, mob, land };
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -401,8 +402,8 @@ await afterCountdown();
 const ctMode = new URL(page.url()).searchParams.get('mode');
 const ctAnswers = await page.evaluate(async ({ seed, mode }) => {
   const { createRng } = await import('/js/core/seed.js');
-  const { generateColorTrapRun } = await import('/js/games/color-trap.js');
-  const { parseColorTrapMode } = await import('/js/games/color-trap-settings.js');
+  const { generateColorTrapRun } = await import('/games/color-trap/index.js');
+  const { parseColorTrapMode } = await import('/games/color-trap/settings.js');
   return generateColorTrapRun(createRng(`${seed}::color-trap::${mode}`), parseColorTrapMode(mode)).map((q) => q.answerId);
 }, { seed: SEED, mode: ctMode });
 for (const ans of ctAnswers) {
@@ -426,11 +427,11 @@ out.colorTrapParty = await page.evaluate(() => Boolean(document.querySelector('.
 /* ---------- 플래시 암산 다같이(한 화면) 모드 ---------- */
 await page.goto(`${base}/?seed=${SEED}&game=flash-anzan&mode=easy-party`);
 await page.waitForSelector('.fa-stage');
-out.anzanParty = await page.evaluate(() => Boolean(document.querySelector('.game-anzan.is-party') && document.querySelector('.fa-party-panel')));
+out.anzanParty = await page.evaluate(() => Boolean(document.querySelector('.game-flash-anzan.is-party') && document.querySelector('.fa-party-panel')));
 
 /* ---------- 모자이크 줌아웃: 100-image pool + setup → solo full play + party no-overlap layout check ---------- */
 out.pixelRevealPool = await page.evaluate(async () => {
-  const { REVEAL_ITEMS } = await import('/js/games/pixel-reveal-items.js');
+  const { REVEAL_ITEMS } = await import('/games/pixel-reveal/items.js');
   const ids = new Set(REVEAL_ITEMS.map((x) => x.id));
   const labels = new Set(REVEAL_ITEMS.map((x) => x.label));
   const statuses = await Promise.all(REVEAL_ITEMS.map((x) => fetch(x.src, { method: 'HEAD' }).then((r) => r.status)));
@@ -463,8 +464,8 @@ await afterCountdown();
 const prMode = new URL(page.url()).searchParams.get('mode');
 const prAnswers = await page.evaluate(async ({ seed, mode }) => {
   const { createRng } = await import('/js/core/seed.js');
-  const { generatePixelRevealRun } = await import('/js/games/pixel-reveal.js');
-  const { parsePixelRevealMode } = await import('/js/games/pixel-reveal-settings.js');
+  const { generatePixelRevealRun } = await import('/games/pixel-reveal/index.js');
+  const { parsePixelRevealMode } = await import('/games/pixel-reveal/settings.js');
   return generatePixelRevealRun(createRng(`${seed}::pixel-reveal::${mode}`), parsePixelRevealMode(mode)).map((r) => r.item.label);
 }, { seed: SEED, mode: prMode });
 for (const label of prAnswers) {
@@ -486,8 +487,8 @@ await afterCountdown();
 const fcMode = new URL(page.url()).searchParams.get('mode');
 const fcAnswers = await page.evaluate(async ({ seed, mode }) => {
   const { createRng } = await import('/js/core/seed.js');
-  const { generateFlashCountRun } = await import('/js/games/flash-count.js');
-  const { parseFlashCountMode } = await import('/js/games/flash-count-settings.js');
+  const { generateFlashCountRun } = await import('/games/flash-count/index.js');
+  const { parseFlashCountMode } = await import('/games/flash-count/settings.js');
   return generateFlashCountRun(createRng(`${seed}::flash-count::${mode}`), parseFlashCountMode(mode)).map((p) => p.targetCount);
 }, { seed: SEED, mode: fcMode });
 for (const cnt of fcAnswers) {
@@ -496,6 +497,74 @@ for (const cnt of fcAnswers) {
 }
 await page.waitForSelector('.arcade-modal', { timeout: 5000 }).catch(() => {});
 out.flashCountSolo = `${await resultStatus()} · ${fcAnswers.length}q`;
+
+
+/* ---------- Shared chrome: no timer/score in the top bar, fullscreen toggle, hide / show layout ---------- */
+await page.goto(`${base}/?seed=${SEED}&game=dobble&mode=easy`);
+await page.waitForSelector('.db-card');
+await afterCountdown();
+out.chrome = await page.evaluate(async () => {
+  const visible = (el) => Boolean(el) && !el.hidden && el.getBoundingClientRect().width > 0;
+  const fsSupported = Boolean(document.fullscreenEnabled);
+  const shell = {
+    noSharedTimerOrScore: !document.querySelector('#game-hud .pm-timer, #game-hud .pm-score, #hud-timer, #hud-score'),
+    gameOwnsTimer: Boolean(document.querySelector('#game-stage .pm-timer')) && Boolean(document.querySelector('#game-stage .pm-score')),
+    fullscreenButton: !fsSupported || (visible(document.getElementById('hud-fullscreen-btn')) && /전체화면/.test(document.getElementById('hud-fullscreen-btn').textContent)),
+    layoutButtonNextToFullscreen: document.getElementById('hud-fullscreen-btn').nextElementSibling?.id === 'hud-layout-btn',
+  };
+  return shell;
+});
+// Headless Chromium cannot really enter fullscreen, so stub the API and verify the button wiring
+await page.evaluate(() => {
+  let fake = null;
+  Object.defineProperty(document, 'fullscreenElement', { get: () => fake, configurable: true });
+  document.documentElement.requestFullscreen = async () => { fake = document.documentElement; document.dispatchEvent(new Event('fullscreenchange')); };
+  document.exitFullscreen = async () => { fake = null; document.dispatchEvent(new Event('fullscreenchange')); };
+});
+const fsLabel = () => page.textContent('#hud-fullscreen-btn');
+await page.click('#hud-fullscreen-btn');
+out.chrome.fullscreenEntered = /축소하기/.test(await fsLabel());
+await page.click('#hud-fullscreen-btn');
+out.chrome.fullscreenExited = /전체화면/.test(await fsLabel());
+const stageHeight = () => page.evaluate(() => document.getElementById('game-stage').getBoundingClientRect().height);
+const heightWithBar = await stageHeight();
+await page.click('#hud-layout-btn');
+out.chrome.hidden = await page.evaluate(() => {
+  const shown = (sel) => document.querySelector(sel).getBoundingClientRect().width > 0;
+  return document.getElementById('game-view').dataset.layout === 'hidden'
+    && !shown('#hud-game-title') && !shown('#hud-pause-btn') && !shown('#hud-more-btn')
+    && shown('#hud-layout-btn') && /보이기/.test(document.getElementById('hud-layout-btn').getAttribute('aria-label'));
+});
+out.chrome.stageGrew = (await stageHeight()) > heightWithBar + 10;
+await page.click('#hud-layout-btn');
+out.chrome.restored = await page.evaluate(() => document.getElementById('hud-game-title').getBoundingClientRect().width > 0 && document.getElementById('game-view').dataset.layout === 'shown');
+
+/* ---------- Registry: every games/<id>/ folder is complete and registered; legacy ids still resolve ---------- */
+out.registry = await page.evaluate(async () => {
+  const { GAME_IDS, LEGACY_GAME_IDS } = await import('/games/registry.js');
+  const cards = [...document.querySelectorAll('.game-card')].length;
+  return { ids: GAME_IDS.length, legacyOk: Object.values(LEGACY_GAME_IDS).every((id) => GAME_IDS.includes(id)), cards };
+});
+out.registryFolders = (() => {
+  const gamesDir = path.join(root, 'games');
+  const onDisk = fs.readdirSync(gamesDir).filter((n) => fs.statSync(path.join(gamesDir, n)).isDirectory());
+  const missing = [];
+  for (const id of onDisk) {
+    for (const file of ['manifest.js', 'index.js', 'style.css', 'index.html']) {
+      if (!fs.existsSync(path.join(gamesDir, id, file))) missing.push(`${id}/${file}`);
+    }
+  }
+  return { onDisk, missing };
+})();
+// Each game folder also runs on its own (games/<id>/index.html), without the lobby
+out.standalone = {};
+for (const id of await page.evaluate(async () => (await import('/games/registry.js')).GAME_IDS)) {
+  await page.goto(`${base}/games/${id}/index.html?seed=${SEED}`);
+  const mounted = await page.waitForSelector('#game-stage .game-root', { timeout: 6000 }).catch(() => null);
+  out.standalone[id] = Boolean(mounted) && (await page.evaluate(() => !document.querySelector('.game-card, #game-hud')));
+}
+await page.goto(`${base}/?seed=${SEED}&game=despair-fortress`);
+out.legacyGameId = Boolean(await page.waitForSelector('.df-setup', { timeout: 6000 }).catch(() => null));
 
 out.consoleErrors = errors;
 console.log(JSON.stringify(out, null, 2));
@@ -539,6 +608,14 @@ if (out.pixelRevealPool?.count !== 100 || out.pixelRevealPool?.uniqueIds !== 100
   failures.push(`pixel-reveal pool: ${JSON.stringify(out.pixelRevealPool)}`);
 }
 if (!cleared(out.flashCountSolo)) failures.push(`flash-count: ${out.flashCountSolo}`);
+if (!out.chrome?.noSharedTimerOrScore || !out.chrome?.gameOwnsTimer) failures.push(`game owns timer/score: ${JSON.stringify(out.chrome)}`);
+if (!out.chrome?.fullscreenButton || !out.chrome?.layoutButtonNextToFullscreen) failures.push(`fullscreen / layout buttons: ${JSON.stringify(out.chrome)}`);
+if (out.chrome?.fullscreenEntered === false || out.chrome?.fullscreenExited === false) failures.push(`fullscreen toggle: ${JSON.stringify(out.chrome)}`);
+if (!out.chrome?.hidden || !out.chrome?.stageGrew || !out.chrome?.restored) failures.push(`hide / show layout: ${JSON.stringify(out.chrome)}`);
+if (out.registry?.cards !== out.registry?.ids || !out.registry?.legacyOk) failures.push(`registry: ${JSON.stringify(out.registry)}`);
+if (out.registryFolders?.missing.length || out.registryFolders?.onDisk.length !== out.registry?.ids) failures.push(`games folders: ${JSON.stringify(out.registryFolders)}`);
+if (Object.values(out.standalone || {}).some((ok) => !ok) || !Object.keys(out.standalone || {}).length) failures.push(`standalone game pages: ${JSON.stringify(out.standalone)}`);
+if (!out.legacyGameId) failures.push('legacy game id (?game=despair-fortress) did not open 숫자 숨바꼭질');
 if (out.consoleErrors.length) failures.push(`console errors: ${out.consoleErrors.length}`);
 if (failures.length) {
   console.error(`\nFAILED:\n- ${failures.join('\n- ')}`);

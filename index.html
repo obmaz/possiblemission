@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#070914" />
-  <title>POSSIBLE MISSION | 네온 워크샵 아케이드</title>
+  <meta name="theme-color" content="#f4f6fa" />
+  <title>POSSIBLE MISSION | 워크샵 미니게임 아케이드</title>
   <link rel="icon" href="data:," />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,106 +14,67 @@
   />
   <link
     rel="stylesheet"
-    as="style"
     crossorigin
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
   />
-  <link rel="stylesheet" href="./styles/main.css" />
-  <link rel="stylesheet" href="./styles/game-anzan.css" />
-  <link rel="stylesheet" href="./styles/game-spot.css" />
-  <link rel="stylesheet" href="./styles/game-memory.css" />
-  <link rel="stylesheet" href="./styles/game-fortress.css" />
-  <link rel="stylesheet" href="./styles/game-dobble.css" />
-  <link rel="stylesheet" href="./styles/game-color-trap.css" />
-  <link rel="stylesheet" href="./styles/game-pixel-reveal.css" />
-  <link rel="stylesheet" href="./styles/game-flash-count.css" />
+  <link rel="stylesheet" href="./styles/tokens.css" />
+  <link rel="stylesheet" href="./styles/base.css" />
+  <link rel="stylesheet" href="./styles/lobby.css" />
+  <link rel="stylesheet" href="./styles/shell.css" />
+  <link rel="stylesheet" href="./styles/components.css" />
+  <!-- Each game's own stylesheet (games/<id>/style.css) is added by js/shell/registry.js -->
 </head>
 <body>
-  <!-- Fixed atmospheric layer -->
-  <div class="arcade-backdrop" aria-hidden="true">
-    <div class="arcade-backdrop__aurora arcade-backdrop__aurora--cyan"></div>
-    <div class="arcade-backdrop__aurora arcade-backdrop__aurora--magenta"></div>
-  </div>
+  <div class="arcade-backdrop" aria-hidden="true"></div>
 
-  <!-- VIEW 1: LOBBY -->
-  <main id="lobby-view" class="lobby-view" data-active="true">
+  <!-- Lobby -->
+  <main id="lobby-view" class="lobby-view">
     <section id="hero-banner" class="hero-banner" aria-label="워크샵 아케이드 배너"></section>
     <section id="workshop-bar" class="workshop-bar" aria-label="플레이어 및 룸 시드 설정"></section>
     <section id="game-grid" class="game-grid" aria-label="미니게임 선택"></section>
   </main>
 
-  <!-- VIEW 2: ACTIVE GAME -->
-  <section id="game-view" class="game-view" hidden aria-label="게임 플레이 화면">
+  <!-- Game screen: shared top bar + the stage every game mounts into -->
+  <section id="game-view" class="game-view" data-layout="shown" hidden aria-label="게임 플레이 화면">
     <header id="game-hud" class="game-hud" role="banner">
       <div class="game-hud__left">
-        <button id="hud-exit-btn" class="hud-btn hud-btn--ghost" type="button" aria-label="로비로 나가기" title="로비로 나가기">
+        <button id="hud-exit-btn" class="hud-btn" type="button" aria-label="로비로 나가기" title="로비로 나가기">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-          <span class="game-hud__back-label">로비로</span>
+          <span class="hud-btn__label game-hud__back-label">로비로</span>
         </button>
         <div class="game-hud__identity">
           <span id="hud-game-title" class="game-hud__title"></span>
           <span id="hud-mode-label" class="game-hud__mode"></span>
+          <span id="hud-seed-badge" class="game-hud__seed"></span>
         </div>
       </div>
 
-      <div class="game-hud__center">
-        <span id="hud-seed-badge" class="game-hud__seed"></span>
-        <div id="hud-timer" class="hud-timer" data-state="normal" aria-live="off">00:00</div>
-        <div id="hud-progress-pill" class="hud-pill hud-pill--progress" hidden></div>
-      </div>
-
-      <div class="game-hud__right">
-        <div class="game-hud__metrics">
-          <div id="hud-extra-slot" class="hud-extra-slot"></div>
-          <div id="hud-score" class="hud-score">0 PTS</div>
-        </div>
-        <div class="game-hud__actions">
-          <button id="hud-pause-btn" class="hud-btn hud-btn--icon" type="button" aria-label="일시정지" title="일시정지">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1" fill="currentColor"/><rect x="14" y="4" width="4" height="16" rx="1" fill="currentColor"/></svg>
+      <div class="game-hud__actions">
+        <button id="hud-fullscreen-btn" class="hud-btn hud-keep" type="button" data-fullscreen-toggle data-with-label hidden></button>
+        <button id="hud-layout-btn" class="hud-btn hud-keep" type="button" data-layout-toggle aria-label="공통 레이아웃 가리기" title="공통 레이아웃 가리기 (게임 화면만 크게)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+          <span class="hud-btn__label" data-layout-label>레이아웃 숨기기</span>
+        </button>
+        <button id="hud-pause-btn" class="hud-btn hud-btn--icon" type="button" aria-label="일시정지" title="일시정지"></button>
+        <div class="hud-more">
+          <button id="hud-more-btn" class="hud-btn hud-btn--icon" type="button" aria-label="더 보기" title="더 보기" aria-expanded="false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5.5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18.5" r="2"/></svg>
           </button>
-          <div class="hud-more">
-            <button id="hud-more-btn" class="hud-btn hud-btn--icon" type="button" aria-label="더 보기" title="더 보기" aria-expanded="false">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5.5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="18.5" r="2"/></svg>
+          <div id="hud-menu" class="hud-menu" hidden>
+            <button id="hud-restart-btn" class="hud-menu__item" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              <span>다시 시작</span>
             </button>
-            <div id="hud-menu" class="hud-menu" hidden>
-              <button id="hud-restart-btn" class="hud-menu__item" type="button">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-                <span>다시 시작</span>
-              </button>
-              <button id="hud-mute-btn" class="hud-menu__item" type="button" aria-pressed="false">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
-                <span>사운드 켜짐</span>
-              </button>
-            </div>
+            <button id="hud-mute-btn" class="hud-menu__item" type="button" data-mute-toggle data-with-label></button>
           </div>
         </div>
       </div>
-
-      <!-- Hairline bottom progress bar controlled via --hud-progress (0..1) -->
-      <div id="hud-progress-bar" class="game-hud__progress" style="--hud-progress: 1;"></div>
     </header>
 
-    <!-- Game mount target: 100dvh minus --hud-height -->
     <div id="game-stage" class="game-stage"></div>
-
-    <!-- 3 · 2 · 1 start countdown (covers the stage; the game is paused underneath) -->
-    <div id="stage-countdown" class="stage-countdown" hidden aria-live="assertive">
-      <p class="stage-countdown__label">준비</p>
-      <div class="stage-countdown__circle"><span id="stage-countdown-num">3</span></div>
-    </div>
-
-    <!-- Anti-cheat pause / tab-blur curtain -->
-    <div id="pause-curtain" class="pause-curtain" hidden>
-      <div class="pause-curtain__card">
-        <p class="pause-curtain__sub">PAUSED // FAIR PLAY LOCK</p>
-        <h2 class="pause-curtain__title">잠깐 쉬는 중!</h2>
-        <p class="pause-curtain__desc">공정한 플레이를 위해 화면이 가려졌습니다.</p>
-        <button id="pause-resume-btn" class="btn-neon-primary" type="button">▶ 미션 재개</button>
-      </div>
-    </div>
   </section>
 
-  <!-- Shared Modal, Confetti & Toast Layers -->
+  <!-- Shared modal, confetti and toast layers -->
   <div id="modal-root" class="modal-root" hidden></div>
   <canvas id="confetti-canvas" class="confetti-canvas" aria-hidden="true"></canvas>
   <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="true"></div>
