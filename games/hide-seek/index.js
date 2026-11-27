@@ -67,6 +67,9 @@ const SPIRAL_SPEED = 1.8; // rad/s; bands flow toward the centre
 const WALL_SHORT_SIDE = 900;
 const PORTRAIT_ASPECT = 0.87;
 const WALL_PAD = 46;
+const TILE_HALF_FACTOR = 0.235;
+const NUM_RISE_FACTOR = 1.55;
+const NUM_SIZE_FACTOR = 0.175;
 
 /** Points per found number grow with tile density, shorter reveal, and hidden ratio. */
 function basePoints(settings) {
@@ -100,9 +103,9 @@ export function generateHideSeekRun(rng, settings) {
   }).map((tile) => ({
     ...tile,
     angle: Math.round((rng() - 0.5) * 86),
-    size: 0.68 + rng() * 0.32, // fraction of the cell
-    jx: (rng() - 0.5) * 0.9, // wide scatter inside and across cells
-    jy: (rng() - 0.5) * 0.9,
+    size: 0.72 + rng() * 0.28, // fraction of the cell
+    jx: (rng() - 0.5) * 0.72, // wide scatter inside and across cells
+    jy: (rng() - 0.5) * 0.68,
     hideRank: tile.index,
   }));
   // Numbers disappear in non-overlapping round-robin batches of `hideBatch`, in a seeded order
@@ -340,48 +343,82 @@ function mountGame(container, ctx, settings) {
     const cellH = (logical.h - WALL_PAD * 2) / rows;
     const cell = Math.min(cellW, cellH);
     const maxDist = Math.hypot(logical.w / 2, logical.h / 2);
+    const numSize = cell * NUM_SIZE_FACTOR;
+    const numHalfW = numSize * 1.15;
+    const numHalfH = numSize * 0.62;
     const pts = wall.tiles.map((tile) => {
       const i = tile.index;
       const c = portrait ? Math.floor(i / wall.cols) : i % wall.cols;
       const row = portrait ? i % wall.cols : Math.floor(i / wall.cols);
       // Staggered row/col offsets + wide seeded jitter break up the grid lines
-      const staggerX = row % 2 === 1 ? 0.18 : -0.18;
-      const staggerY = c % 2 === 1 ? 0.15 : -0.15;
-      const half = cell * tile.size * 0.31;
+      const staggerX = row % 2 === 1 ? 0.16 : -0.16;
+      const staggerY = c % 2 === 1 ? 0.14 : -0.14;
+      const half = cell * tile.size * TILE_HALF_FACTOR;
+      const angleRad = (tile.angle * Math.PI) / 180;
+      // Axis-aligned half-extent of the rotated square tile
+      const tileBoxHalf = half * (Math.abs(Math.cos(angleRad)) + Math.abs(Math.sin(angleRad))) + cell * 0.02;
       return {
         x: WALL_PAD + (c + 0.5 + staggerX + tile.jx) * cellW,
-        y: WALL_PAD + (row + 0.58 + staggerY + tile.jy) * cellH,
+        y: WALL_PAD + (row + 0.6 + staggerY + tile.jy) * cellH,
         half,
-        angleRad: (tile.angle * Math.PI) / 180,
+        angleRad,
+        tileR: half * Math.SQRT2 + cell * 0.025,
+        tileBoxHalf,
+        numOffsetY: half * NUM_RISE_FACTOR + numSize * 0.35,
       };
     });
 
-    // Light repulsion relaxation so scattered tiles never pile up or hide letters
     const clampBounds = (p) => {
-      const padX = WALL_PAD + p.half * 1.25;
-      const padTop = WALL_PAD + cell * 0.34 + p.half * 1.1;
-      const padBot = WALL_PAD + p.half * 1.25;
+      const padX = Math.max(WALL_PAD + p.tileBoxHalf, WALL_PAD + numHalfW);
+      const padTop = WALL_PAD + p.numOffsetY + numHalfH;
+      const padBot = WALL_PAD + p.tileBoxHalf;
       p.x = Math.max(padX, Math.min(logical.w - padX, p.x));
       p.y = Math.max(padTop, Math.min(logical.h - padBot, p.y));
     };
-    for (let iter = 0; iter < 6; iter++) {
+
+    const separateBoxes = (a, ax, ay, ahw, ahh, b, bx, by, bhw, bhh) => {
+      const dx = bx - ax;
+      const dy = by - ay;
+      const ox = ahw + bhw - Math.abs(dx);
+      const oy = ahh + bhh - Math.abs(dy);
+      if (ox <= 0 || oy <= 0) return;
+      if (ox < oy) {
+        const sx = (dx >= 0 ? 1 : -1) * ox * 0.5;
+        a.x -= sx;
+        b.x += sx;
+      } else {
+        const sy = (dy >= 0 ? 1 : -1) * oy * 0.5;
+        a.y -= sy;
+        b.y += sy;
+      }
+    };
+
+    // Relaxation pass: prevent overlap between tiles, between numbers, and between a tile and another's number
+    for (let iter = 0; iter < 24; iter++) {
       for (let i = 0; i < pts.length; i++) {
         for (let j = i + 1; j < pts.length; j++) {
           const a = pts[i];
           const b = pts[j];
+          // 1) Rotated tile vs rotated tile
           const dx = b.x - a.x;
           const dy = b.y - a.y;
-          const minSep = (a.half + b.half) * 1.15;
+          const minSep = a.tileR + b.tileR;
           const distSq = dx * dx + dy * dy;
-          if (distSq >= minSep * minSep) continue;
-          const dist = Math.sqrt(distSq) || 0.001;
-          const push = (minSep - dist) * 0.5;
-          const ux = dx / dist;
-          const uy = dy / dist;
-          a.x -= ux * push;
-          a.y -= uy * push;
-          b.x += ux * push;
-          b.y += uy * push;
+          if (distSq < minSep * minSep) {
+            const dist = Math.sqrt(distSq) || 0.001;
+            const push = (minSep - dist) * 0.5;
+            const ux = dx / dist;
+            const uy = dy / dist;
+            a.x -= ux * push;
+            a.y -= uy * push;
+            b.x += ux * push;
+            b.y += uy * push;
+          }
+          // 2) Number A vs Tile B & Number B vs Tile A
+          separateBoxes(a, a.x, a.y - a.numOffsetY, numHalfW, numHalfH, b, b.x, b.y, b.tileBoxHalf, b.tileBoxHalf);
+          separateBoxes(b, b.x, b.y - b.numOffsetY, numHalfW, numHalfH, a, a.x, a.y, a.tileBoxHalf, a.tileBoxHalf);
+          // 3) Number A vs Number B
+          separateBoxes(a, a.x, a.y - a.numOffsetY, numHalfW, numHalfH, b, b.x, b.y - b.numOffsetY, numHalfW, numHalfH);
         }
       }
       for (let i = 0; i < pts.length; i++) clampBounds(pts[i]);
@@ -761,8 +798,8 @@ function mountGame(container, ctx, settings) {
 
     // Number first, so the tile covers it until it springs up and out from behind
     if (peek > 0.01) {
-      const rise = p.half * 1.55 * easeOutBack(peek);
-      const size = Math.round(p.cell * 0.19);
+      const rise = p.half * NUM_RISE_FACTOR * easeOutBack(peek);
+      const size = Math.round(p.cell * NUM_SIZE_FACTOR);
       g.save();
       g.globalAlpha = Math.min(1, peek * 1.4);
       g.font = `600 ${size}px "Space Grotesk", "Pretendard Variable", sans-serif`;
