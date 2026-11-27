@@ -65,3 +65,59 @@ export function openMcGuideModal() {
 
   ui.openModal({ title: 'MC 워크샵 진행 가이드', subtitle: 'ZERO-BACKEND 100-PLAYER SYNC', contentEl: wrap });
 }
+
+export function openBannerTitleModal({ current, defaults, onSave, onReset }) {
+  const form = document.createElement('form');
+  form.style.cssText = 'display: flex; flex-direction: column; gap: 14px;';
+  form.innerHTML = `
+    <p style="margin: 0; color: var(--text-secondary); font-size: 0.9rem;">
+      로비 상단 배너의 큰 제목을 원하는 문구로 바꿀 수 있습니다. 한 칸만 입력해도 됩니다.
+    </p>
+    <label class="workshop-field">
+      <span class="workshop-field__label">기본 문구</span>
+      <input
+        id="banner-title-lead-input"
+        class="arcade-input"
+        type="text"
+        maxlength="24"
+        placeholder="${escapeHtml(defaults.lead)}"
+        value="${escapeHtml(current.lead)}"
+      />
+    </label>
+    <label class="workshop-field">
+      <span class="workshop-field__label">강조 문구 (컬러 포인트)</span>
+      <input
+        id="banner-title-accent-input"
+        class="arcade-input"
+        type="text"
+        maxlength="24"
+        placeholder="${escapeHtml(defaults.accent)}"
+        value="${escapeHtml(current.accent)}"
+      />
+    </label>
+    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px;">
+      <button id="banner-title-reset-btn" class="workshop-tool-btn" type="button">기본값 복원</button>
+      <button class="btn-neon-primary" type="submit">저장하기</button>
+    </div>
+  `;
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    audio.playClick();
+    const lead = form.querySelector('#banner-title-lead-input')?.value ?? '';
+    const accent = form.querySelector('#banner-title-accent-input')?.value ?? '';
+    onSave(lead, accent);
+    ui.closeModal(true);
+    ui.showToast('배너 타이틀을 저장했습니다.', 'success', 1600);
+  });
+
+  form.querySelector('#banner-title-reset-btn')?.addEventListener('click', () => {
+    audio.playClick();
+    onReset();
+    ui.closeModal(true);
+    ui.showToast('기본 배너 타이틀로 복원했습니다.', 'info', 1600);
+  });
+
+  ui.openModal({ title: '배너 타이틀 설정', subtitle: 'HERO BANNER TITLE', contentEl: form });
+  form.querySelector('#banner-title-lead-input')?.focus();
+}

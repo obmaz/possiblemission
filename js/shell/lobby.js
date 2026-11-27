@@ -4,12 +4,50 @@ import * as storage from '../core/storage.js';
 import * as ui from '../core/ui.js';
 import { escapeHtml } from '../core/dom.js';
 import { syncFullscreenButtons } from './fullscreen.js';
-import { openMcGuideModal, openQrModal } from './host-modals.js';
+import { openBannerTitleModal, openMcGuideModal, openQrModal } from './host-modals.js';
 import { getSeed, onSeedChange, randomSeed, setSeed } from './room.js';
 import { ICON_SOUND_ON, syncMuteButtons, toggleMute } from './sound.js';
 
 const PRESET_SEEDS = ['MISSION-1', 'ROUND-1', 'ROUND-2', 'ROUND-3', 'ROUND-4', 'ROUND-5'];
 const HISTORY_CHIPS = 3;
+const DEFAULT_HERO_TITLE = { lead: '미니게임으로', accent: '스트레스 해소!' };
+const PREF_HERO_TITLE_CUSTOM = 'hero_title_custom';
+const PREF_HERO_TITLE_LEAD = 'hero_title_lead';
+const PREF_HERO_TITLE_ACCENT = 'hero_title_accent';
+
+function getHeroTitle() {
+  if (storage.getPref(PREF_HERO_TITLE_CUSTOM, '') !== '1') return { ...DEFAULT_HERO_TITLE };
+  const lead = storage.getPref(PREF_HERO_TITLE_LEAD, '').trim().slice(0, 24);
+  const accent = storage.getPref(PREF_HERO_TITLE_ACCENT, '').trim().slice(0, 24);
+  if (!lead && !accent) return { ...DEFAULT_HERO_TITLE };
+  return { lead, accent };
+}
+
+function saveHeroTitle(lead, accent) {
+  const cleanLead = String(lead ?? '').trim().slice(0, 24);
+  const cleanAccent = String(accent ?? '').trim().slice(0, 24);
+  if (!cleanLead && !cleanAccent) {
+    resetHeroTitle();
+    return;
+  }
+  storage.setPref(PREF_HERO_TITLE_CUSTOM, '1');
+  storage.setPref(PREF_HERO_TITLE_LEAD, cleanLead);
+  storage.setPref(PREF_HERO_TITLE_ACCENT, cleanAccent);
+}
+
+function resetHeroTitle() {
+  storage.setPref(PREF_HERO_TITLE_CUSTOM, '0');
+  storage.setPref(PREF_HERO_TITLE_LEAD, '');
+  storage.setPref(PREF_HERO_TITLE_ACCENT, '');
+}
+
+function renderHeroTitleHtml({ lead, accent }) {
+  if (lead && accent) {
+    return `${escapeHtml(lead)} <span class="hero-banner__title-accent">${escapeHtml(accent)}</span>`;
+  }
+  if (lead) return escapeHtml(lead);
+  return `<span class="hero-banner__title-accent">${escapeHtml(accent)}</span>`;
+}
 
 const ICON_SETTINGS = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
 const ICON_PLAYER_SOLO = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="7.5" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0z"/></svg>`;
@@ -29,7 +67,7 @@ function renderPlayerIcons(players) {
 function renderHero(root) {
   root.innerHTML = `
     <div class="hero-banner__media">
-      <img class="hero-banner__bg" src="./assets/hero-arcade.jpg" alt="네온 워크샵 아케이드 파티 배너" />
+      <img class="hero-banner__bg" src="./assets/hero-arcade.jpg" alt="네온 아케이드 파티 배너" />
       <div class="hero-banner__scrim" aria-hidden="true"></div>
     </div>
     <div class="hero-banner__tools">
@@ -41,6 +79,7 @@ function renderHero(root) {
           <div class="workshop-more__tools">
             <button class="workshop-tool-btn" type="button" data-open="qr">📱 QR 코드</button>
             <button class="workshop-tool-btn workshop-tool-btn--mc" type="button" data-open="mc">🎙️ MC 가이드</button>
+            <button class="workshop-tool-btn" type="button" data-open="banner-title">✏️ 배너 타이틀</button>
           </div>
           <div class="workshop-more__seeds">
             <span class="workshop-more__label">빠른 시드</span>
@@ -50,7 +89,7 @@ function renderHero(root) {
       </details>
     </div>
     <div class="hero-banner__content">
-      <h1 class="hero-banner__title">오늘 워크샵, <span class="hero-banner__title-accent">텐션 한계 돌파!</span></h1>
+      <h1 class="hero-banner__title">${renderHeroTitleHtml(getHeroTitle())}</h1>
       <p class="hero-banner__desc">
         로그인 없이 <strong>1분 컷</strong>. 같은 <strong>룸 시드</strong>만 맞추면 모두 똑같은 문제로 겨룹니다.
       </p>
@@ -177,6 +216,25 @@ export function createLobby({ mounts, games, onLaunch }) {
   mounts.hero.querySelector('[data-open="mc"]').addEventListener('click', () => {
     audio.playClick();
     openMcGuideModal();
+  });
+  mounts.hero.querySelector('[data-open="banner-title"]').addEventListener('click', () => {
+    audio.playClick();
+    const syncTitle = () => {
+      mounts.hero.querySelector('.hero-banner__title').innerHTML = renderHeroTitleHtml(getHeroTitle());
+    };
+    mounts.hero.querySelector('.workshop-more').open = false;
+    openBannerTitleModal({
+      current: getHeroTitle(),
+      defaults: DEFAULT_HERO_TITLE,
+      onSave: (lead, accent) => {
+        saveHeroTitle(lead, accent);
+        syncTitle();
+      },
+      onReset: () => {
+        resetHeroTitle();
+        syncTitle();
+      },
+    });
   });
   mounts.hero.querySelector('#lobby-mute-btn').addEventListener('click', toggleMute);
 
