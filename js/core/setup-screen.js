@@ -41,14 +41,14 @@ export function mountSetupScreen(container, ctx, cfg) {
 
   const last = cfg.parseMode(ctx.storage.getPref(cfg.prefKey, ''));
   const source = last || { play: 0, ...presets.find((p) => p.id === cfg.defaultPreset) };
-  let values = Object.fromEntries(fields.map((f) => [f.key, source[f.key]]));
+  let values = Object.fromEntries(fields.map((f) => [f.key, source[f.key] ?? f.options[0]]));
 
   const solo = typeof cfg.playSwitch === 'object' ? cfg.playSwitch : {};
   const playSwitchHtml = cfg.playSwitch
     ? `<div class="setup-playmode" role="radiogroup" aria-label="플레이 방식">
         ${PLAY_MODES.map((m) => {
-          const label = (m.id === 0 && solo.label) || m.label;
-          const desc = (m.id === 0 && solo.desc) || m.desc;
+          const label = (m.id === 0 ? solo.label : solo.partyLabel) || m.label;
+          const desc = (m.id === 0 ? solo.desc : solo.partyDesc) || m.desc;
           return `<button type="button" class="setup-playmode__btn" role="radio" data-playmode="${m.id}">
             <span class="setup-playmode__title">${label}</span>
             <span class="setup-playmode__desc">${desc}</span>

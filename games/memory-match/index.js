@@ -4,31 +4,32 @@
  */
 import { bindClock, bindScore } from '../../js/core/clock.js';
 import { pickSeeded, shuffleSeeded } from '../../js/core/seed.js';
-import { MEMORY_MODES } from './settings.js';
+import { mountSetupScreen } from '../../js/core/setup-screen.js';
+import {
+  MEMORY_DEFAULT_PRESET,
+  MEMORY_FIELDS,
+  MEMORY_GRIDS,
+  MEMORY_PRESETS,
+  matchMemoryPreset,
+  memoryModeId,
+  parseMemoryMode,
+  resolveMemoryConfig,
+} from './settings.js';
 import { SYMBOLS } from './symbols.js';
 
-const PREVIEW_DURATION_MS = 2000;
 const PREVIEW_STAGGER_MS = 10;
 const FLIP_DURATION_MS = 320;
 const MISMATCH_LOCK_MS = 680;
 const FINISH_DELAY_MS = 560;
 const FLOAT_BADGE_MS = 940;
-
-/**
- * Resolves mode config with safe fallback to 4x4.
- * @param {string} mode
- */
-function resolveModeConfig(mode) {
-  return MEMORY_MODES[mode] || MEMORY_MODES['4x4'];
-}
+const LAST_MODE_PREF = 'memoryMatchLastMode';
 
 /**
  * Deterministically picks `pairs` symbols and shuffles the doubled deck via seeded RNG.
  * @param {() => number} rng
- * @param {string} mode
+ * @param {object} cfg
  */
-function buildSeededDeck(rng, mode) {
-  const cfg = resolveModeConfig(mode);
+function buildSeededDeck(rng, cfg) {
   const chosen = pickSeeded(rng, SYMBOLS, cfg.pairs);
   const doubled = [];
   chosen.forEach((symbol) => {
@@ -64,17 +65,17 @@ function renderCardBackHtml() {
  * @returns {{ unmount: () => void }}
  */
 export function mount(container, ctx) {
-  // `setup` (or any unknown mode) shows the in-game difficulty chooser first
-  if (!MEMORY_MODES[ctx.mode]) return mountSetup(container, ctx);
-  const cfg = resolveModeConfig(ctx.mode);
-  const deck = buildSeededDeck(ctx.rng, cfg.id);
+  const cfg = resolveMemoryConfig(ctx.mode);
+  if (!cfg) return mountSetup(container, ctx);
+  const deck = buildSeededDeck(ctx.rng, cfg);
   const totalPairs = cfg.pairs;
+  const previewDurationMs = cfg.previewSec * 1000;
 
   let phase = 'preview'; // 'preview' | 'playing' | 'ended'
   const maxStaggerMs = Math.max(0, (deck.length - 1) * PREVIEW_STAGGER_MS);
   let previewRevealStarted = false;
   let previewRevealWaitMs = maxStaggerMs + FLIP_DURATION_MS;
-  let previewRemainingMs = PREVIEW_DURATION_MS;
+  let previewRemainingMs = previewDurationMs;
   let remainingMs = cfg.timeLimitSec * 1000;
   let elapsedActiveMs = 0;
 
@@ -116,8 +117,8 @@ export function mount(container, ctx) {
     <div class="mm-head">
       <div class="mm-head__text">
         <p class="mm-cue" data-mm-cue>
-          <span class="mm-cue__title">2초 안에 카드를 외우세요</span>
-          <span class="mm-cue__count" data-mm-count data-active="2" aria-hidden="true"><b data-step="2">2</b><span class="mm-cue__arrow">→</span><b data-step="1">1</b></span>
+          <span class="mm-cue__title">${cfg.previewSec}초 안에 카드를 외우세요</span>
+          <span class="mm-cue__count" data-mm-count data-active="${cfg.previewSec}" aria-hidden="true"><b data-step="${cfg.previewSec}">${cfg.previewSec}</b></span>
         </p>
         <p class="mm-hint" data-mm-hint hidden>카드를 뒤집어 같은 그림 짝을 찾으세요</p>
       </div>
@@ -276,7 +277,7 @@ export function mount(container, ctx) {
         lastTopbarMeterHidden = false;
         previewMeterEl.classList.remove('is-hidden');
       }
-      const ratioStr = (previewRemainingMs / PREVIEW_DURATION_MS).toFixed(4);
+      const ratioStr = (previewRemainingMs / previewDurationMs).toFixed(4);
       if (ratioStr !== lastTopbarMeterRatio) {
         lastTopbarMeterRatio = ratioStr;
         previewMeterEl.style.setProperty('--mm-preview-ratio', ratioStr);
@@ -644,45 +645,27 @@ export function mount(container, ctx) {
   };
 }
 
-const LEVEL_NOTES = { '4x3': '처음 해보는 분', '4x4': '기본', '6x4': '기억력 자신 있는 분' };
+function describe(v) {
+  const g = MEMORY_GRIDS[v.grid] || MEMORY_GRIDS[1];
+  return `${g.label} (${g.pairs}쌍) · 미리보기 ${v.previewSec}초 · 제한 ${v.timeSec}초`;
+}
 
 /**
- * Difficulty chooser shown for mode `setup`. Choosing relaunches via ctx.switchMode()
- * so the URL, room seed and per-mode records stay in sync.
+ * Shared difficulty chooser shown for mode `setup`.
  */
 function mountSetup(container, ctx) {
-  const root = document.createElement('div');
-  root.className = 'game-root game-memory-match mm-setup';
-  root.innerHTML = `
-    <h2 class="mm-setup__title">난이도를 고르세요</h2>
-    <div class="mm-setup__levels">
-      ${Object.values(MEMORY_MODES)
-        .map(
-          (cfg) => `
-        <button type="button" class="mm-level" data-level="${cfg.id}">
-          <span class="mm-level__name">${cfg.modeLabel}</span>
-          <span class="mm-level__meta">${cfg.pairs}쌍 · ${cfg.timeLimitSec}초</span>
-          <span class="mm-level__note">${LEVEL_NOTES[cfg.id]}</span>
-        </button>`
-        )
-        .join('')}
-    </div>
-  `;
-  container.appendChild(root);
-
-  const onClick = (e) => {
-    const btn = e.target.closest('[data-level]');
-    if (!btn) return;
-    ctx.audio.playClick();
-    ctx.switchMode(btn.dataset.level);
-  };
-  root.addEventListener('click', onClick);
-  root.querySelector('[data-level="4x4"]')?.focus({ preventScroll: true });
-
-  return {
-    idle: true,
-    unmount() {
-      root.removeEventListener('click', onClick);
-    },
-  };
+  return mountSetupScreen(container, ctx, {
+    gameId: 'memory-match',
+    title: '메모리 매치 · 난이도',
+    intro: '잠깐 동안 카드 배치를 외운 뒤 <b>같은 그림 짝</b>을 모두 찾으세요. 같은 룸 시드면 카드 배치가 동일합니다.',
+    fields: MEMORY_FIELDS,
+    presets: MEMORY_PRESETS,
+    defaultPreset: MEMORY_DEFAULT_PRESET,
+    presetMeta: (p) => `${MEMORY_GRIDS[p.grid].label} · ${p.timeSec}초`,
+    describe,
+    parseMode: parseMemoryMode,
+    modeId: memoryModeId,
+    matchPreset: matchMemoryPreset,
+    prefKey: LAST_MODE_PREF,
+  });
 }

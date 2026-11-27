@@ -5,7 +5,7 @@
 import { pickDispersed } from '../../js/core/seed.js';
 import { CAFE_IMAGES, CAFE_REGIONS } from './cafe-manifest.js';
 import { CAMP_STAGE } from './camp-stage.js';
-import { parseSpotMode, spotAsset } from './stages.js';
+import { SPOT_STAGES, parseSpotMode, spotAsset } from './stages.js';
 
 /**
  * Photo-set stages (`kind: 'photo-set'`): many near-identical illustrations plus the regions
@@ -31,25 +31,26 @@ export const PHOTO_STAGES = {
 export function parseModeConfig(mode) {
   const parsed = parseSpotMode(mode);
   if (!parsed) return null;
-  const { stage, difficulty, party, memorizeSec } = parsed;
-  const baseLabel = `${stage.shortKo} · ${difficulty.label}`;
+  const { stage, difficulty, party, memorizeSec, count, timeSec } = parsed;
+  const stageName = stage ? stage.shortKo : '랜덤';
+  const baseLabel = `${stageName} · ${difficulty.ko}`;
   return {
     stage,
     difficulty,
     party,
     memorizeSec,
-    targetCount: difficulty.count,
-    timeLimitSec: difficulty.timeSec,
+    targetCount: count,
+    timeLimitSec: timeSec,
     modeLabel: party ? `${baseLabel} · 다같이(${memorizeSec}초)` : baseLabel,
   };
 }
 
 /**
  * Resolves the two board images + deterministic round anomalies for a seeded run.
- * For `photo-set` stages (20 similar illustrations), picks 2 distinct images and
- * extracts only the regions where those 2 images actually differ.
+ * When `stageOrNull` is null (random mode), picks a stage deterministically from `rng`.
  */
-export function resolveRoundData(rng, stage, targetCount, difficultyId = 'normal') {
+export function resolveRoundData(rng, stageOrNull, targetCount, difficultyId = 'medium') {
+  const stage = stageOrNull || SPOT_STAGES[Math.floor(rng() * SPOT_STAGES.length)];
   if (stage.kind === 'photo-set') {
     const set = PHOTO_SET_STAGES[stage.id];
     const n = set.images.length;
@@ -60,6 +61,7 @@ export function resolveRoundData(rng, stage, targetCount, difficultyId = 'normal
     const pool = set.regions.filter((_, rIdx) => imgA.states[rIdx] !== imgB.states[rIdx]);
     const anomalies = selectRoundAnomalies(rng, pool, targetCount, difficultyId);
     return {
+      stage,
       leftSrc: imgA.src,
       rightSrc: imgB.src,
       leftLabel: '그림 A',
@@ -71,6 +73,7 @@ export function resolveRoundData(rng, stage, targetCount, difficultyId = 'normal
   const pool = PHOTO_STAGES[stage.id].pool;
   const anomalies = selectRoundAnomalies(rng, pool, targetCount, difficultyId);
   return {
+    stage,
     leftSrc: PHOTO_STAGES[stage.id].imageSrc,
     rightSrc: null,
     leftLabel: '원본 그림',

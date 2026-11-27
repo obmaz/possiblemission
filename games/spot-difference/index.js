@@ -30,8 +30,9 @@ const MAX_HINTS = 2;
 export function mount(container, ctx) {
   const config = parseModeConfig(ctx.mode);
   if (!config) return mountPicker(container, ctx);
-  const { stage, difficulty, party, memorizeSec, targetCount, timeLimitSec, modeLabel } = config;
-  const roundData = resolveRoundData(ctx.rng, stage, targetCount, difficulty.id);
+  const { difficulty, party, memorizeSec, targetCount, timeLimitSec, modeLabel } = config;
+  const roundData = resolveRoundData(ctx.rng, config.stage, targetCount, difficulty.id);
+  const stage = roundData.stage;
   const anomalies = roundData.anomalies;
 
   let unmounted = false;

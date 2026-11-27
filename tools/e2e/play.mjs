@@ -30,23 +30,36 @@ const SEED = 'E2E-42';
 const afterCountdown = () => page.waitForFunction(() => document.getElementById('stage-countdown')?.hidden, null, { timeout: 8000 });
 const resultStatus = () => page.textContent('.result-hero__status').catch(() => null);
 
-/* ---------- Spot difference: picker → every picture on hard, clicked to completion ---------- */
+/* ---------- Spot difference: setup → every picture on hard, clicked to completion ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
-await page.waitForSelector('.sd-picker');
+await page.waitForSelector('.setup');
 out.spotCardHasSelect = await page.evaluate(() => !!document.querySelector('.game-card[data-game-id="spot-difference"] select'));
-out.pickerCards = await page.$$eval('.sd-pick-card', (els) => els.length);
+out.spotPresets = await page.$$eval('[data-preset]', (els) => els.map((e) => e.dataset.preset).join(','));
 await page.click('#hud-exit-btn');
 out.pickerExitNoConfirm = await page.evaluate(() => !document.querySelector('#confirm-leave-btn') && !document.querySelector('#lobby-view').hidden);
 
+const selectSpotStage = async (label) => {
+  const order = ['랜덤 (시드)', '카페', '캠프'];
+  const targetIdx = order.indexOf(label);
+  for (let i = 0; i < 4; i++) {
+    const cur = (await page.textContent('[data-field="stageIdx"] [data-value]')).trim();
+    const curIdx = order.indexOf(cur);
+    if (curIdx === targetIdx) break;
+    await page.click(`[data-field="stageIdx"] [data-step="${curIdx < targetIdx ? 1 : -1}"]`);
+  }
+};
+
 const stages = await page.evaluate(async () => (await import('/games/spot-difference/stages.js')).SPOT_STAGES.map((s) => s.id));
+const stageLabels = { cafe: '카페', camp: '캠프' };
 out.spot = {};
 for (const stageId of stages) {
   await page.goto(`${base}/?seed=${SEED}`);
   await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
-  await page.click('[data-browse]');
-  await page.click(`.sd-pick-card[data-stage="${stageId}"]`);
-  await page.click('[data-view="levels"] [data-level="hard"]');
+  await page.waitForSelector('.setup');
+  await selectSpotStage(stageLabels[stageId]);
+  await page.click('[data-preset="hard"]');
+  await page.click('[data-start]');
   await page.waitForFunction(() => !document.querySelector('[data-sd-loading]') && document.querySelector('[data-sd-canvas="orig"]'));
   await afterCountdown();
   const mode = new URL(page.url()).searchParams.get('mode');
@@ -70,9 +83,10 @@ for (const stageId of stages) {
 {
   await page.goto(`${base}/?seed=${SEED}`);
   await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
-  await page.click('[data-browse]');
-  await page.click('.sd-pick-card[data-stage="cafe"]');
-  await page.click('[data-view="levels"] [data-level="easy"]');
+  await page.waitForSelector('.setup');
+  await selectSpotStage('카페');
+  await page.click('[data-preset="easy"]');
+  await page.click('[data-start]');
   await page.waitForFunction(() => !document.querySelector('[data-sd-loading]') && document.querySelector('[data-sd-canvas="orig"]'));
   await afterCountdown();
   const mode = new URL(page.url()).searchParams.get('mode');
@@ -121,12 +135,16 @@ for (const stageId of stages) {
 /* ---------- 틀린그림찾기 quick start: difficulty only, picture from the room seed ---------- */
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
-await page.click('[data-view="start"] [data-level="easy"]');
+await page.waitForSelector('.setup');
+await page.click('[data-preset="easy"]');
+await page.click('[data-start]');
 await page.waitForSelector('[data-sd-canvas="orig"]');
 const quickMode1 = new URL(page.url()).searchParams.get('mode');
 await page.goto(`${base}/?seed=${SEED}`);
 await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
-await page.click('[data-view="start"] [data-level="easy"]');
+await page.waitForSelector('.setup');
+await page.click('[data-preset="easy"]');
+await page.click('[data-start]');
 await page.waitForSelector('[data-sd-canvas="orig"]');
 out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode') && /-easy$/.test(quickMode1) ? quickMode1 : `mismatch ${quickMode1}`;
 
@@ -134,8 +152,10 @@ out.spotQuickStart = quickMode1 === new URL(page.url()).searchParams.get('mode')
 {
   await page.goto(`${base}/?seed=${SEED}`);
   await page.click('.game-card[data-game-id="spot-difference"] [data-launch-game]');
-  await page.click('[data-play-mode="party"]');
-  await page.click('[data-view="start"] [data-level="easy"]');
+  await page.waitForSelector('.setup');
+  await page.click('[data-playmode="1"]');
+  await page.click('[data-preset="easy"]');
+  await page.click('[data-start]');
   await page.waitForSelector('[data-sd-party-skip]');
   const partyUrl = new URL(page.url()).searchParams.get('mode');
   await page.waitForFunction(() => document.querySelectorAll('[data-sd-loading]').length === 0);
@@ -264,8 +284,9 @@ out.anzan = `${await resultStatus()} · ${(await page.$$eval('.result-stat-box',
 await page.goto(`${base}/?seed=${SEED}`);
 out.lobbyHasSelect = await page.evaluate(() => Boolean(document.querySelector('.game-card select, #hall-of-fame, .game-card__pb-pill')));
 await page.click('.game-card[data-game-id="memory-match"] [data-launch-game]');
-await page.waitForSelector('.mm-setup');
-await page.click('[data-level="4x3"]');
+await page.waitForSelector('.setup');
+await page.click('[data-preset="easy"]');
+await page.click('[data-start]');
 await page.waitForSelector('.mm-grid');
 out.memoryMode = new URL(page.url()).searchParams.get('mode');
 
@@ -614,12 +635,12 @@ if (out.resultHasCopyButton) failures.push('result modal still shows copy / labe
 if (!out.hideSeekRules) failures.push('hide & seek symbol/number rules');
 if (!/-easy$/.test(out.spotQuickStart)) failures.push(`spot quick start: ${out.spotQuickStart}`);
 if (out.lobbyHasSelect) failures.push('lobby still shows a select / hall of fame / record pill');
-if (out.memoryMode !== '4x3') failures.push(`memory in-game difficulty: ${out.memoryMode}`);
+if (out.memoryMode !== 'easy') failures.push(`memory in-game difficulty: ${out.memoryMode}`);
 if (!out.hideSeekChangeDifficulty) failures.push('result "난이도 바꾸기" did not open setup');
 if (!out.hideSeekSetupAgain) failures.push('lobby start skipped the hide & seek setup');
 if (!out.countdownShown) failures.push('no start countdown');
 if (!/^성공 · 🧮 5\/5 정답/.test(out.anzan || '')) failures.push(`flash anzan: ${out.anzan}`);
-if (out.spotCardHasSelect || out.pickerCards !== 2 || !out.pickerExitNoConfirm) failures.push('spot picker flow');
+if (out.spotCardHasSelect || out.spotPresets !== 'easy,medium,hard' || !out.pickerExitNoConfirm) failures.push('spot setup flow');
 if (!out.spotCafeEasyExact) failures.push('spot cafe-easy 1:1 visual/logic match');
 if (!out.spotPartyMemory?.ok) failures.push(`spot party memory mode: ${JSON.stringify(out.spotPartyMemory)}`);
 if (!out.dobbleMathValid || !cleared(out.dobble)) failures.push(`dobble: ${out.dobbleMathValid} / ${out.dobble}`);
