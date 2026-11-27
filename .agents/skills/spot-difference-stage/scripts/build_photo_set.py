@@ -16,9 +16,9 @@ Expected config.json shape:
     "va": "path/to/var_a.jpg",
     "vb": "path/to/var_b.jpg"
   },
-  "outDir": "d:/workspace/possiblemission/assets/images/spot-museum",
-  "thumbPath": "d:/workspace/possiblemission/assets/images/spot-museum.jpg",
-  "manifestPath": "d:/workspace/possiblemission/js/games/spot-museum-manifest.js",
+  "outDir": "games/spot-difference/assets/museum",
+  "thumbPath": "games/spot-difference/assets/museum.jpg",
+  "manifestPath": "games/spot-difference/museum-manifest.js",
   "imageCount": 20,
   "minPairDiffs": 9,
   "regions": [
@@ -201,7 +201,8 @@ def main(cfg_path):
         fname = f"{stage_id}-{idx:02d}.jpg"
         Image.fromarray(out_u8, mode="RGB").save(os.path.join(out_dir, fname), format="JPEG", quality=88, optimize=True)
         rendered.append(out_u8.astype(np.float32))
-        image_entries.append({"src": f"./assets/images/spot-{stage_id}/{fname}", "states": vec})
+        # `src` is relative to games/spot-difference/assets/ (resolved by spotAsset() at runtime)
+        image_entries.append({"src": f"{stage_id}/{fname}", "states": vec})
 
     if cfg.get("thumbPath"):
         os.makedirs(os.path.dirname(cfg["thumbPath"]), exist_ok=True)

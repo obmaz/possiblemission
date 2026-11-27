@@ -5,14 +5,18 @@
 
 ## 1. 프로젝트 아키텍처
 - **정적 무빌드 웹 앱**: 순수 HTML5 / CSS3 / Vanilla JS ES Modules (`./` 상대 경로, 외부 런타임 의존성 없음).
-- **엔트리 & 상태**: `index.html`, `js/app.js`(로비/HUD/공용 모달), `js/core/`(`seed.js`, `audio.js`, `storage.js`, `rules.js`, `ui.js`), `styles/main.css`.
-- **미니게임**: `js/games/` 아래 `spot-difference.js`, `dobble.js`, `flash-anzan.js`, `memory-match.js`, `despair-fortress.js`.
-- **시드 결정성**: 모든 게임 라운드는 `createRng(\`${seed}::${gameId}::${mode}\`)`에 의해 동일 시드에서 100% 재현되어야 합니다.
+- **미니게임 = 폴더 하나**: `games/<id>/`에 `manifest.js`(로비 카드 정보), `index.js`(`mount(container, ctx)`), `settings.js`(프리셋·모드 id), `style.css`(`.game-<id>` 스코프), `index.html`(단독 실행), `assets/`가 모두 들어 있습니다. 게임 목록은 `games/registry.js`의 `GAME_IDS`가 유일한 등록 지점이며, 셸이 폴더를 읽어 동적으로 연결합니다. 공통 코드(`js/`, `styles/`)에는 게임 이름을 하드코딩하지 않습니다.
+- **셸**: `index.html`, `js/app.js`(부트스트랩·URL/히스토리), `js/shell/`(로비·실행기·공통 상단바), `js/core/`(`seed.js`, `clock.js`, `setup-screen.js`, `audio.js`, `storage.js`, `rules.js`, `ui.js`, `qr.js`), `styles/`(`tokens` → `base` → `lobby` → `shell` → `components` → `setup`).
+- **시드 결정성**: 모든 게임 라운드는 `createRng(\`${seed}::${gameId}::${mode}\`)`(= `ctx.rng`)에 의해 동일 시드에서 100% 재현되어야 합니다. 모드 id 형식(`custom-…` 포함)을 바꾸면 공유 링크가 깨지므로 유지합니다.
+- 자세한 계약과 게임 추가 절차: [`docs/architecture.md`](./docs/architecture.md), [`docs/adding-a-game.md`](./docs/adding-a-game.md).
 
 ## 2. UI·UX 및 코드 규칙
 - **디자인 스타일**: 라이트 아케이드 톤 유지, **hover/focus 시각 효과 추가 지양**, 결과 팝업 버튼(`로비`, `난이도 변경`, `재도전`) 동일 크기·가로 한 줄 배치(초소형 모바일 제외).
+- **공통 레이아웃**: 상단바에는 나가기·일시정지·`전체화면 ↔ 축소하기`·`레이아웃 숨기기`(바로 옆)·⋯ 메뉴만 둡니다. **타이머·점수·진행도는 공통 영역에 두지 않고 각 미니게임이 자기 화면에 그립니다**(`js/core/clock.js`의 `bindClock`/`bindScore`).
+- **게임 ↔ 셸**: 게임은 `ctx`(`onPause`, `completeGame`, `switchMode` …)로만 셸과 통신하고 공통 DOM을 직접 만지지 않습니다. 리소스는 `new URL('./…', import.meta.url)`로 참조합니다.
+- **중복 금지**: 난이도 선택 화면은 `js/core/setup-screen.js`를 사용합니다. 스테이지·난이도·심볼 데이터는 레지스트리 맵(`PHOTO_SET_STAGES`, `DOBBLE_PRESETS` 등)으로 일관되게 관리합니다.
 - **로비/가이드**: 게임 설명은 짧고 명확한 개조식 유지.
-- **변형 통합**: 스테이지·난이도·심볼 데이터는 레지스트리 맵(`PHOTO_SET_STAGES`, `DOBBLE_PRESETS` 등)으로 일관되게 관리합니다.
+- **코드 정리**: 죽은 코드·미사용 export/CSS·변경 이력성 주석을 남기지 않습니다. 주석은 "왜"가 필요한 곳에만 씁니다.
 
 ## 3. 틀린그림찾기 생성형 스테이지 규칙 (필수)
 - 새로운 틀린그림찾기 이미지 스테이지를 만들거나 이미지 풀을 확장할 때는 반드시 [`.agents/skills/spot-difference-stage/SKILL.md`](./.agents/skills/spot-difference-stage/SKILL.md) 절차를 따릅니다.

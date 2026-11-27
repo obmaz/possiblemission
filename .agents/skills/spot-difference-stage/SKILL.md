@@ -24,7 +24,7 @@ description: >-
 
 ## 1. 현재 프로젝트 기준 갯수 (Standard Spec)
 
-`js/games/spot-stages.js` 및 `cafe` 스테이지 기준 스펙입니다. 신규 `photo-set` 스테이지는 아래 수량을 반드시 충족해야 합니다.
+`games/spot-difference/stages.js` 및 `cafe` 스테이지 기준 스펙입니다. 신규 `photo-set` 스테이지는 아래 수량을 반드시 충족해야 합니다.
 
 | 항목 | 기준 값 | 비고 |
 | --- | --- | --- |
@@ -36,7 +36,7 @@ description: >-
 | 쉬움(`easy`)용 명확 차이 | **`subtle: false` 영역 ≥ 5개** | 권장 14개 이상 |
 
 > [!IMPORTANT]
-> **런타임 렌더링 일치 규칙 (`js/games/spot-difference.js`)**
+> **런타임 렌더링 일치 규칙 (`games/spot-difference/index.js`)**
 > 게임은 두 이미지 중 왼쪽 이미지를 기준으로 오른쪽 버퍼를 초기화한 뒤, 해당 라운드에 선택된 `anomalies`의 `box` 영역만 오른쪽 이미지에서 페더링 복사(`copyBoxFeathered`)합니다.
 > 따라서 **각 영역 `box`가 서로 겹치지 않아야(disjoint)** 하며, `box` 바깥쪽 배경 픽셀은 모든 20장에서 동일하게 유지되어야 "화면에는 다른데 오답 처리되는" 버그가 발생하지 않습니다.
 
@@ -51,13 +51,13 @@ description: >-
 
 ### Step 2. `REGIONS` 정의 및 20장 풀 + 매니페스트 빌드
 1. 각 변형 이미지와 베이스 이미지의 픽셀 차이를 비교해 18개 이상 영역의 **정규화 비중복 박스 `[x0, y0, x1, y1]`**, 한국어 라벨(`label`), `subtle` 여부를 JSON 설정 파일로 작성합니다.
-2. [scripts/build_photo_set.py](./scripts/build_photo_set.py)를 실행해 20장의 조합 이미지와 매니페스트(`js/games/spot-<stageId>-manifest.js`), 대표 썸네일(`assets/images/spot-<stageId>.jpg`)을 생성합니다.
+2. [scripts/build_photo_set.py](./scripts/build_photo_set.py)를 실행해 20장의 조합 이미지와 매니페스트(`games/spot-difference/<stageId>-manifest.js`), 20장 이미지(`games/spot-difference/assets/<stageId>/<stageId>-NN.jpg`), 대표 썸네일(`games/spot-difference/assets/<stageId>.jpg`)을 생성합니다.
    - 스크립트는 자동으로 박스 비중복 검사, 190쌍 해밍 거리(`min_pair >= 9`) 최적화, 영역별 `worst_l2` 검사를 수행합니다.
 3. 생성된 샘플 이미지(`01`, `04`, `08`, `15` 등)를 직접 열어 패치 경계 잘림·잔상·어색한 크기가 없는지 육안 검수합니다. (이상이 있으면 박스를 쪼개거나 변형 소스를 교정 후 재빌드)
 
 ### Step 3. 게임 레지스트리 등록
-1. [js/games/spot-stages.js](../../../../js/games/spot-stages.js)의 `SPOT_STAGES` 배열에 스테이지 메타데이터 추가 (`kind: 'photo-set'`).
-2. [js/games/spot-<stageId>-manifest.js](../../../../js/games/)에서 export한 `REGIONS`/`IMAGES` 상수를 [js/games/spot-difference.js](../../../../js/games/spot-difference.js) 상단 `PHOTO_SET_STAGES`에 등록.
+1. [games/spot-difference/stages.js](../../../games/spot-difference/stages.js)의 `SPOT_STAGES` 배열에 스테이지 메타데이터 추가 (`kind: 'photo-set'`, `thumb: spotAsset('<stageId>.jpg')`).
+2. `games/spot-difference/<stageId>-manifest.js`에서 export한 `REGIONS`/`IMAGES` 상수를 [games/spot-difference/round.js](../../../games/spot-difference/round.js)의 `PHOTO_SET_STAGES`에 등록 (이미지 `src`는 `spotAsset()`으로 변환).
 
 ### Step 4. 서로 비교 시 틀린 곳이 없는지 전수 검토 & 테스트 실행 (필수)
 1. 틀린그림찾기 전수 비교 테스트 케이스 실행:
