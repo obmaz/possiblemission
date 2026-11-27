@@ -72,6 +72,7 @@ games/<id>/
 `styles/`는 `tokens`(CSS 변수) → `base`(리셋·버튼) → `lobby` → `shell`(게임 화면 틀) → `components`(모달·결과·토스트·타이머/점수) → `setup`(난이도 선택) 순서입니다. 게임 스타일은 폴더 안 `style.css`이며 `.game-<id>` 아래로만 작성합니다.
 
 - 라이트 아케이드 톤. hover/focus 시각 효과는 추가하지 않습니다.
+- 상세 용어·파일·네이밍 규칙은 [`docs/conventions.md`](./conventions.md)를 따릅니다.
 - **난이도·플레이 방식 선택 화면 통일**:
   - 모든 게임의 시작 전 설정 화면은 반드시 `js/core/setup-screen.js`(`mountSetupScreen`)와 `styles/setup.css`(`.game-root.setup`)를 사용합니다. 게임별로 독자적인 난이도/모드 선택 UI를 만들지 않습니다.
   - 기본 난이도 프리셋에는 최소한 **`EASY`(쉬움), `MEDIUM`(보통), `HARD`(어려움)**(`id: 'easy' | 'medium' | 'hard'`)이 포함되어야 합니다(필요 시 `EXTREME`, `INSANE`, `GOD` 확장 가능).

@@ -30,7 +30,7 @@ const MAX_HINTS = 2;
 export function mount(container, ctx) {
   const config = parseModeConfig(ctx.mode);
   if (!config) return mountPicker(container, ctx);
-  const { difficulty, party, memorizeSec, targetCount, timeLimitSec, modeLabel } = config;
+  const { difficulty, party: isParty, memorizeSec, targetCount, timeLimitSec, modeLabel } = config;
   const roundData = resolveRoundData(ctx.rng, config.stage, targetCount, difficulty.id);
   const stage = roundData.stage;
   const anomalies = roundData.anomalies;
@@ -38,12 +38,12 @@ export function mount(container, ctx) {
   let unmounted = false;
   let isPaused = false;
   let finished = false;
-  let partyPhase = party ? 'memorize' : 'find';
-  let memorizeRemainingSec = party ? memorizeSec : 0;
+  let partyPhase = isParty ? 'memorize' : 'find';
+  let memorizeRemainingSec = isParty ? memorizeSec : 0;
   let remainingSec = timeLimitSec;
   let activePlayMs = 0;
   let lastFrameMs = performance.now();
-  let lastTickWholeSec = Math.ceil(party ? memorizeSec : timeLimitSec);
+  let lastTickWholeSec = Math.ceil(isParty ? memorizeSec : timeLimitSec);
 
   let foundCount = 0;
   let wrongTaps = 0;
@@ -81,7 +81,7 @@ export function mount(container, ctx) {
 
   // Render Scoped DOM
   const root = document.createElement('div');
-  root.className = `game-root game-spot-difference${party ? ' is-party' : ''}`;
+  root.className = `game-root game-spot-difference${isParty ? ' is-party' : ''}`;
   root.innerHTML = `
     <div class="sd-toolbar">
       <div class="sd-toolbar__left">
@@ -89,7 +89,7 @@ export function mount(container, ctx) {
           <span>${stage.titleKo}</span>
           <span class="sd-stage-badge__sub">${difficulty.label}</span>
           <span class="sd-stage-badge__sub">${targetCount}곳</span>
-          ${party ? '<span class="sd-stage-badge__sub">다같이</span>' : ''}
+          ${isParty ? '<span class="sd-stage-badge__sub">다같이</span>' : ''}
         </span>
         <div class="sd-counter" aria-label="발견한 차이점 개수">
           <span class="sd-counter__text" data-sd-count>0 / ${targetCount}</span>
@@ -121,7 +121,7 @@ export function mount(container, ctx) {
       </div>
     </div>
 
-    <div class="sd-party-banner" data-sd-party-banner ${party ? '' : 'hidden'}>
+    <div class="sd-party-banner" data-sd-party-banner ${isParty ? '' : 'hidden'}>
       <div class="sd-party-banner__info">
         <span class="sd-party-banner__badge">기억하기 단계</span>
         <span>원래 그림을 잘 기억하세요! 시간이 끝나거나 버튼을 누르면 바뀐 그림에서 찾기가 시작됩니다.</span>
@@ -129,7 +129,7 @@ export function mount(container, ctx) {
       <button type="button" class="sd-party-skip-btn" data-sd-party-skip>지금 바로 찾기 시작 →</button>
     </div>
 
-    <div class="sd-arena" data-sd-arena data-mobile-view="both" ${party ? 'data-party-phase="memorize"' : ''}>
+    <div class="sd-arena" data-sd-arena data-mobile-view="both" ${isParty ? 'data-party-phase="memorize"' : ''}>
       <section class="sd-board-card sd-board-card--orig" data-sd-card="orig">
         <header class="sd-board-header">
           <span class="sd-board-label">
@@ -161,7 +161,7 @@ export function mount(container, ctx) {
 
     <div class="sd-footer">
       <div class="sd-callout" data-sd-callout data-tone="info">
-        <span>${party ? '👀 먼저 원래 그림을 잘 기억해 두세요! (중간에 바로 시작 가능)' : `👀 좌우 그림에서 다른 부분 ${targetCount}곳을 터치하세요! (어느 쪽을 눌러도 인정)`}</span>
+        <span>${isParty ? '👀 먼저 원래 그림을 잘 기억해 두세요! (중간에 바로 시작 가능)' : `👀 좌우 그림에서 다른 부분 ${targetCount}곳을 터치하세요! (어느 쪽을 눌러도 인정)`}</span>
       </div>
       <span class="sd-shortcuts">단축키: [H] 힌트 · [M] 돋보기 · 캔버스에서 [Enter] 힌트</span>
     </div>
@@ -492,21 +492,21 @@ export function mount(container, ctx) {
     wrongTaps += 1;
     streak = 0;
     cooldownUntilMs = now + WRONG_INPUT_COOLDOWN_MS;
-    if (!party) {
+    if (!isParty) {
       remainingSec = Math.max(0, remainingSec - MISS_TIME_PENALTY_SEC);
     }
 
     ctx.audio.playError();
     triggerShake();
-    spawnFeedback(nx, ny, 'miss', party ? '틀렸어요!' : `-${MISS_TIME_PENALTY_SEC}초 페널티!`);
+    spawnFeedback(nx, ny, 'miss', isParty ? '틀렸어요!' : `-${MISS_TIME_PENALTY_SEC}초 페널티!`);
     setCallout(
-      party ? '❌ 다른 곳이 아니에요! 다시 잘 떠올려 보세요.' : `❌ 다른 곳이 아니에요! (-${MISS_TIME_PENALTY_SEC}초 페널티)`,
+      isParty ? '❌ 다른 곳이 아니에요! 다시 잘 떠올려 보세요.' : `❌ 다른 곳이 아니에요! (-${MISS_TIME_PENALTY_SEC}초 페널티)`,
       'error'
     );
     syncStatus();
     markDirty();
 
-    if (!party && remainingSec <= 0) {
+    if (!isParty && remainingSec <= 0) {
       finishGame(false);
     }
   }

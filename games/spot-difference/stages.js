@@ -4,7 +4,8 @@
  * pulling in the heavy drawing code.
  */
 
-export const SPOT_PICK_MODE = 'setup';
+export const SPOT_SETUP_MODE = 'setup';
+export const SPOT_PICK_MODE = SPOT_SETUP_MODE;
 export const SPOT_MEMORIZE_DEFAULT_SEC = 60;
 export const SPOT_MEMORIZE_OPTIONS = [15, 30, 45, 60, 90];
 
