@@ -498,7 +498,6 @@ function mountGame(container, ctx, settings) {
       if (shakeTimerId) clearTimeout(shakeTimerId);
       root.removeEventListener('click', onCardClick);
       offPause();
-      container.innerHTML = '';
     },
   };
 }

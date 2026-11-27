@@ -642,8 +642,6 @@ export function mount(container, ctx) {
         resizeObserver.disconnect();
         resizeObserver = null;
       }
-
-      container.innerHTML = '';
     },
   };
 }
@@ -687,7 +685,6 @@ function mountSetup(container, ctx) {
     idle: true,
     unmount() {
       root.removeEventListener('click', onClick);
-      container.innerHTML = '';
     },
   };
 }

@@ -361,7 +361,6 @@ function mountGame(container, ctx, settings) {
       partyPanel.removeEventListener('click', onPartyClick);
       window.removeEventListener('keydown', onPartyKey);
       offPause();
-      container.innerHTML = '';
     },
   };
 }

@@ -1003,7 +1003,6 @@ function mountGame(container, ctx, settings) {
         box.removeEventListener('focus', onBoxFocus);
       }
       for (const slot of slots) slot.removeEventListener('animationend', onSlotAnimEnd);
-      container.innerHTML = '';
     },
   };
 }

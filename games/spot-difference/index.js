@@ -891,7 +891,6 @@ export function mount(container, ctx) {
         im.onload = null;
         im.onerror = null;
       }
-      container.innerHTML = '';
     },
   };
 }

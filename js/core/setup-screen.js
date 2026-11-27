@@ -156,7 +156,6 @@ export function mountSetupScreen(container, ctx, cfg) {
     idle: true,
     unmount() {
       root.removeEventListener('click', onClick);
-      container.replaceChildren();
     },
   };
 }

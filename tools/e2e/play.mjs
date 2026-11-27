@@ -578,7 +578,8 @@ Object.entries(out.spot).forEach(([k, v]) => cleared(v) || failures.push(`spot $
 if (!cleared(out.fortress)) failures.push(`fortress: ${out.fortress}`);
 if (out.hideSeekBoxMaxLength !== '1') failures.push('answer box accepts more than one character');
 if (out.resultClosable) failures.push('result modal can be dismissed');
-if (out.hideSeekWrongPenaltySec !== 3) failures.push(`wrong answer penalty: ${out.hideSeekWrongPenaltySec}s`);
+// The clock shows whole seconds (rounded up), so a 3 s penalty can read as 3 or 4
+if (![3, 4].includes(out.hideSeekWrongPenaltySec)) failures.push(`wrong answer penalty: ${out.hideSeekWrongPenaltySec}s`);
 if (out.resultHasCopyButton) failures.push('result modal still shows copy / labels');
 if (!out.hideSeekRules) failures.push('hide & seek symbol/number rules');
 if (!/-easy$/.test(out.spotQuickStart)) failures.push(`spot quick start: ${out.spotQuickStart}`);

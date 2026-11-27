@@ -110,7 +110,6 @@ export function mountPicker(container, ctx) {
     idle: true,
     unmount() {
       root.removeEventListener('click', onClick);
-      container.innerHTML = '';
     },
   };
 }

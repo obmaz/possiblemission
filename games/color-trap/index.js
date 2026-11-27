@@ -465,7 +465,6 @@ function mountGame(container, ctx, settings) {
       root.removeEventListener('click', onClick);
       window.removeEventListener('keydown', onKeyDown);
       offPause();
-      container.innerHTML = '';
     },
   };
 }
